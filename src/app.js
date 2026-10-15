@@ -1066,8 +1066,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <input type="number" step="0.01" min="0" class="input-size txt-height" placeholder="Auto" value="${item.height ?? ''}" />
         <span class="size-unit">cm</span>
       </div>
-      <button type="button" class="btn-lock ${item.lockRatio !== false ? 'locked' : ''}" title="${item.lockRatio !== false ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas' : 'Rasio Bebas (Bisa distorsi). Klik untuk kunci rasio'}">
-        ${item.lockRatio !== false ? '🔒 Rasio Dikunci' : '🔓 Rasio Bebas'}
+      <button type="button" class="btn-lock ${item.lockRatio !== false ? 'locked' : ''}" title="${item.lockRatio !== false ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.' : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.'}">
+        ${item.lockRatio !== false ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka'}
       </button>
       <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${item.placeholder}) yang sedang dipilih di CorelDRAW">
         🎯 Ambil Seleksi Corel
@@ -1111,10 +1111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLock.addEventListener('click', () => {
       item.lockRatio = !item.lockRatio;
       btnLock.className = `btn-lock ${item.lockRatio ? 'locked' : ''}`;
-      btnLock.innerHTML = item.lockRatio ? '🔒 Rasio Dikunci' : '🔓 Rasio Bebas';
+      btnLock.innerHTML = item.lockRatio ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka';
       btnLock.title = item.lockRatio
-        ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas'
-        : 'Rasio Bebas (Bisa distorsi). Klik untuk kunci rasio';
+        ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.'
+        : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.';
       if (item.lockRatio && item.width && item.height) {
         item.aspectRatio = parseFloat(item.width) / parseFloat(item.height);
       }
@@ -1134,6 +1134,9 @@ document.addEventListener('DOMContentLoaded', () => {
           item.width = selInfo.widthCm;
           item.height = selInfo.heightCm;
           item.aspectRatio = selInfo.widthCm / selInfo.heightCm;
+          item.lockRatio = true;
+          btnLock.className = 'btn-lock locked';
+          btnLock.innerHTML = '🔒 Gembok: Terkunci';
           inputW.value = item.width;
           inputH.value = item.height;
           inputW.style.backgroundColor = '#1e3a8a';

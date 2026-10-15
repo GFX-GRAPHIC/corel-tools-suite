@@ -695,7 +695,7 @@ try {
     if (-not $doc) {
         throw "Tidak ada dokumen yang terbuka di CorelDRAW."
     }
-    $doc.Unit = 3 # cdrCentimeter
+    $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
 
     function Get-FormattedNum([int]$val, [int]$dig, [string]$pfx, [string]$sfx) {
         $numPart = [string]$val
@@ -1016,16 +1016,30 @@ function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, 
                         $curH = [double]$shp.SizeHeight
                         if ($curW -gt 0) {
                             $scale = $targetW / $curW
-                            $shp.SizeWidth = $targetW
-                            if ($isLocked) { $shp.SizeHeight = $curH * $scale }
+                            if ($isLocked -and $curH -gt 0) {
+                                $newH = $curH * $scale
+                                try { $shp.SetSize($targetW, $newH) } catch {
+                                    $shp.SizeWidth = $targetW
+                                    $shp.SizeHeight = $newH
+                                }
+                            } else {
+                                $shp.SizeWidth = $targetW
+                            }
                         }
                     } elseif ($targetH -gt 0) {
                         $curW = [double]$shp.SizeWidth
                         $curH = [double]$shp.SizeHeight
                         if ($curH -gt 0) {
                             $scale = $targetH / $curH
-                            if ($isLocked) { $shp.SizeWidth = $curW * $scale }
-                            $shp.SizeHeight = $targetH
+                            if ($isLocked -and $curW -gt 0) {
+                                $newW = $curW * $scale
+                                try { $shp.SetSize($newW, $targetH) } catch {
+                                    $shp.SizeWidth = $newW
+                                    $shp.SizeHeight = $targetH
+                                }
+                            } else {
+                                $shp.SizeHeight = $targetH
+                            }
                         }
                     }
                 } catch {}
@@ -1198,6 +1212,10 @@ try {
     try { $corel.Optimization = $true } catch {}
     try { $corel.EventsEnabled = $false } catch {}
     $doc.BeginCommandGroup("GFX Batch Certificate Mail Merge")
+    # Ensure active document unit is cdrCentimeter (4) for all merger modes (page, grid, inplace)
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm, 3 = mm)
 
     $totalRows = $rows.Count
 
@@ -1228,7 +1246,7 @@ try {
         $result.totalPages = 1
     }
     elseif ($mode -eq 'grid') {
-        $doc.Unit = 3 # cdrCentimeter
+        $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
 
         $sel = $null
         try { $sel = $corel.ActiveSelection } catch {}
@@ -1752,7 +1770,7 @@ try {
     if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka file desain di CorelDRAW." }
 
     $doc = $corel.ActiveDocument
-    $doc.Unit = 3 # cdrCentimeter
+    $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
     $doc.BeginCommandGroup("CTS Resize")
 
     $sel = $doc.ActiveSelection
@@ -2168,7 +2186,7 @@ try {
     }
     if (-not $doc) { throw "Tidak ada dokumen terbuka di CorelDRAW." }
 
-    $doc.Unit = 3 # cdrCentimeter
+    $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
 
     function Get-RangeCount($r) {
         if (-not $r) { return 0 }
@@ -2333,7 +2351,7 @@ try {
             try { $doc = $corel.Documents.Item(1); $doc.Activate() } catch {}
         }
         if ($doc) {
-            $doc.Unit = 3
+            $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
             $sel = $null
             try { $sel = $corel.ActiveSelection } catch {}
             if (-not $sel -or $sel.Shapes.Count -eq 0) { try { $sel = $doc.Selection } catch {} }
@@ -2405,7 +2423,7 @@ try {
     if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka file di CorelDRAW." }
 
     $doc = $corel.ActiveDocument
-    $doc.Unit = 3
+    $doc.Unit = 4 # cdrCentimeter (4 = cm, 3 = mm)
     $sel = $null
     try { $sel = $corel.ActiveSelection } catch {}
     if (-not $sel -or $sel.Shapes.Count -eq 0) { try { $sel = $doc.Selection } catch {} }

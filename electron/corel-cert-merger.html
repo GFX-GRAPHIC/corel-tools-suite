@@ -1340,8 +1340,8 @@
           <input type="number" step="0.01" min="0" class="input-size txt-height" placeholder="Auto" value="${v.height ?? ''}" />
           <span class="size-unit">cm</span>
         </div>
-        <button type="button" class="btn-lock ${v.lockRatio !== false ? 'locked' : ''}" title="${v.lockRatio !== false ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas' : 'Rasio Bebas (Bisa gepeng/distorsi). Klik untuk kunci rasio'}">
-          ${v.lockRatio !== false ? '🔒 Kunci Rasio' : '🔓 Rasio Bebas'}
+        <button type="button" class="btn-lock ${v.lockRatio !== false ? 'locked' : ''}" title="${v.lockRatio !== false ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.' : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.'}">
+          ${v.lockRatio !== false ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka'}
         </button>
         <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
           🎯 Ambil Seleksi Corel
@@ -1385,10 +1385,10 @@
       btnLock.addEventListener('click', () => {
         v.lockRatio = !v.lockRatio;
         btnLock.className = `btn-lock ${v.lockRatio ? 'locked' : ''}`;
-        btnLock.innerHTML = v.lockRatio ? '🔒 Kunci Rasio' : '🔓 Rasio Bebas';
+        btnLock.innerHTML = v.lockRatio ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka';
         btnLock.title = v.lockRatio
-          ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas'
-          : 'Rasio Bebas (Bisa gepeng/distorsi). Klik untuk kunci rasio';
+          ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.'
+          : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.';
         if (v.lockRatio && v.width && v.height) {
           v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
         }
@@ -1408,6 +1408,9 @@
             v.width = selInfo.widthCm;
             v.height = selInfo.heightCm;
             v.aspectRatio = selInfo.widthCm / selInfo.heightCm;
+            v.lockRatio = true;
+            btnLock.className = 'btn-lock locked';
+            btnLock.innerHTML = '🔒 Gembok: Terkunci';
             inputW.value = v.width;
             inputH.value = v.height;
             inputW.style.backgroundColor = '#dcfce7';
