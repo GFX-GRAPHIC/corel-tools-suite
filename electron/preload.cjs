@@ -47,6 +47,8 @@ const api = {
 
   corelToggleDarkMode: (mode) => ipcRenderer.invoke('corel:toggle-dark-mode', mode),
   corelConvertAllCurves: () => ipcRenderer.invoke('corel:convert-all-curves'),
+  changeCase: (caseType) => ipcRenderer.invoke('corel:change-case', caseType),
+  corelChangeCase: (caseType) => ipcRenderer.invoke('corel:change-case', caseType),
 
   executeConversion: (payload) => ipcRenderer.invoke('corel:execute-conversion', payload),
   executeColorReplace: (payload) => ipcRenderer.invoke('corel:execute-color-replace', payload),

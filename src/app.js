@@ -681,15 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeExcelWorkbookInfo = null;
 
   let excelMappings = [
-    { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-    { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-    { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+    { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+    { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+    { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
   ];
 
   let manualVariables = [
-    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
   ];
 
   // Tab switching
@@ -1057,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (item.lockRatio === undefined) item.lockRatio = true;
     if (!item.fitMode) item.fitMode = 'max';
     if (!item.align) item.align = 'center';
+    if (!item.textCase) item.textCase = 'none';
 
     bar.innerHTML = `
       <span class="size-label">📐 Ukuran:</span>
@@ -1084,6 +1085,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <option value="right" ${item.align === 'right' ? 'selected' : ''}>➡️ Rata Kanan</option>
         <option value="none" ${item.align === 'none' ? 'selected' : ''}>↔️ Posisi Asli</option>
       </select>
+      <select class="sel-text-case" title="Change Case (Format Huruf): Atur huruf menjadi Title Case, UPPERCASE, atau lowercase agar nama seragam">
+        <option value="none" ${item.textCase === 'none' || !item.textCase ? 'selected' : ''}>🔠 Asli</option>
+        <option value="title" ${item.textCase === 'title' ? 'selected' : ''}>Aa Title Case</option>
+        <option value="upper" ${item.textCase === 'upper' ? 'selected' : ''}>AA UPPERCASE</option>
+        <option value="lower" ${item.textCase === 'lower' ? 'selected' : ''}>aa lowercase</option>
+        <option value="sentence" ${item.textCase === 'sentence' ? 'selected' : ''}>A. Sentence case</option>
+        <option value="toggle" ${item.textCase === 'toggle' ? 'selected' : ''}>aA tOGGLE</option>
+      </select>
       <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${item.placeholder}) yang sedang dipilih di CorelDRAW">
         🎯 Ambil Seleksi Corel
       </button>
@@ -1095,6 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputH = bar.querySelector('.txt-height');
     const btnLock = bar.querySelector('.btn-lock');
     const selAlign = bar.querySelector('.sel-align');
+    const selTextCase = bar.querySelector('.sel-text-case');
     const btnSample = bar.querySelector('.btn-sample-size');
     const btnClear = bar.querySelector('.btn-clear-size');
 
@@ -1108,6 +1118,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     selAlign.addEventListener('change', () => {
       item.align = selAlign.value;
+    });
+
+    selTextCase.addEventListener('change', () => {
+      item.textCase = selTextCase.value;
     });
 
     inputW.addEventListener('input', () => {
@@ -1247,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const nextIdx = excelMappings.length + 1;
       const letters = ['A','B','C','D','E','F','G','H','I','J'];
       const nextCol = letters[nextIdx] || 'A';
-      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol, width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center' });
+      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol, width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' });
       renderMergerMappingList();
       updateMergerPreview();
     });
@@ -1256,9 +1270,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnMergerPresetA1) {
     btnMergerPresetA1.addEventListener('click', () => {
       excelMappings = [
-        { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+        { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
       ];
       renderMergerMappingList();
       updateMergerPreview();
@@ -1320,7 +1334,8 @@ document.addEventListener('DOMContentLoaded', () => {
         height: '',
         lockRatio: true,
         fitMode: 'max',
-        align: 'center'
+        align: 'center',
+        textCase: 'none'
       });
       renderManualCards();
       updateMergerPreview();
@@ -1330,9 +1345,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnManualPresetA1) {
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
       ];
       renderManualCards();
       updateMergerPreview();
@@ -1435,7 +1450,8 @@ document.addEventListener('DOMContentLoaded', () => {
           height: m.height ? parseFloat(m.height) : 0,
           lockRatio: m.lockRatio !== false,
           fitMode: m.fitMode || 'max',
-          align: m.align || 'center'
+          align: m.align || 'center',
+          textCase: m.textCase || 'none'
         }));
       } else {
         const splitLines = manualVariables.map(v => v.text.split(/\r?\n/).filter(l => l.trim()));
@@ -1459,7 +1475,8 @@ document.addEventListener('DOMContentLoaded', () => {
           height: v.height ? parseFloat(v.height) : 0,
           lockRatio: v.lockRatio !== false,
           fitMode: v.fitMode || 'max',
-          align: v.align || 'center'
+          align: v.align || 'center',
+          textCase: v.textCase || 'none'
         }));
       }
 
@@ -2109,11 +2126,129 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
+  // Change Case Dialog & Utilities (Native CorelDRAW Feature)
+  // ==========================================
+  function applyClientTextCase(text, caseType) {
+    if (!text) return '';
+    switch (caseType) {
+      case 'upper':
+        return text.toUpperCase();
+      case 'lower':
+        return text.toLowerCase();
+      case 'title':
+        return text.toLowerCase().replace(/(^|\s|\-|\/)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+      case 'sentence':
+        return text.toLowerCase().replace(/(^\s*|[.!?]\s*)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+      case 'toggle':
+        return text.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join('');
+      default:
+        return text;
+    }
+  }
+
+  const mainChangeCaseModal = document.getElementById('mainChangeCaseModal');
+  const btnMainOpenChangeCaseExcel = document.getElementById('btnMainOpenChangeCaseExcel');
+  const btnMainOpenChangeCaseManual = document.getElementById('btnMainOpenChangeCaseManual');
+  const btnUtilChangeCase = document.getElementById('btnUtilChangeCase');
+  const btnMainCloseChangeCaseModal = document.getElementById('btnMainCloseChangeCaseModal');
+  const btnMainCancelChangeCase = document.getElementById('btnMainCancelChangeCase');
+  const btnMainOkChangeCase = document.getElementById('btnMainOkChangeCase');
+  const btnMainHelpChangeCase = document.getElementById('btnMainHelpChangeCase');
+
+  function openMainChangeCaseModal() {
+    if (mainChangeCaseModal) mainChangeCaseModal.classList.add('active');
+  }
+
+  function closeMainChangeCaseModal() {
+    if (mainChangeCaseModal) mainChangeCaseModal.classList.remove('active');
+  }
+
+  [btnMainOpenChangeCaseExcel, btnMainOpenChangeCaseManual, btnUtilChangeCase].forEach(btn => {
+    if (btn) btn.addEventListener('click', openMainChangeCaseModal);
+  });
+
+  [btnMainCloseChangeCaseModal, btnMainCancelChangeCase].forEach(btn => {
+    if (btn) btn.addEventListener('click', closeMainChangeCaseModal);
+  });
+
+  if (mainChangeCaseModal) {
+    mainChangeCaseModal.addEventListener('click', (e) => {
+      if (e.target === mainChangeCaseModal) closeMainChangeCaseModal();
+    });
+  }
+
+  if (btnMainHelpChangeCase) {
+    btnMainHelpChangeCase.addEventListener('click', () => {
+      alert(
+        'Bantuan Format Huruf (Change Case):\n\n' +
+        '• Sentence case: Huruf kapital hanya pada awal kalimat/kata pertama.\n' +
+        '• lowercase: Semua huruf menjadi kecil (contoh: ahmad dahlan).\n' +
+        '• UPPERCASE: Semua huruf menjadi BESAR/KAPITAL (contoh: AHMAD DAHLAN).\n' +
+        '• Title Case: Huruf kapital pada setiap awal kata (contoh: Ahmad Dahlan, S.Pd).\n' +
+        '• tOGGLE cASE: Membalik kapitalisasi huruf besar ↔ kecil.\n\n' +
+        'Target:\n' +
+        '- Seleksi CorelDRAW: Mengubah teks yang sedang dipilih di lembar kerja CorelDRAW.\n' +
+        '- Semua Variabel Merger: Mengubah format semua variabel A1, A2, A3 sekaligus.'
+      );
+    });
+  }
+
+  if (btnMainOkChangeCase) {
+    btnMainOkChangeCase.addEventListener('click', async () => {
+      const radCase = document.querySelector('input[name="radMainChangeCase"]:checked')?.value || 'title';
+      const radTarget = document.querySelector('input[name="radMainCaseTarget"]:checked')?.value || 'corel_selection';
+
+      closeMainChangeCaseModal();
+
+      if (radTarget === 'corel_selection') {
+        const fn = window.corelAPI?.changeCase || window.electronAPI?.changeCase;
+        if (!fn) {
+          alert('Fitur CorelDRAW hanya aktif di aplikasi desktop.');
+          return;
+        }
+        try {
+          btnMainOkChangeCase.disabled = true;
+          showToast(`Mengubah huruf objek terpilih (${radCase})...`);
+          const res = await fn(radCase);
+          if (res && res.success) {
+            showToast(`Sukses ubah kapitalisasi di CorelDRAW!`);
+            alert(`🎉 Sukses!\n\n${res.message}`);
+          } else {
+            alert(`Gagal mengubah teks di CorelDRAW:\n\n${res?.message || 'Pastikan ada objek teks yang dipilih di CorelDRAW.'}`);
+          }
+        } catch (err) {
+          alert(`Error: ${err.message}`);
+        } finally {
+          btnMainOkChangeCase.disabled = false;
+        }
+      } else {
+        // Apply to all variables
+        excelMappings.forEach(m => {
+          m.textCase = radCase;
+        });
+        manualVariables.forEach(v => {
+          v.textCase = radCase;
+          v.text = applyClientTextCase(v.text, radCase);
+        });
+        renderMergerMappingList();
+        renderManualCards();
+        updateMergerPreview();
+        showToast(`Format huruf semua variabel diset ke: ${radCase.toUpperCase()}`);
+      }
+    });
+  }
+
+  // ==========================================
   // 12. Keyboard Shortcuts (Native Desktop)
   // ==========================================
   window.addEventListener('keydown', (e) => {
-    // Esc: return to Beranda if in tool view
+    // Esc: close Change Case modal if open, else return to Beranda
     if (e.key === 'Escape') {
+      if (mainChangeCaseModal && mainChangeCaseModal.classList.contains('active')) {
+        closeMainChangeCaseModal();
+        e.preventDefault();
+        return;
+      }
       if (activeView !== 'beranda') {
         switchView('beranda');
       }

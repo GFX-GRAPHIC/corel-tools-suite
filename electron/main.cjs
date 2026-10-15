@@ -961,8 +961,44 @@ function Get-RangeItem($r, [int]$idx) {
     return $null
 }
 
+# Helper function: Convert string casing (Sentence case, lowercase, UPPERCASE, Title Case, tOGGLE cASE)
+function Convert-TextCase($str, $caseType) {
+    if ([string]::IsNullOrEmpty($str) -or -not $caseType -or $caseType -eq 'none') { return $str }
+    switch ($caseType.ToLower()) {
+        'upper' { return $str.ToUpper() }
+        'lower' { return $str.ToLower() }
+        'title' {
+            try {
+                $ti = (Get-Culture).TextInfo
+                return $ti.ToTitleCase($str.ToLower())
+            } catch {
+                return $str
+            }
+        }
+        'sentence' {
+            $lower = $str.ToLower()
+            if ($lower.Length -gt 0) {
+                return $lower.Substring(0, 1).ToUpper() + $lower.Substring(1)
+            }
+            return $lower
+        }
+        'toggle' {
+            $chars = $str.ToCharArray()
+            for ($i = 0; $i -lt $chars.Length; $i++) {
+                if ([char]::IsUpper($chars[$i])) {
+                    $chars[$i] = [char]::ToLower($chars[$i])
+                } elseif ([char]::IsLower($chars[$i])) {
+                    $chars[$i] = [char]::ToUpper($chars[$i])
+                }
+            }
+            return (-join $chars)
+        }
+        default { return $str }
+    }
+}
+
 # Helper function: Replace text in shape case-insensitively with Width/Height and LockRatio support
-function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio, $fitMode, $align, $docPage) {
+function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio, $fitMode, $align, $docPage, $textCase = 'none') {
     if (-not $shp) { return $false }
     $replaced = $false
     if ($shp.Type -eq 6) { # cdrTextShape
@@ -975,6 +1011,11 @@ function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, 
         } catch {}
 
         if ($hasMatch) {
+            # Convert text case if requested
+            if ($textCase -and $textCase -ne 'none') {
+                $replaceVal = Convert-TextCase $replaceVal $textCase
+            }
+
             # 1. Capture original coordinates BEFORE text replacement
             $origCenterX = [double]$shp.CenterX
             $origCenterY = [double]$shp.CenterY
@@ -999,6 +1040,21 @@ function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, 
             }
 
             if ($replaced) {
+                # 2b. Apply Corel native change case enum if specified
+                if ($textCase -and $textCase -ne 'none') {
+                    $cdrCaseEnum = switch ($textCase.ToLower()) {
+                        'sentence' { 1 }
+                        'lower'    { 2 }
+                        'upper'    { 3 }
+                        'title'    { 4 }
+                        'toggle'   { 5 }
+                        default    { 0 }
+                    }
+                    if ($cdrCaseEnum -gt 0) {
+                        try { $shp.Text.Story.Case = $cdrCaseEnum } catch {}
+                    }
+                }
+
                 # 3. Set Text Story Alignment in Corel
                 try {
                     if ($align -eq 'center' -or $align -eq 'page_center') {
@@ -1188,9 +1244,12 @@ function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
         if ($m.fitMode) { $fit = [string]$m.fitMode }
         $al = 'center'
         if ($m.align) { $al = [string]$m.align }
+        $tc = 'none'
+        if ($m.textCase) { $tc = [string]$m.textCase }
+        elseif ($m.changeCase) { $tc = [string]$m.changeCase }
 
         foreach ($t in $textList) {
-            Replace-ShapeText $t $ph $val $w $h $lock $fit $al $docPage
+            Replace-ShapeText $t $ph $val $w $h $lock $fit $al $docPage $tc
         }
     }
 }
@@ -2200,6 +2259,166 @@ try {
     $result.success = $true
     $result.count = $convertedCount
     $result.message = "Berhasil mengonversi $convertedCount objek teks menjadi kurva vektor!"
+} catch {
+    try {
+        if ($corel) {
+            $corel.Optimization = $false
+            $corel.EventsEnabled = $true
+            if ($doc) { $doc.EndCommandGroup() }
+            $corel.Refresh()
+        }
+    } catch {}
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+$result | ConvertTo-Json -Compress
+`;
+  return runPowerShellScript(ps);
+});
+
+// Change Case on Active Selection or Active Page text shapes
+ipcMain.handle('corel:change-case', async (_event, caseType) => {
+  const targetCase = caseType || 'title';
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; count = 0 }
+
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and $c.ActiveDocument) { $corel = $c; break }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka dokumen di CorelDRAW terlebih dahulu." }
+
+    $doc = $corel.ActiveDocument
+    $caseType = '${targetCase}'
+    $cdrCaseEnum = switch ($caseType) {
+        'sentence' { 1 }
+        'lower'    { 2 }
+        'upper'    { 3 }
+        'title'    { 4 }
+        'toggle'   { 5 }
+        default    { 0 }
+    }
+
+    function Convert-TextCase($str, $caseType) {
+        if ([string]::IsNullOrEmpty($str) -or -not $caseType -or $caseType -eq 'none') { return $str }
+        switch ($caseType.ToLower()) {
+            'upper' { return $str.ToUpper() }
+            'lower' { return $str.ToLower() }
+            'title' {
+                try {
+                    $ti = (Get-Culture).TextInfo
+                    return $ti.ToTitleCase($str.ToLower())
+                } catch {
+                    return $str
+                }
+            }
+            'sentence' {
+                $lower = $str.ToLower()
+                if ($lower.Length -gt 0) {
+                    return $lower.Substring(0, 1).ToUpper() + $lower.Substring(1)
+                }
+                return $lower
+            }
+            'toggle' {
+                $chars = $str.ToCharArray()
+                for ($i = 0; $i -lt $chars.Length; $i++) {
+                    if ([char]::IsUpper($chars[$i])) {
+                        $chars[$i] = [char]::ToLower($chars[$i])
+                    } elseif ([char]::IsLower($chars[$i])) {
+                        $chars[$i] = [char]::ToUpper($chars[$i])
+                    }
+                }
+                return (-join $chars)
+            }
+            default { return $str }
+        }
+    }
+
+    function Get-AllTextShapes($container) {
+        $list = @()
+        if (-not $container) { return $list }
+        try {
+            if ($container.Type -eq 6) {
+                $list += $container
+                return $list
+            }
+        } catch {}
+        try {
+            $finds = $container.FindShapes($null, 6, $true)
+            if ($finds -and $finds.Count -gt 0) {
+                for ($i = 1; $i -le $finds.Count; $i++) {
+                    $list += $finds.Item($i)
+                }
+                return $list
+            }
+        } catch {}
+        try {
+            if ($container.Shapes) {
+                for ($i = 1; $i -le $container.Shapes.Count; $i++) {
+                    $s = $container.Shapes.Item($i)
+                    if ($s.Type -eq 6) {
+                        $list += $s
+                    } elseif ($s.Type -eq 7) {
+                        $list += (Get-AllTextShapes $s)
+                    }
+                }
+            }
+        } catch {}
+        return $list
+    }
+
+    $sel = $null
+    try { $sel = $doc.ActiveSelection } catch {}
+    $texts = @()
+    if ($sel -and $sel.Shapes.Count -gt 0) {
+        $texts = Get-AllTextShapes $sel
+    }
+    if (-not $texts -or $texts.Count -eq 0) {
+        $texts = Get-AllTextShapes $doc.ActivePage
+    }
+
+    if (-not $texts -or $texts.Count -eq 0) {
+        throw "Tidak ditemukan objek teks pada seleksi atau halaman aktif CorelDRAW."
+    }
+
+    $corel.Optimization = $true
+    $corel.EventsEnabled = $false
+    $doc.BeginCommandGroup("Change Case ($caseType)")
+
+    $count = 0
+    foreach ($t in $texts) {
+        try {
+            if ($cdrCaseEnum -gt 0) {
+                try { $t.Text.Story.Case = $cdrCaseEnum } catch {}
+            }
+            $curTxt = $t.Text.Story.Text
+            if ($curTxt) {
+                $newTxt = Convert-TextCase $curTxt $caseType
+                if ($newTxt -ne $curTxt) {
+                    $t.Text.Story.Text = $newTxt
+                }
+                $count++
+            }
+        } catch {}
+    }
+
+    $doc.EndCommandGroup()
+    $corel.Optimization = $false
+    $corel.EventsEnabled = $true
+    $corel.Refresh()
+    if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() }
+
+    $result.success = $true
+    $result.count = $count
+    $result.message = "Berhasil mengubah format huruf ($caseType) pada $count objek teks."
 } catch {
     try {
         if ($corel) {

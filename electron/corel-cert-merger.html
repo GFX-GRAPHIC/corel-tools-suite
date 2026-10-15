@@ -449,7 +449,7 @@
       font-weight: 700;
     }
 
-    .sel-fit-mode, .sel-align {
+    .sel-fit-mode, .sel-align, .sel-text-case {
       height: 22px;
       padding: 0 4px;
       border: 1px solid #cbd5e1;
@@ -462,13 +462,118 @@
       cursor: pointer;
     }
 
-    .sel-fit-mode:hover, .sel-align:hover {
+    .sel-fit-mode:hover, .sel-align:hover, .sel-text-case:hover {
       background: #f1f5f9;
     }
 
-    .sel-fit-mode:focus, .sel-align:focus {
+    .sel-fit-mode:focus, .sel-align:focus, .sel-text-case:focus {
       border-color: #6366f1;
       background: #ffffff;
+    }
+
+    /* Change Case Modal - CorelDRAW Native Dark Style */
+    .change-case-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .change-case-modal-overlay.open {
+      display: flex;
+    }
+    .change-case-dialog {
+      width: 290px;
+      background: #2b2b2b;
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .change-case-dialog-header {
+      background: #1f2937;
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #374151;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #f3f4f6;
+    }
+    .change-case-dialog-header .btn-close-modal {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .change-case-dialog-header .btn-close-modal:hover {
+      color: #ffffff;
+    }
+    .change-case-dialog-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 11px;
+    }
+    .change-case-radio-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      color: #e2e8f0;
+    }
+    .change-case-radio-item input[type="radio"] {
+      cursor: pointer;
+      accent-color: #3b82f6;
+      width: 13px;
+      height: 13px;
+      margin: 0;
+    }
+    .change-case-dialog-footer {
+      padding: 10px 14px;
+      background: #242424;
+      border-top: 1px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .change-case-dialog-footer .btn-modal-action {
+      height: 25px;
+      min-width: 65px;
+      padding: 0 12px;
+      background: #374151;
+      border: 1px solid #4b5563;
+      border-radius: 3px;
+      color: #f9fafb;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .change-case-dialog-footer .btn-modal-action:hover {
+      background: #4b5563;
+    }
+    .change-case-dialog-footer .btn-modal-primary {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+    }
+    .change-case-dialog-footer .btn-modal-primary:hover {
+      background: #1d4ed8;
     }
 
     .btn-sample-size {
@@ -762,6 +867,7 @@
             <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">🔠 Change Case...</button>
             <button type="button" id="btnPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset placeholder ke A1, A2, A3">Preset: A1-A3</button>
             <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Teks</button>
           </div>
@@ -789,6 +895,7 @@
             <span>INPUT / PASTE DATA TEKS BEBAS PER VARIABEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">🔠 Change Case...</button>
             <button type="button" id="btnManualPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset A1, A2, A3">Preset A1-A3</button>
             <button type="button" id="btnAddManualVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Variabel</button>
           </div>
@@ -921,16 +1028,16 @@
 
     // Excel Mode Variables mapping
     let excelVariables = [
-      { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+      { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
     ];
 
     // Manual Mode Variables
     let manualVariables = [
-      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
     ];
 
     // Elements
@@ -1353,6 +1460,7 @@
       if (v.lockRatio === undefined) v.lockRatio = true;
       if (!v.fitMode) v.fitMode = 'max';
       if (!v.align) v.align = 'center';
+      if (!v.textCase) v.textCase = 'none';
 
       bar.innerHTML = `
         <span class="size-label">📐 Ukuran:</span>
@@ -1380,6 +1488,14 @@
           <option value="right" ${v.align === 'right' ? 'selected' : ''}>➡️ Rata Kanan</option>
           <option value="none" ${v.align === 'none' ? 'selected' : ''}>↔️ Posisi Asli</option>
         </select>
+        <select class="sel-text-case" title="Change Case (Format Huruf): Atur huruf menjadi Title Case, UPPERCASE, atau lowercase agar nama seragam">
+          <option value="none" ${v.textCase === 'none' || !v.textCase ? 'selected' : ''}>🔠 Asli</option>
+          <option value="title" ${v.textCase === 'title' ? 'selected' : ''}>Aa Title Case</option>
+          <option value="upper" ${v.textCase === 'upper' ? 'selected' : ''}>AA UPPERCASE</option>
+          <option value="lower" ${v.textCase === 'lower' ? 'selected' : ''}>aa lowercase</option>
+          <option value="sentence" ${v.textCase === 'sentence' ? 'selected' : ''}>A. Sentence case</option>
+          <option value="toggle" ${v.textCase === 'toggle' ? 'selected' : ''}>aA tOGGLE</option>
+        </select>
         <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
           🎯 Ambil Seleksi Corel
         </button>
@@ -1391,6 +1507,7 @@
       const inputH = bar.querySelector('.txt-height');
       const btnLock = bar.querySelector('.btn-lock');
       const selAlign = bar.querySelector('.sel-align');
+      const selTextCase = bar.querySelector('.sel-text-case');
       const btnSample = bar.querySelector('.btn-sample-size');
       const btnClear = bar.querySelector('.btn-clear-size');
 
@@ -1404,6 +1521,10 @@
 
       selAlign.addEventListener('change', () => {
         v.align = selAlign.value;
+      });
+
+      selTextCase.addEventListener('change', () => {
+        v.textCase = selTextCase.value;
       });
 
       inputW.addEventListener('input', () => {
@@ -1559,16 +1680,17 @@
         height: '',
         lockRatio: true,
         fitMode: 'max',
-        align: 'center'
+        align: 'center',
+        textCase: 'none'
       });
       renderExcelMappingRows();
     });
 
     btnPresetA1.addEventListener('click', () => {
       excelVariables = [
-        { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+        { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
       ];
       renderExcelMappingRows();
     });
@@ -1725,16 +1847,17 @@
         height: '',
         lockRatio: true,
         fitMode: 'max',
-        align: 'center'
+        align: 'center',
+        textCase: 'none'
       });
       renderManualUI();
     });
 
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
-        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
+        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'title' },
+        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none', textCase: 'none' }
       ];
       renderManualUI();
     });
@@ -1791,7 +1914,8 @@
           height: v.height ? parseFloat(v.height) : 0,
           lockRatio: v.lockRatio !== false,
           fitMode: v.fitMode || 'max',
-          align: v.align || 'center'
+          align: v.align || 'center',
+          textCase: v.textCase || 'none'
         }));
       } else {
         // Manual Mode
@@ -1828,7 +1952,8 @@
             height: v.height ? parseFloat(v.height) : 0,
             lockRatio: v.lockRatio !== false,
             fitMode: v.fitMode || 'max',
-            align: v.align || 'center'
+            align: v.align || 'center',
+            textCase: v.textCase || 'none'
           }));
       }
 
@@ -1895,6 +2020,103 @@
       }
     });
 
+    // Helper function: Client-side text casing
+    function applyTextCase(text, caseType) {
+      if (!text) return '';
+      switch (caseType) {
+        case 'upper':
+          return text.toUpperCase();
+        case 'lower':
+          return text.toLowerCase();
+        case 'title':
+          return text.toLowerCase().replace(/(^|\s|\-|\/)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+        case 'sentence':
+          return text.toLowerCase().replace(/(^\s*|[.!?]\s*)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+        case 'toggle':
+          return text.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join('');
+        default:
+          return text;
+      }
+    }
+
+    // Modal elements & event handlers
+    const changeCaseModal = document.getElementById('changeCaseModal');
+    const btnOpenChangeCase = document.getElementById('btnOpenChangeCase');
+    const btnManualOpenChangeCase = document.getElementById('btnManualOpenChangeCase');
+    const btnCloseChangeCaseModal = document.getElementById('btnCloseChangeCaseModal');
+    const btnCancelChangeCase = document.getElementById('btnCancelChangeCase');
+    const btnOkChangeCase = document.getElementById('btnOkChangeCase');
+    const btnHelpChangeCase = document.getElementById('btnHelpChangeCase');
+
+    function openChangeCaseModal() {
+      if (changeCaseModal) changeCaseModal.classList.add('open');
+    }
+    function closeChangeCaseModal() {
+      if (changeCaseModal) changeCaseModal.classList.remove('open');
+    }
+
+    if (btnOpenChangeCase) btnOpenChangeCase.addEventListener('click', openChangeCaseModal);
+    if (btnManualOpenChangeCase) btnManualOpenChangeCase.addEventListener('click', openChangeCaseModal);
+    if (btnCloseChangeCaseModal) btnCloseChangeCaseModal.addEventListener('click', closeChangeCaseModal);
+    if (btnCancelChangeCase) btnCancelChangeCase.addEventListener('click', closeChangeCaseModal);
+
+    if (btnHelpChangeCase) {
+      btnHelpChangeCase.addEventListener('click', () => {
+        alert(
+          "Fitur Change Case (Format Huruf):\n\n" +
+          "• Sentence case: Huruf kapital hanya di awal kalimat (misal: 'Ahmad dahlan').\n" +
+          "• lowercase: Semua huruf kecil (misal: 'ahmad dahlan').\n" +
+          "• UPPERCASE: Semua huruf besar / kapital (misal: 'AHMAD DAHLAN').\n" +
+          "• Title Case: Huruf besar di setiap awal kata (misal: 'Ahmad Dahlan').\n" +
+          "• tOGGLE cASE: Membalik huruf besar dan kecil.\n\n" +
+          "Pilih 'Seleksi Teks Aktif di CorelDRAW' untuk langsung mengubah teks di Corel, atau 'Semua Variabel Merger' untuk mengubah seluruh data sertifikat."
+        );
+      });
+    }
+
+    if (btnOkChangeCase) {
+      btnOkChangeCase.addEventListener('click', async () => {
+        const radCase = document.querySelector('input[name="radChangeCase"]:checked')?.value || 'title';
+        const radTarget = document.querySelector('input[name="radCaseTarget"]:checked')?.value || 'corel_selection';
+
+        closeChangeCaseModal();
+
+        if (radTarget === 'corel_selection') {
+          const fn = window.electronAPI?.changeCase || window.corelAPI?.changeCase;
+          if (!fn) {
+            alert('Fitur CorelDRAW hanya aktif di aplikasi desktop.');
+            return;
+          }
+          try {
+            lblActionStatus.innerText = `Stat: Mengubah huruf (${radCase})...`;
+            const res = await fn(radCase);
+            if (res && res.success) {
+              lblActionStatus.innerText = 'Stat: Siap';
+              alert(`🎉 Sukses!\n\n${res.message}`);
+            } else {
+              lblActionStatus.innerText = 'Stat: Siap';
+              alert(`Gagal mengubah teks di CorelDRAW:\n\n${res?.message || 'Pastikan teks terseleksi di CorelDRAW.'}`);
+            }
+          } catch (err) {
+            lblActionStatus.innerText = 'Stat: Error';
+            alert(`Error: ${err.message}`);
+          }
+        } else {
+          // Apply to all variables
+          excelVariables.forEach(v => {
+            v.textCase = radCase;
+          });
+          manualVariables.forEach(v => {
+            v.textCase = radCase;
+            v.text = applyTextCase(v.text, radCase);
+          });
+          renderExcelMappingRows();
+          renderManualUI();
+          alert(`Berhasil mengatur format huruf semua variabel ke: ${radCase.toUpperCase()}!`);
+        }
+      });
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       checkCorel();
       renderExcelMappingRows();
@@ -1903,5 +2125,56 @@
     });
     window.addEventListener('focus', () => checkCorel());
   </script>
+
+  <!-- Modal: CorelDRAW Native-Style Change Case Dialog -->
+  <div class="change-case-modal-overlay" id="changeCaseModal">
+    <div class="change-case-dialog">
+      <div class="change-case-dialog-header">
+        <span>Change Case</span>
+        <button type="button" class="btn-close-modal" id="btnCloseChangeCaseModal">✕</button>
+      </div>
+      <div class="change-case-dialog-body">
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="sentence" />
+          <span><u>S</u>entence case</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="lower" />
+          <span><u>l</u>owercase</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="upper" />
+          <span><u>U</u>PPERCASE</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="title" checked />
+          <span><u>T</u>itle Case</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="toggle" />
+          <span>t<u>O</u>GGLE cASE</span>
+        </label>
+
+        <div style="border-top: 1px solid #3f3f46; margin-top: 4px; padding-top: 8px;">
+          <div style="font-size: 10px; color: #9ca3af; margin-bottom: 5px; font-weight: 600;">Terapkan ke:</div>
+          <label class="change-case-radio-item" style="font-size: 10px;">
+            <input type="radio" name="radCaseTarget" value="corel_selection" checked />
+            <span>🎯 Seleksi Teks Aktif di CorelDRAW</span>
+          </label>
+          <label class="change-case-radio-item" style="font-size: 10px; margin-top: 2px;">
+            <input type="radio" name="radCaseTarget" value="all_variables" />
+            <span>📜 Semua Variabel Merger (A1, A2, A3...)</span>
+          </label>
+        </div>
+      </div>
+      <div class="change-case-dialog-footer">
+        <button type="button" class="btn-modal-action" id="btnHelpChangeCase" title="Bantuan Format Huruf" style="min-width: 28px; width: 28px; padding: 0;">?</button>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-modal-action btn-modal-primary" id="btnOkChangeCase">OK</button>
+          <button type="button" class="btn-modal-action" id="btnCancelChangeCase">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
