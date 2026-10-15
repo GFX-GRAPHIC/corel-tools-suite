@@ -865,3 +865,68 @@ body {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
   z-index: 9999;
 }
+
+/* ========================================================
+   10. Specialized Tool Widgets (Dropzone, Mapping, Cards)
+   ======================================================== */
+.dropzone-box {
+  border: 2px dashed var(--border-color);
+  background-color: var(--bg-app);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.dropzone-box:hover, .dropzone-box.dragover {
+  border-color: var(--accent-blue);
+  background-color: var(--bg-card);
+}
+
+.dropzone-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.dropzone-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.file-info-box {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mapping-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.variable-card {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+

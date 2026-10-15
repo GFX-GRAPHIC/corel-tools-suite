@@ -1,9 +1,21 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, clipboard, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { exec, execFile } = require('child_process');
 
 let mainWindow = null;
+let corelCompanionWindow = null;
+let corelNumeratorWindow = null;
+let corelAiTracerWindow = null;
+let corelCertMergerWindow = null;
+let activeJerseySessionData = null;
+
+let aiTracerService = null;
+try {
+  aiTracerService = require('./aiTracerService.cjs');
+} catch (e) {
+  console.log('aiTracerService note:', e.message);
+}
 
 function getAppIcon() {
   const icoPath = path.join(__dirname, '../public/favicon.ico');
@@ -11,6 +23,120 @@ function getAppIcon() {
   if (fs.existsSync(icoPath)) return icoPath;
   if (fs.existsSync(pngPath)) return pngPath;
   return null;
+}
+
+function createCorelCompanionWindow(data) {
+  if (data) activeJerseySessionData = data;
+  if (corelCompanionWindow && !corelCompanionWindow.isDestroyed()) {
+    corelCompanionWindow.focus();
+    return corelCompanionWindow;
+  }
+  corelCompanionWindow = new BrowserWindow({
+    width: 430,
+    height: 610,
+    minWidth: 380,
+    minHeight: 520,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0f172a',
+    title: 'Corel Tools Suite — Auto-Layout Jersey',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+  corelCompanionWindow.loadFile(path.join(__dirname, 'corel-companion.html'));
+  corelCompanionWindow.on('closed', () => { corelCompanionWindow = null; });
+  return corelCompanionWindow;
+}
+
+function createCorelNumeratorWindow() {
+  if (corelNumeratorWindow && !corelNumeratorWindow.isDestroyed()) {
+    corelNumeratorWindow.focus();
+    return corelNumeratorWindow;
+  }
+  corelNumeratorWindow = new BrowserWindow({
+    width: 450,
+    height: 660,
+    minWidth: 400,
+    minHeight: 560,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0f172a',
+    title: 'Corel Tools Suite — Numerator Machine',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+  corelNumeratorWindow.loadFile(path.join(__dirname, 'corel-numerator.html'));
+  corelNumeratorWindow.on('closed', () => { corelNumeratorWindow = null; });
+  return corelNumeratorWindow;
+}
+
+function createCorelAiTracerWindow() {
+  if (corelAiTracerWindow && !corelAiTracerWindow.isDestroyed()) {
+    corelAiTracerWindow.focus();
+    return corelAiTracerWindow;
+  }
+  corelAiTracerWindow = new BrowserWindow({
+    width: 1240,
+    height: 820,
+    minWidth: 960,
+    minHeight: 620,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: false,
+    backgroundColor: '#0f172a',
+    title: 'Corel Tools Suite — AI Jersey Tracer',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webviewTag: true,
+      webSecurity: false,
+    },
+  });
+  corelAiTracerWindow.loadFile(path.join(__dirname, 'corel-ai-tracer.html'));
+  corelAiTracerWindow.on('closed', () => { corelAiTracerWindow = null; });
+  return corelAiTracerWindow;
+}
+
+function createCorelCertMergerWindow() {
+  if (corelCertMergerWindow && !corelCertMergerWindow.isDestroyed()) {
+    corelCertMergerWindow.focus();
+    return corelCertMergerWindow;
+  }
+  corelCertMergerWindow = new BrowserWindow({
+    width: 580,
+    height: 750,
+    minWidth: 480,
+    minHeight: 600,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0f172a',
+    title: 'Corel Tools Suite — Certificate & Variable Data Merger',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+  corelCertMergerWindow.loadFile(path.join(__dirname, 'corel-cert-merger.html'));
+  corelCertMergerWindow.on('closed', () => { corelCertMergerWindow = null; });
+  return corelCertMergerWindow;
 }
 
 function createWindow() {
@@ -65,35 +191,92 @@ app.on('window-all-closed', () => {
 });
 
 // ==========================================
-// Window Control IPC Handlers
+// Window Control IPC Handlers (Supports Main & Companion Windows)
 // ==========================================
-ipcMain.on('window-minimize', () => {
-  if (mainWindow) mainWindow.minimize();
+ipcMain.on('window-minimize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.minimize();
 });
 
-ipcMain.on('window-maximize', () => {
-  if (mainWindow) mainWindow.maximize();
+ipcMain.on('window-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  }
 });
 
-ipcMain.on('window-unmaximize', () => {
-  if (mainWindow) mainWindow.unmaximize();
+ipcMain.on('window-unmaximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.unmaximize();
 });
 
-ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close();
+ipcMain.on('window-close', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.close();
 });
 
-ipcMain.handle('window-is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false;
+ipcMain.on('window-reload', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) win.reload();
 });
 
-ipcMain.handle('window-toggle-always-on-top', () => {
-  if (mainWindow) {
-    const nextState = !mainWindow.isAlwaysOnTop();
-    mainWindow.setAlwaysOnTop(nextState);
+ipcMain.handle('window-is-maximized', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  return win ? win.isMaximized() : false;
+});
+
+ipcMain.handle('window-toggle-always-on-top', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win) {
+    const nextState = !win.isAlwaysOnTop();
+    win.setAlwaysOnTop(nextState);
     return { isAlwaysOnTop: nextState };
   }
   return { isAlwaysOnTop: false };
+});
+
+// ==========================================
+// Companion Window Opener IPC Handlers
+// ==========================================
+ipcMain.handle('corel:open-companion-tool', async (_event, data) => {
+  const win = createCorelCompanionWindow(data);
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:open-numerator-tool', async () => {
+  const win = createCorelNumeratorWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:open-cert-merger-tool', async () => {
+  const win = createCorelCertMergerWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:open-ai-tracer-tool', async () => {
+  const win = createCorelAiTracerWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:get-active-order-data', async () => {
+  return activeJerseySessionData;
 });
 
 // ==========================================
@@ -1463,3 +1646,560 @@ $result | ConvertTo-Json -Compress
 `;
   return runPowerShellScript(ps);
 });
+
+// Alias for Certificate & Variable Data Merger
+ipcMain.handle('corel:execute-cert-merger', async (event, payload) => {
+  return await ipcMain._invokeHandler
+    ? ipcMain._invokeHandler('corel:execute-merger', event, payload)
+    : mainWindow.webContents.executeJavaScript;
+});
+
+// CorelDRAW Dark Mode Toggle
+ipcMain.handle('corel:toggle-dark-mode', async (_event, targetMode) => {
+  const mode = targetMode || 'dark';
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; mode = '${mode}' }
+
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and $c.ActiveDocument) { $corel = $c; break }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka dokumen di CorelDRAW terlebih dahulu." }
+
+    $doc = $corel.ActiveDocument
+    if ('${mode}' -eq 'dark') {
+        for ($p = 1; $p -le $doc.Pages.Count; $p++) {
+            $page = $doc.Pages.Item($p)
+            $page.Background = 2
+            $page.Color.RGBAssign(30, 41, 59)
+            try { $page.Printable = $false } catch {}
+        }
+        $result.message = "Mode Gelap CorelDRAW Berhasil Diaktifkan!"
+    } else {
+        for ($p = 1; $p -le $doc.Pages.Count; $p++) {
+            $page = $doc.Pages.Item($p)
+            $page.Background = 1
+            $page.Color.RGBAssign(255, 255, 255)
+        }
+        $result.message = "Mode Terang CorelDRAW Kembali Aktif."
+    }
+    $corel.Refresh()
+    if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() }
+    $result.success = $true
+} catch {
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+$result | ConvertTo-Json -Compress
+`;
+  return runPowerShellScript(ps);
+});
+
+// Convert All Text Shapes to Curves (Ctrl+Q Massal)
+ipcMain.handle('corel:convert-all-curves', async () => {
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; count = 0 }
+
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and $c.ActiveDocument) { $corel = $c; break }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka dokumen di CorelDRAW terlebih dahulu." }
+
+    $doc = $corel.ActiveDocument
+    $page = $doc.ActivePage
+    if (-not $page) { $page = $doc.Pages.Item(1) }
+
+    $corel.Optimization = $true
+    $corel.EventsEnabled = $false
+    $doc.BeginCommandGroup("Convert All Text to Curves")
+
+    $textShapes = $page.Shapes.FindShapes($null, 6, $true)
+    $convertedCount = $textShapes.Count
+    if ($convertedCount -gt 0) {
+        for ($i = $convertedCount; $i -ge 1; $i--) {
+            try {
+                $ts = $textShapes.Item($i)
+                $ts.ConvertToCurves()
+            } catch {}
+        }
+    }
+
+    $doc.EndCommandGroup()
+    $corel.Optimization = $false
+    $corel.EventsEnabled = $true
+    $corel.Refresh()
+    if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() }
+
+    $result.success = $true
+    $result.count = $convertedCount
+    $result.message = "Berhasil mengonversi $convertedCount objek teks menjadi kurva vektor!"
+} catch {
+    try {
+        if ($corel) {
+            $corel.Optimization = $false
+            $corel.EventsEnabled = $true
+            if ($doc) { $doc.EndCommandGroup() }
+            $corel.Refresh()
+        }
+    } catch {}
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+$result | ConvertTo-Json -Compress
+`;
+  return runPowerShellScript(ps);
+});
+
+// Auto-Layout Jersey Handlers
+ipcMain.handle('corel:execute-layout', async (_event, payload) => {
+  return new Promise((resolve) => {
+    const { targetSize, players, spacingCm = 1.0, limitCopy = 4, direction = 'vertical', maxNameWidthCm = 27.0 } = payload || {};
+    if (!players || players.length === 0) {
+      return resolve({ success: false, message: 'Daftar pemain kosong.' });
+    }
+
+    const tempDir = app.getPath('temp');
+    const timestamp = Date.now();
+    const tempJsonPath = path.join(tempDir, `corel_data_${timestamp}.json`);
+    const tempPs1Path = path.join(tempDir, `corel_exec_${timestamp}.ps1`);
+
+    const dataPayload = {
+      targetSize,
+      players,
+      spacingCm: parseFloat(spacingCm) || 1.0,
+      limitCopy: parseInt(limitCopy, 10) || 4,
+      direction: direction || 'vertical',
+      maxNameWidthCm: parseFloat(maxNameWidthCm) || 27.0,
+    };
+
+    fs.writeFileSync(tempJsonPath, JSON.stringify(dataPayload, null, 2), 'utf-8');
+
+    const psScript = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; count = 0 }
+
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0))) {
+                $corel = $c; break
+            }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if (-not $corel) { throw "Pastikan CorelDRAW sedang dibuka." }
+
+    $doc = $null
+    try { $doc = $corel.ActiveDocument } catch {}
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try { $doc = $corel.Documents.Item(1); $doc.Activate() } catch {}
+    }
+    if (-not $doc) { throw "Tidak ada dokumen terbuka di CorelDRAW." }
+
+    $doc.Unit = 3 # cdrCentimeter
+
+    function Get-RangeCount($r) {
+        if (-not $r) { return 0 }
+        try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+        try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+        return 0
+    }
+    function Get-RangeItem($r, [int]$idx) {
+        if (-not $r) { return $null }
+        try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+        return $null
+    }
+
+    $selection = $null
+    try { $selection = $corel.ActiveSelection } catch {}
+    if (-not $selection -or (Get-RangeCount $selection) -eq 0) {
+        try { $selection = $doc.Selection } catch {}
+    }
+    $selCount = Get-RangeCount $selection
+    if ($selCount -eq 0) { throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu." }
+
+    $jsonFile = $args[0]
+    $data = Get-Content -Path $jsonFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $playerList = $data.players
+    $spacing = [double]$data.spacingCm
+    $limit = [int]$data.limitCopy
+    if ($limit -lt 1) { $limit = 4 }
+    $dir = $data.direction
+    $maxW = if ($data.maxNameWidthCm) { [double]$data.maxNameWidthCm } else { 27.0 }
+
+    $masterShape = if ($selCount -gt 1) { $selection.Group() } else { Get-RangeItem $selection 1 }
+    $width  = [double]$masterShape.SizeWidth
+    $height = [double]$masterShape.SizeHeight
+
+    function UpdateTextsInShape($shapeItem, $nameText, $numText, $maxNameLimit) {
+        try {
+            $textShapes = $shapeItem.Shapes.FindShapes($null, 6, $true)
+            if ($textShapes.Count -gt 0) {
+                for ($t = 1; $t -le $textShapes.Count; $t++) {
+                    $ts = $textShapes.Item($t)
+                    $origCenterX = [double]$ts.CenterX
+                    $origCenterY = [double]$ts.CenterY
+                    $origW       = [double]$ts.SizeWidth
+                    $story = $ts.Text.Story
+                    $curr = $story.Text.Trim()
+                    try { $story.Alignment = 3 } catch {}
+                    if ($curr -match '^\\d+$' -or $curr -match '(?i)^(#|00|99|0|no|no\\.)$') {
+                        $story.Text = [string]$numText
+                        if ($origW -gt 0 -and $ts.SizeWidth -gt ($origW * 1.25)) { $ts.SizeWidth = $origW * 1.25 }
+                        $ts.CenterX = $origCenterX
+                        $ts.CenterY = $origCenterY
+                    } else {
+                        $story.Text = [string]$nameText
+                        $capW = [math]::Max($origW, $maxNameLimit)
+                        if ($ts.SizeWidth -gt $capW) { $ts.SizeWidth = $capW }
+                        $ts.CenterX = $origCenterX
+                        $ts.CenterY = $origCenterY
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    $corel.Optimization = $true
+    $corel.EventsEnabled = $false
+    $doc.BeginCommandGroup("CTS Auto-Layout Jersey")
+
+    $created = 0
+    if ($playerList.Count -gt 0) {
+        $p0 = $playerList[0]
+        $p0Name = if ($p0.name) { $p0.name.ToString().ToUpper() } else { "PEMAIN" }
+        $p0Num = if ($p0.number -and $p0.number -ne '-') { $p0.number.ToString() } else { "" }
+        UpdateTextsInShape $masterShape $p0Name $p0Num $maxW
+        $created++
+    }
+
+    for ($i = 1; $i -lt $playerList.Count; $i++) {
+        $p = $playerList[$i]
+        $pName = if ($p.name) { $p.name.ToString().ToUpper() } else { "PEMAIN" }
+        $pNum = if ($p.number -and $p.number -ne '-') { $p.number.ToString() } else { "" }
+        $row = $i % $limit
+        $col = [math]::Floor($i / $limit)
+        $dx = $col * ($width + $spacing)
+        $dy = -($row * ($height + $spacing))
+        $dup = $masterShape.Duplicate($dx, $dy)
+        UpdateTextsInShape $dup $pName $pNum $maxW
+        $created++
+    }
+
+    $doc.EndCommandGroup()
+    $corel.Optimization = $false
+    $corel.EventsEnabled = $true
+    $corel.Refresh()
+    if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() }
+
+    $result.success = $true
+    $result.count = $created
+    $result.message = "Berhasil menata $created pola jersey di CorelDRAW!"
+} catch {
+    try {
+        if ($corel) {
+            $corel.Optimization = $false
+            $corel.EventsEnabled = $true
+            if ($doc) { $doc.EndCommandGroup() }
+            $corel.Refresh()
+        }
+    } catch {}
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+$result | ConvertTo-Json -Compress
+`;
+
+    fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path, tempJsonPath],
+      { timeout: 45000 },
+      (err, stdout, stderr) => {
+        try {
+          if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+          if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
+        } catch {}
+        if (err && !stdout) {
+          return resolve({ success: false, message: stderr || err?.message || 'Gagal menjalankan otomasi' });
+        }
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          resolve(parsed);
+        } catch {
+          resolve({ success: false, message: stdout.trim() || stderr || 'Gagal memproses respon CorelDRAW' });
+        }
+      }
+    );
+  });
+});
+
+// Selection Info Handler
+ipcMain.handle('corel:get-selection-info', async () => {
+  const ps = `
+$ErrorActionPreference = 'SilentlyContinue'
+$result = @{ success = $false; count = 0; widthCm = 0; heightCm = 0 }
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0))) {
+                $corel = $c; break
+            }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if ($corel) {
+        $doc = $null
+        try { $doc = $corel.ActiveDocument } catch {}
+        if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+            try { $doc = $corel.Documents.Item(1); $doc.Activate() } catch {}
+        }
+        if ($doc) {
+            $doc.Unit = 3
+            $sel = $null
+            try { $sel = $corel.ActiveSelection } catch {}
+            if (-not $sel -or $sel.Shapes.Count -eq 0) { try { $sel = $doc.Selection } catch {} }
+            if ($sel -and $sel.Shapes.Count -gt 0) {
+                $result.success = $true
+                $result.count = $sel.Shapes.Count
+                $result.widthCm = [math]::Round([double]$sel.SizeWidth, 3)
+                $result.heightCm = [math]::Round([double]$sel.SizeHeight, 3)
+            } else {
+                $result.success = $true
+            }
+        }
+    }
+} catch {}
+$result | ConvertTo-Json -Compress
+`;
+  return runPowerShellScript(ps);
+});
+
+// AI Jersey Tracer APIs
+ipcMain.handle('corel:ai-tracer-validate-key', async (_event, apiKey) => {
+  try {
+    if (!aiTracerService) throw new Error('Modul AI Tracer belum diinisialisasi');
+    return await aiTracerService.validateGeminiApiKey(apiKey);
+  } catch (err) {
+    return { valid: false, message: err?.message || 'Gagal validasi API Key' };
+  }
+});
+
+ipcMain.handle('corel:ai-tracer-process', async (_event, payload) => {
+  try {
+    if (!aiTracerService) throw new Error('Modul AI Tracer belum diinisialisasi');
+    return await aiTracerService.processAiJerseyTrace(payload);
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal memproses gambar AI' };
+  }
+});
+
+ipcMain.handle('corel:apply-ai-pattern', async (_event, payload) => {
+  return new Promise((resolve) => {
+    const { patternPath, logoBase64, bleedCm = 1.5 } = payload || {};
+    if (!patternPath || !fs.existsSync(patternPath)) {
+      return resolve({ success: false, message: 'File motif tidak ditemukan.' });
+    }
+    let logoPath = '';
+    if (logoBase64 && aiTracerService) {
+      try { logoPath = aiTracerService.saveExtractedLogo(logoBase64); } catch {}
+    }
+
+    const tempDir = app.getPath('temp');
+    const tempPs1Path = path.join(tempDir, `corel_apply_pattern_${Date.now()}.ps1`);
+    const tempJsonPath = path.join(tempDir, `corel_apply_pattern_${Date.now()}.json`);
+    fs.writeFileSync(tempJsonPath, JSON.stringify({ patternPath, logoPath, bleedCm }), 'utf-8');
+
+    const psScript = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = '' }
+try {
+    $corel = $null
+    for ($v = 26; $v -ge 14; $v--) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+            if ($c -and $c.ActiveDocument) { $corel = $c; break }
+        } catch {}
+    }
+    if (-not $corel) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+    }
+    if (-not $corel -or -not $corel.ActiveDocument) { throw "Buka file di CorelDRAW." }
+
+    $doc = $corel.ActiveDocument
+    $doc.Unit = 3
+    $sel = $null
+    try { $sel = $corel.ActiveSelection } catch {}
+    if (-not $sel -or $sel.Shapes.Count -eq 0) { try { $sel = $doc.Selection } catch {} }
+    if (-not $sel -or $sel.Shapes.Count -eq 0) { throw "Pilih bentuk pola target di CorelDRAW untuk di-PowerClip." }
+
+    $targetShape = if ($sel.Shapes.Count -gt 1) { $sel.Group() } else { $sel.Shapes.Item(1) }
+    $w = [double]$targetShape.SizeWidth
+    $h = [double]$targetShape.SizeHeight
+    $cx = [double]$targetShape.CenterX
+    $cy = [double]$targetShape.CenterY
+
+    $data = Get-Content -Path '${tempJsonPath.replace(/'/g, "''")}' -Raw -Encoding UTF8 | ConvertFrom-Json
+    $patFile = $data.patternPath
+    $bleed = [double]$data.bleedCm
+
+    $layer = $doc.ActiveLayer
+    $importedBmp = $layer.ImportBitmap($patFile)
+    if (-not $importedBmp) { throw "Gagal mengimpor gambar ke CorelDRAW." }
+
+    $importedBmp.SizeWidth = $w + ($bleed * 2)
+    $importedBmp.SizeHeight = $h + ($bleed * 2)
+    $importedBmp.CenterX = $cx
+    $importedBmp.CenterY = $cy
+
+    try {
+        $importedBmp.AddToPowerClip($targetShape)
+    } catch {
+        [void]$importedBmp.OrderToBack()
+    }
+
+    $corel.Refresh()
+    $result.success = $true
+    $result.message = "Motif berhasil diterapkan ke dalam pola CorelDRAW!"
+} catch {
+    $result.success = $false
+    $result.message = $_.Exception.Message
+}
+$result | ConvertTo-Json -Compress
+`;
+
+    fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path], { timeout: 30000 }, (err, stdout) => {
+      try {
+        if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+        if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
+      } catch {}
+      try {
+        resolve(JSON.parse(stdout.trim()));
+      } catch {
+        resolve({ success: false, message: stdout?.trim() || err?.message || 'Gagal memproses PowerClip' });
+      }
+    });
+  });
+});
+
+ipcMain.handle('corel:copy-image-clipboard', async (_event, imagePathOrBase64) => {
+  try {
+    let img = null;
+    if (typeof imagePathOrBase64 === 'string') {
+      if (imagePathOrBase64.startsWith('data:image')) {
+        const b64 = imagePathOrBase64.split('base64,')[1];
+        img = nativeImage.createFromBuffer(Buffer.from(b64, 'base64'));
+      } else if (fs.existsSync(imagePathOrBase64)) {
+        img = nativeImage.createFromPath(imagePathOrBase64);
+      }
+    }
+    if (img && !img.isEmpty()) {
+      clipboard.writeImage(img);
+      return { success: true };
+    }
+    return { success: false, message: 'Gagal memproses gambar.' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal menyalin gambar.' };
+  }
+});
+
+ipcMain.handle('corel:read-image-clipboard', async () => {
+  try {
+    const img = clipboard.readImage();
+    if (img && !img.isEmpty()) {
+      const buf = img.toPNG();
+      const size = img.getSize();
+      return {
+        success: true,
+        dataUrl: `data:image/png;base64,${buf.toString('base64')}`,
+        size,
+      };
+    }
+    return { success: false, message: 'Clipboard tidak berisi gambar. Salin gambar terlebih dahulu.' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal membaca clipboard.' };
+  }
+});
+
+ipcMain.handle('corel:save-pattern-image', async (_event, { dataUrl, upscale4k = false }) => {
+  try {
+    if (!dataUrl) throw new Error('Data gambar kosong.');
+    const b64 = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
+    let buf = Buffer.from(b64, 'base64');
+
+    if (upscale4k) {
+      try {
+        const img = nativeImage.createFromBuffer(buf);
+        const size = img.getSize();
+        const resized = img.resize({ width: size.width * 2, height: size.height * 2, quality: 'best' });
+        buf = resized.toPNG();
+      } catch {}
+    }
+
+    const tempDir = app.getPath('temp');
+    const fileName = `cts_pattern_${Date.now()}.png`;
+    const filePath = path.join(tempDir, fileName);
+    fs.writeFileSync(filePath, buf);
+
+    return {
+      success: true,
+      filePath,
+      dataUrl: `data:image/png;base64,${buf.toString('base64')}`,
+    };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal menyimpan gambar.' };
+  }
+});
+
+ipcMain.handle('corel:open-file-explorer', async (_event, filePath) => {
+  try {
+    if (filePath && fs.existsSync(filePath)) {
+      shell.showItemInFolder(filePath);
+      return { success: true };
+    }
+    return { success: false, message: 'File tidak ditemukan.' };
+  } catch (err) {
+    return { success: false, message: err?.message || 'Gagal membuka folder.' };
+  }
+});
+
+ipcMain.handle('corel:open-external-url', async (_event, url) => {
+  try {
+    if (url) {
+      await shell.openExternal(url);
+      return { success: true };
+    }
+    return { success: false, message: 'URL kosong.' };
+  } catch (err) {
+    return { success: false, message: err?.message };
+  }
+});
+

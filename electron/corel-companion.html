@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFX IT PRINTING</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-size: 11.5px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #94a3b8;
+    }
+
+    /* Windows Native Titlebar */
+    .titlebar {
+      height: 28px;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      border-bottom: 1px solid #cbd5e1;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .titlebar-icon {
+      width: 14px;
+      height: 14px;
+      background-color: #1e40af;
+      color: #ffffff;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-btn {
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .titlebar-btn:hover {
+      background-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .titlebar-btn.close:hover {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Header Blue Banner */
+    .app-header {
+      background-color: #1e40af;
+      color: #ffffff;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .app-header-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .app-header-sub {
+      font-size: 10px;
+      color: #93c5fd;
+    }
+
+    /* Form Container */
+    .form-container {
+      flex: 1;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background-color: #ffffff;
+      overflow-y: auto;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      height: 26px;
+      padding: 0 6px;
+      background-color: #ffffff;
+      border: 1px solid #94a3b8;
+      border-radius: 2px;
+      color: #0f172a;
+      font-size: 11.5px;
+      outline: none;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: #1e40af;
+      box-shadow: 0 0 0 1px #1e40af;
+    }
+
+    input[readonly] {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .btn-browse {
+      width: 70px;
+      height: 26px;
+      background-color: #e2e8f0;
+      border: 1px solid #94a3b8;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .btn-browse:hover {
+      background-color: #cbd5e1;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* Action Buttons */
+    .action-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-primary {
+      flex: 1;
+      height: 28px;
+      background-color: #e2e8f0;
+      border: 1px solid #94a3b8;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary:hover {
+      background-color: #cbd5e1;
+    }
+
+    .btn-primary.btn-gas {
+      background-color: #1e40af;
+      color: #ffffff;
+      border-color: #1e40af;
+      font-weight: 700;
+    }
+
+    .btn-primary.btn-gas:hover {
+      background-color: #1d4ed8;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Info Box & Status Bar */
+    .info-box {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 2px;
+      padding: 6px 8px;
+      font-size: 10.5px;
+      color: #1e40af;
+      line-height: 1.4;
+    }
+
+    .info-box strong {
+      color: #172554;
+    }
+
+    .status-bar {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      padding: 5px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: auto;
+      flex-shrink: 0;
+    }
+
+    .status-line {
+      font-size: 11px;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-corel {
+      font-size: 10px;
+      color: #64748b;
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    .footer-author {
+      font-size: 9.5px;
+      color: #94a3b8;
+      text-align: center;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-icon">G</div>
+      <span>GFX IT PRINTING — Auto-Layout</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btnMinimize">_</button>
+      <button class="titlebar-btn close" id="btnClose">✕</button>
+    </div>
+  </div>
+
+  <!-- Header Banner -->
+  <div class="app-header">
+    <div class="app-header-title">GFX IT PRINTING</div>
+    <div class="app-header-sub">automatic jersey naming & layout generator</div>
+  </div>
+
+  <!-- Form Container -->
+  <div class="form-container">
+    <!-- Data Ukuran -->
+    <div class="field-group">
+      <label class="field-label">Data ukuran (Excel / List Pemain)</label>
+      <div class="input-row">
+        <input type="text" id="txtDataUkuran" readonly value="Belum ada data (Klik Browse atau buka dari POS)" />
+        <button type="button" class="btn-browse" id="btnBrowse">Browse</button>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" />
+    </div>
+
+    <!-- Target Ukuran -->
+    <div class="field-group">
+      <label class="field-label">Target ukuran</label>
+      <select id="selTargetUkuran">
+        <option value="ALL">Semua Ukuran</option>
+      </select>
+    </div>
+
+    <!-- Jarak & Limit Copy -->
+    <div class="grid-2">
+      <div class="field-group">
+        <label class="field-label">Jarak (cm)</label>
+        <input type="number" id="numJarak" value="1.0" step="0.5" min="0" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Limit Copy</label>
+        <input type="number" id="numLimitCopy" value="4" min="1" max="100" />
+      </div>
+    </div>
+
+    <!-- Arah Susunan & Maks Lebar Nama -->
+    <div class="grid-2">
+      <div class="field-group">
+        <label class="field-label">Arah Susunan</label>
+        <select id="selDirection">
+          <option value="vertical" selected>Vertikal (Ke Bawah)</option>
+          <option value="horizontal">Horizontal (Ke Samping)</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Maks. Lebar Nama (cm)</label>
+        <input type="number" id="numMaxNameWidth" value="27.0" step="0.5" min="10" max="60" />
+      </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+      <strong>Cara Pakai:</strong><br/>
+      1. Siapkan 1 pola master di CorelDRAW lengkap dengan teks nama & nomor dummy.<br/>
+      2. Seleksi seluruh grup pola master tersebut di CorelDRAW.<br/>
+      3. Klik tombol <strong>Gas!</strong> di bawah.
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-group">
+      <button type="button" class="btn-primary btn-gas" id="btnGas">Gas!</button>
+      <button type="button" class="btn-primary" id="btnCancel1">Cancel</button>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-line">
+        <span id="lblStatus">Stat: Siap</span>
+        <span id="lblRefresh" style="color: #1e40af; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
+      </div>
+      <div class="status-corel" id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</div>
+    </div>
+
+    <div class="footer-author">by: GFX IT PRINTING</div>
+  </div>
+
+  <!-- SheetJS for Excel Reading -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    const btnMinimize = document.getElementById('btnMinimize');
+    const btnClose = document.getElementById('btnClose');
+    const btnBrowse = document.getElementById('btnBrowse');
+    const fileInput = document.getElementById('fileInput');
+    const txtDataUkuran = document.getElementById('txtDataUkuran');
+    const selTargetUkuran = document.getElementById('selTargetUkuran');
+    const numJarak = document.getElementById('numJarak');
+    const numLimitCopy = document.getElementById('numLimitCopy');
+    const selDirection = document.getElementById('selDirection');
+    const numMaxNameWidth = document.getElementById('numMaxNameWidth');
+    const btnGas = document.getElementById('btnGas');
+    const btnCancel1 = document.getElementById('btnCancel1');
+    const lblStatus = document.getElementById('lblStatus');
+    const lblRefresh = document.getElementById('lblRefresh');
+    const lblCorelStatus = document.getElementById('lblCorelStatus');
+
+    let currentOrderData = null;
+    let loadedPlayers = [];
+
+    // Titlebar Controls
+    btnMinimize.addEventListener('click', () => {
+      if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
+    });
+    btnClose.addEventListener('click', () => {
+      window.close();
+    });
+    btnCancel1.addEventListener('click', () => {
+      window.close();
+    });
+
+    // Check Corel Connection
+    async function checkCorel() {
+      try {
+        if (window.electronAPI?.corelCheckStatus) {
+          const res = await window.electronAPI.corelCheckStatus();
+          if (res.connected) {
+            lblCorelStatus.innerText = `CorelDRAW: Connected — Version ${res.version || '2021'}`;
+            lblCorelStatus.style.color = '#15803d';
+          } else {
+            lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
+            lblCorelStatus.style.color = '#dc2626';
+          }
+        } else {
+          lblCorelStatus.innerText = 'CorelDRAW: Web Mode (Simulator)';
+        }
+      } catch (err) {
+        lblCorelStatus.innerText = 'CorelDRAW: Disconnected';
+        lblCorelStatus.style.color = '#dc2626';
+      }
+    }
+
+    lblRefresh.addEventListener('click', () => {
+      lblStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
+      checkCorel();
+      setTimeout(() => { lblStatus.innerText = 'Stat: Siap'; }, 1000);
+    });
+
+    // Load active session from POS if opened from desktop app
+    async function loadActiveSession() {
+      try {
+        if (window.electronAPI?.corelGetActiveOrderData) {
+          const data = await window.electronAPI.corelGetActiveOrderData();
+          if (data && data.players && data.players.length > 0) {
+            currentOrderData = data;
+            loadedPlayers = data.players;
+            txtDataUkuran.value = `Order POS: ${data.orderNo || 'Jersey'} (${loadedPlayers.length} Pemain)`;
+            populateSizeDropdown(loadedPlayers);
+            lblStatus.innerText = `Stat: ${loadedPlayers.length} data pemain dimuat dari POS`;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat sesi POS:', err);
+      }
+    }
+
+    // Populate Size Dropdown
+    function populateSizeDropdown(players) {
+      selTargetUkuran.innerHTML = '<option value="ALL">Semua Ukuran (ALL)</option>';
+      const sizes = [...new Set(players.map(p => (p.size || 'L').trim().toUpperCase()))].filter(Boolean);
+      sizes.sort();
+      sizes.forEach(sz => {
+        const count = players.filter(p => (p.size || 'L').trim().toUpperCase() === sz).length;
+        const opt = document.createElement('option');
+        opt.value = sz;
+        opt.innerText = `Ukuran ${sz} (${count} pcs)`;
+        selTargetUkuran.appendChild(opt);
+      });
+    }
+
+    // Browse Excel
+    btnBrowse.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      txtDataUkuran.value = file.name;
+      lblStatus.innerText = 'Stat: Membaca file Excel...';
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+          if (!rows || rows.length <= 1) {
+            alert('File Excel kosong atau format tidak sesuai.');
+            lblStatus.innerText = 'Stat: File kosong';
+            return;
+          }
+
+          let nameCol = -1, noCol = -1, sizeCol = -1;
+          const header = rows[0].map(h => String(h).trim().toUpperCase());
+
+          header.forEach((h, idx) => {
+            if (h.includes('NAMA') || h.includes('NAME') || h.includes('PEMAIN')) nameCol = idx;
+            if (h.includes('NO') || h.includes('NOMOR') || h.includes('PUNGGUNG') || h.includes('NUMBER')) noCol = idx;
+            if (h.includes('SIZE') || h.includes('UKURAN')) sizeCol = idx;
+          });
+
+          if (nameCol === -1) nameCol = 1;
+          if (noCol === -1) noCol = 2;
+          if (sizeCol === -1) sizeCol = 3;
+
+          const parsedPlayers = [];
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const name = String(row[nameCol] || '').trim();
+            const number = String(row[noCol] || '').trim();
+            const size = String(row[sizeCol] || 'L').trim().toUpperCase() || 'L';
+
+            if (name || number) {
+              parsedPlayers.push({
+                name: name || 'PEMAIN',
+                number: number || '00',
+                size: size
+              });
+            }
+          }
+
+          if (parsedPlayers.length === 0) {
+            alert('Tidak ditemukan data pemain di Excel.');
+            lblStatus.innerText = 'Stat: 0 Pemain';
+            return;
+          }
+
+          loadedPlayers = parsedPlayers;
+          populateSizeDropdown(loadedPlayers);
+          txtDataUkuran.value = `${file.name} (${loadedPlayers.length} Pemain)`;
+          lblStatus.innerText = `Stat: Berhasil memuat ${loadedPlayers.length} data pemain`;
+        } catch (err) {
+          alert(`Gagal membaca Excel: ${err.message}`);
+          lblStatus.innerText = 'Stat: Gagal membaca file';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Execute Auto-Layout (Gas!)
+    btnGas.addEventListener('click', async () => {
+      if (loadedPlayers.length === 0) {
+        alert('Silakan pilih file Excel / data ukuran pemain terlebih dahulu.');
+        return;
+      }
+
+      const targetSize = selTargetUkuran.value;
+      const spacing = parseFloat(numJarak.value) || 1.0;
+      const limit = parseInt(numLimitCopy.value, 10) || 4;
+      const dir = selDirection.value;
+      const maxNameWidth = parseFloat(numMaxNameWidth.value) || 27.0;
+
+      let filteredPlayers = loadedPlayers;
+      if (targetSize !== 'ALL') {
+        filteredPlayers = loadedPlayers.filter(p => (p.size || 'L').trim().toUpperCase() === targetSize);
+      }
+
+      if (filteredPlayers.length === 0) {
+        alert(`Tidak ada pemain dengan ukuran ${targetSize}.`);
+        return;
+      }
+
+      btnGas.disabled = true;
+      btnGas.innerText = 'Menata di CorelDRAW...';
+      lblStatus.innerText = `Stat: Menata ${filteredPlayers.length} pola jersey...`;
+
+      try {
+        if (window.electronAPI?.corelExecuteLayout) {
+          const res = await window.electronAPI.corelExecuteLayout({
+            targetSize,
+            players: filteredPlayers,
+            spacingCm: spacing,
+            limitCopy: limit,
+            direction: dir,
+            maxNameWidthCm: maxNameWidth,
+          });
+
+          if (res.success) {
+            lblStatus.innerText = `Stat: Selesai (${res.count || filteredPlayers.length} pola)!`;
+            alert(`Berhasil menata ${res.count || filteredPlayers.length} pola jersey di CorelDRAW!`);
+          } else {
+            lblStatus.innerText = 'Stat: Gagal';
+            alert(`Gagal menata di CorelDRAW:\n${res.message}`);
+          }
+        }
+      } catch (err) {
+        lblStatus.innerText = 'Stat: Error';
+        alert(`Error: ${err.message}`);
+      } finally {
+        btnGas.disabled = false;
+        btnGas.innerText = 'Gas!';
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadActiveSession();
+      checkCorel();
+      setInterval(checkCorel, 8000);
+    });
+    window.addEventListener('focus', () => {
+      checkCorel();
+    });
+  </script>
+</body>
+</html>
+

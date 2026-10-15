@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFX IT PRINTING — Numerator Machine</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-size: 11.5px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #94a3b8;
+    }
+
+    /* Windows Native Titlebar */
+    .titlebar {
+      height: 28px;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      border-bottom: 1px solid #cbd5e1;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .titlebar-icon {
+      width: 15px;
+      height: 15px;
+      background-color: #059669;
+      color: #ffffff;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-btn {
+      width: 28px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      color: #64748b;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .titlebar-btn:hover {
+      background-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .titlebar-btn.close:hover {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Header Green Banner */
+    .app-header {
+      background: linear-gradient(180deg, #059669 0%, #047857 100%);
+      color: #ffffff;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .app-header-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .app-header-sub {
+      font-size: 10px;
+      color: #a7f3d0;
+    }
+
+    /* Form Container */
+    .form-container {
+      flex: 1;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background-color: #ffffff;
+      overflow-y: auto;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      height: 26px;
+      padding: 0 6px;
+      background-color: #ffffff;
+      border: 1px solid #94a3b8;
+      border-radius: 2px;
+      color: #0f172a;
+      font-size: 11.5px;
+      outline: none;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: #059669;
+      box-shadow: 0 0 0 1px #059669;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* Section Box */
+    .section-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background-color: #fafafa;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #047857;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Live Preview Banner */
+    .preview-box {
+      background-color: #f0fdf4;
+      border: 1px dashed #34d399;
+      border-radius: 3px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .preview-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #065f46;
+      text-transform: uppercase;
+    }
+
+    .preview-value {
+      font-family: Consolas, Monaco, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #047857;
+    }
+
+    .preview-sub {
+      font-size: 10px;
+      color: #059669;
+    }
+
+    /* Checkboxes */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #334155;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      cursor: pointer;
+      accent-color: #059669;
+    }
+
+    /* Action Buttons */
+    .action-group {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-primary {
+      flex: 1;
+      height: 30px;
+      background-color: #e2e8f0;
+      border: 1px solid #94a3b8;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary:hover {
+      background-color: #cbd5e1;
+    }
+
+    .btn-primary.btn-gas {
+      background-color: #059669;
+      color: #ffffff;
+      border-color: #047857;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .btn-primary.btn-gas:hover {
+      background-color: #047857;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      padding: 5px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: auto;
+      flex-shrink: 0;
+    }
+
+    .status-line {
+      font-size: 11px;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-corel {
+      font-size: 10px;
+      color: #64748b;
+      font-family: Consolas, Monaco, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .footer-author {
+      font-size: 9.5px;
+      color: #94a3b8;
+      text-align: center;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-icon">#</div>
+      <span>GFX IT PRINTING — Numerator Machine</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btnMinimize">_</button>
+      <button class="titlebar-btn close" id="btnClose">✕</button>
+    </div>
+  </div>
+
+  <!-- Header Banner -->
+  <div class="app-header">
+    <div class="app-header-title">NUMERATOR MACHINE</div>
+    <div class="app-header-sub">auto numbering for vouchers, tickets, id cards & invoices</div>
+  </div>
+
+  <!-- Form Container -->
+  <div class="form-container">
+    <!-- 1. PENGATURAN NOMOR -->
+    <div class="section-box">
+      <div class="section-title">▲ 1. Pengaturan Nomor</div>
+
+      <!-- Nomor Awal & Nomor Akhir -->
+      <div class="grid-2">
+        <div class="field-group">
+          <label class="field-label">Nomor Awal (Start)</label>
+          <input type="number" id="numStart" value="1" min="0" step="1" />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Nomor Akhir (End)</label>
+          <input type="number" id="numEnd" value="100" min="1" step="1" />
+        </div>
+      </div>
+
+      <!-- Format Digit & Kenaikan -->
+      <div class="grid-2">
+        <div class="field-group">
+          <label class="field-label">Format Digit (Leading Zeros)</label>
+          <select id="selDigits">
+            <option value="4" selected>4 Digit (0001)</option>
+            <option value="5">5 Digit (00001)</option>
+            <option value="6">6 Digit (000001)</option>
+            <option value="3">3 Digit (001)</option>
+            <option value="2">2 Digit (01)</option>
+            <option value="0">Tanpa Nol (1, 2, 3...)</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Kenaikan (Step)</label>
+          <input type="number" id="numStep" value="1" min="1" step="1" />
+        </div>
+      </div>
+
+      <!-- Prefix & Suffix -->
+      <div class="grid-2">
+        <div class="field-group">
+          <label class="field-label">Awalan (Prefix)</label>
+          <input type="text" id="txtPrefix" placeholder="Contoh: VCR- / NO. " />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Akhiran (Suffix)</label>
+          <input type="text" id="txtSuffix" placeholder="Contoh: /2026 / -A" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. LIVE PREVIEW -->
+    <div class="preview-box">
+      <div class="preview-title">Live Preview Nomor:</div>
+      <div class="preview-value" id="lblPreviewSample">0001, 0002 ... 0100</div>
+      <div class="preview-sub" id="lblPreviewSummary">Total: 100 Nomor (100 Halaman/Voucher)</div>
+    </div>
+
+    <!-- 3. MODE PENATAAN & HALAMAN -->
+    <div class="section-box">
+      <div class="section-title">▲ 2. Mode Penataan di CorelDRAW</div>
+
+      <div class="field-group">
+        <label class="field-label">Metode Output:</label>
+        <select id="selOutputMode">
+          <option value="page" selected>📄 1 Desain per Halaman (Otomatis Buat Halaman 1..N)</option>
+          <option value="grid">▦ Susun Banyak per Lembar (Grid N-Up / Cut & Stack)</option>
+          <option value="inplace">🎯 Isi Nomor pada Objek Terseleksi Saja</option>
+        </select>
+      </div>
+
+      <!-- N-Up Grid Settings (Shown when grid is selected) -->
+      <div id="boxGridSettings" style="display: none; flex-direction: column; gap: 6px; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+        <div class="grid-2">
+          <div class="field-group">
+            <label class="field-label">Kolom (Ke Samping)</label>
+            <input type="number" id="numGridCols" value="2" min="1" max="50" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Baris (Ke Bawah)</label>
+            <input type="number" id="numGridRows" value="5" min="1" max="50" />
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field-group">
+            <label class="field-label">Jarak X (cm)</label>
+            <input type="number" id="numSpacingX" value="0.5" step="0.1" min="0" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Jarak Y (cm)</label>
+            <input type="number" id="numSpacingY" value="0.5" step="0.1" min="0" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Urutan Cetak:</label>
+          <select id="selGridOrder">
+            <option value="cut_stack" selected>✂️ Cut & Stack (Tumpuk-Potong: Langsung Urut)</option>
+            <option value="sequential">➡️ Berurutan per Lembar (Kiri ke Kanan)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. OTOMASI SELESAI -->
+    <div class="section-box">
+      <div class="section-title">▲ 3. Opsi Otomasi</div>
+      
+      <label class="checkbox-row">
+        <input type="checkbox" id="chkAutoCurves" checked />
+        <span><strong>Otomatis Convert ke Kurva (Ctrl+Q)</strong> setelah selesai</span>
+      </label>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="chkDoubleNumber" checked />
+        <span>Dukung nomor ganda (isi semua teks angka dummy pada desain)</span>
+      </label>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-group">
+      <button type="button" class="btn-primary btn-gas" id="btnGas">🚀 Gas Nomorator!</button>
+      <button type="button" class="btn-primary" id="btnCancel">Cancel</button>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-line">
+        <span id="lblStatus">Stat: Siap (Seleksi master di Corel)</span>
+        <span id="lblRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
+      </div>
+      <div class="status-corel" id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</div>
+    </div>
+
+    <div class="footer-author">by: GFX IT PRINTING</div>
+  </div>
+
+  <script>
+    const btnMinimize = document.getElementById('btnMinimize');
+    const btnClose = document.getElementById('btnClose');
+    const btnCancel = document.getElementById('btnCancel');
+    const btnGas = document.getElementById('btnGas');
+    const lblStatus = document.getElementById('lblStatus');
+    const lblRefresh = document.getElementById('lblRefresh');
+    const lblCorelStatus = document.getElementById('lblCorelStatus');
+
+    const numStart = document.getElementById('numStart');
+    const numEnd = document.getElementById('numEnd');
+    const selDigits = document.getElementById('selDigits');
+    const numStep = document.getElementById('numStep');
+    const txtPrefix = document.getElementById('txtPrefix');
+    const txtSuffix = document.getElementById('txtSuffix');
+    const lblPreviewSample = document.getElementById('lblPreviewSample');
+    const lblPreviewSummary = document.getElementById('lblPreviewSummary');
+
+    const selOutputMode = document.getElementById('selOutputMode');
+    const boxGridSettings = document.getElementById('boxGridSettings');
+    const numGridCols = document.getElementById('numGridCols');
+    const numGridRows = document.getElementById('numGridRows');
+    const numSpacingX = document.getElementById('numSpacingX');
+    const numSpacingY = document.getElementById('numSpacingY');
+    const selGridOrder = document.getElementById('selGridOrder');
+    const chkAutoCurves = document.getElementById('chkAutoCurves');
+    const chkDoubleNumber = document.getElementById('chkDoubleNumber');
+
+    // Titlebar
+    btnMinimize.addEventListener('click', () => {
+      if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
+    });
+    btnClose.addEventListener('click', () => window.close());
+    btnCancel.addEventListener('click', () => window.close());
+
+    // Format single number
+    function formatNumberString(n, digits, prefix, suffix) {
+      let numStr = String(n);
+      if (digits > 0) {
+        numStr = numStr.padStart(digits, '0');
+      }
+      return `${prefix || ''}${numStr}${suffix || ''}`;
+    }
+
+    // Update Live Preview
+    function updatePreview() {
+      const start = parseInt(numStart.value, 10) || 1;
+      const end = parseInt(numEnd.value, 10) || 1;
+      const step = parseInt(numStep.value, 10) || 1;
+      const digits = parseInt(selDigits.value, 10) || 0;
+      const prefix = txtPrefix.value;
+      const suffix = txtSuffix.value;
+      const mode = selOutputMode.value;
+
+      if (end < start) {
+        lblPreviewSample.innerText = 'Nomor Akhir harus >= Nomor Awal';
+        lblPreviewSummary.innerText = 'Total: 0 Nomor';
+        return;
+      }
+
+      const totalCount = Math.floor((end - start) / step) + 1;
+      const s1 = formatNumberString(start, digits, prefix, suffix);
+      const s2 = formatNumberString(start + step, digits, prefix, suffix);
+      const sEnd = formatNumberString(start + (totalCount - 1) * step, digits, prefix, suffix);
+
+      if (totalCount === 1) {
+        lblPreviewSample.innerText = s1;
+      } else if (totalCount === 2) {
+        lblPreviewSample.innerText = `${s1}, ${sEnd}`;
+      } else {
+        lblPreviewSample.innerText = `${s1}, ${s2} ... ${sEnd}`;
+      }
+
+      if (mode === 'grid') {
+        const cols = parseInt(numGridCols.value, 10) || 1;
+        const rows = parseInt(numGridRows.value, 10) || 1;
+        const perPage = cols * rows;
+        const totalPages = Math.ceil(totalCount / perPage);
+        const orderType = selGridOrder.value === 'cut_stack' ? 'Cut & Stack' : 'Sequential';
+        lblPreviewSummary.innerText = `Total: ${totalCount} Nomor (${perPage}/lembar ➔ ${totalPages} Halaman, Mode: ${orderType})`;
+      } else if (mode === 'page') {
+        lblPreviewSummary.innerText = `Total: ${totalCount} Nomor ➔ Otomatis Buat ${totalCount} Halaman`;
+      } else {
+        lblPreviewSummary.innerText = `Total: ${totalCount} Nomor ➔ Mengisi objek yang sedang dipilih`;
+      }
+    }
+
+    // Toggle Grid Settings Box
+    selOutputMode.addEventListener('change', () => {
+      if (selOutputMode.value === 'grid') {
+        boxGridSettings.style.display = 'flex';
+      } else {
+        boxGridSettings.style.display = 'none';
+      }
+      updatePreview();
+    });
+
+    [numStart, numEnd, selDigits, numStep, txtPrefix, txtSuffix, numGridCols, numGridRows, selGridOrder].forEach(el => {
+      el.addEventListener('input', updatePreview);
+      el.addEventListener('change', updatePreview);
+    });
+
+    // Check Corel Connection
+    async function checkCorel() {
+      try {
+        if (window.electronAPI?.corelCheckStatus) {
+          const res = await window.electronAPI.corelCheckStatus();
+          if (res.connected) {
+            lblCorelStatus.innerText = `CorelDRAW: Connected — Version ${res.version || '2021'}`;
+            lblCorelStatus.style.color = '#059669';
+          } else {
+            lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
+            lblCorelStatus.style.color = '#dc2626';
+          }
+        } else {
+          lblCorelStatus.innerText = 'CorelDRAW: Web Mode (Simulator)';
+        }
+      } catch (err) {
+        lblCorelStatus.innerText = 'CorelDRAW: Disconnected';
+        lblCorelStatus.style.color = '#dc2626';
+      }
+    }
+
+    lblRefresh.addEventListener('click', () => {
+      lblStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
+      checkCorel();
+      setTimeout(() => { lblStatus.innerText = 'Stat: Siap'; }, 1000);
+    });
+
+    // Execute Numerator
+    btnGas.addEventListener('click', async () => {
+      const start = parseInt(numStart.value, 10) || 1;
+      const end = parseInt(numEnd.value, 10) || 1;
+      const step = parseInt(numStep.value, 10) || 1;
+      const digits = parseInt(selDigits.value, 10) || 0;
+      const prefix = txtPrefix.value;
+      const suffix = txtSuffix.value;
+      const mode = selOutputMode.value;
+      const cols = parseInt(numGridCols.value, 10) || 2;
+      const rows = parseInt(numGridRows.value, 10) || 5;
+      const spacingX = parseFloat(numSpacingX.value) || 0.5;
+      const spacingY = parseFloat(numSpacingY.value) || 0.5;
+      const gridOrder = selGridOrder.value;
+      const autoCurves = chkAutoCurves.checked;
+      const doubleNumber = chkDoubleNumber.checked;
+
+      if (end < start) {
+        alert('Nomor Akhir harus lebih besar atau sama dengan Nomor Awal.');
+        return;
+      }
+
+      btnGas.disabled = true;
+      btnGas.innerText = 'Memproses Nomorator...';
+      lblStatus.innerText = 'Stat: Sedang membuat penomoran di CorelDRAW...';
+
+      try {
+        if (window.electronAPI?.corelExecuteNumerator) {
+          const res = await window.electronAPI.corelExecuteNumerator({
+            start,
+            end,
+            step,
+            digits,
+            prefix,
+            suffix,
+            mode,
+            cols,
+            rows,
+            spacingX,
+            spacingY,
+            gridOrder,
+            autoCurves,
+            doubleNumber,
+          });
+
+          if (res.success) {
+            lblStatus.innerText = `Stat: Sukses (${res.count} nomor dibuat)!`;
+            alert(`SUKSES!\n${res.message || `Berhasil membuat ${res.count} nomorator di CorelDRAW!`}`);
+          } else {
+            lblStatus.innerText = 'Stat: Gagal Nomorator';
+            alert(`Gagal membuat penomoran:\n${res.message}`);
+          }
+        } else {
+          alert('Fitur CorelDRAW hanya tersedia di aplikasi desktop.');
+        }
+      } catch (err) {
+        lblStatus.innerText = 'Stat: Error';
+        alert(`Error: ${err.message}`);
+      } finally {
+        btnGas.disabled = false;
+        btnGas.innerText = '🚀 Gas Nomorator!';
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkCorel();
+      updatePreview();
+      setInterval(checkCorel, 8000);
+    });
+    window.addEventListener('focus', () => {
+      checkCorel();
+    });
+  </script>
+</body>
+</html>

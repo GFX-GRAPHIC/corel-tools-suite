@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GFX IT PRINTING — AI Jersey Tracer & Sublimation Companion</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #0f172a;
+      color: #0f172a;
+      font-size: 11px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #334155;
+    }
+
+    /* Windows Native Titlebar */
+    .titlebar {
+      height: 30px;
+      background-color: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      border-bottom: 1px solid #334155;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .titlebar-icon {
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      color: #ffffff;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      -webkit-app-region: no-drag;
+      gap: 2px;
+    }
+
+    .titlebar-btn {
+      width: 32px;
+      height: 28px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+
+    .titlebar-btn:hover {
+      background-color: #334155;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.active {
+      background-color: #3b82f6;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.close:hover {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Main Container: Split-Screen Flex */
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      background-color: #f8fafc;
+    }
+
+    /* Left Panel: Embedded Gemini AI */
+    .panel-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 580px;
+      background-color: #ffffff;
+      border-right: 1px solid #cbd5e1;
+      position: relative;
+    }
+
+    /* Gemini Top Toolbar */
+    .gemini-toolbar {
+      height: 38px;
+      background-color: #f1f5f9;
+      border-bottom: 1px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    .gemini-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-gemini {
+      background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .gemini-session-hint {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .gemini-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Step / Workflow Banner */
+    .workflow-banner {
+      background-color: #eff6ff;
+      border-bottom: 1px solid #bfdbfe;
+      padding: 6px 10px;
+      font-size: 10.5px;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .workflow-steps {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .step-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background-color: #ffffff;
+      border: 1px solid #93c5fd;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      font-size: 10px;
+    }
+
+    .prompt-drawer {
+      background-color: #ffffff;
+      border-bottom: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    /* Webview Element */
+    .webview-wrapper {
+      flex: 1;
+      position: relative;
+      background-color: #ffffff;
+      overflow: hidden;
+    }
+
+    #geminiWebview {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: flex;
+    }
+
+    .webview-loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: #e2e8f0;
+      overflow: hidden;
+      display: none;
+      z-index: 10;
+    }
+
+    .webview-loader-bar {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #8b5cf6, #2563eb);
+      animation: loadingAnim 1.5s infinite linear;
+      transform-origin: 0% 50%;
+    }
+
+    @keyframes loadingAnim {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* Right Panel: Corel Companion */
+    .panel-right {
+      width: 390px;
+      min-width: 370px;
+      max-width: 440px;
+      background-color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 10px;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+
+    /* Companion Header */
+    .companion-header {
+      background: linear-gradient(180deg, #1e40af 0%, #1d4ed8 100%);
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .companion-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+
+    .badge-corel {
+      background-color: #10b981;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Group Box Card */
+    .groupbox {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+
+    .groupbox-header {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 4px;
+    }
+
+    .step-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #2563eb;
+      color: #ffffff;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 9.5px;
+      font-weight: 800;
+      margin-right: 4px;
+    }
+
+    .btn-capture-big {
+      height: 38px;
+      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      border: 1px solid #1e40af;
+      border-radius: 4px;
+      font-size: 11.5px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+      transition: all 0.15s;
+    }
+
+    .btn-capture-big:hover {
+      background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-1px);
+    }
+
+    .btn-capture-big:active {
+      transform: translateY(0);
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed #93c5fd;
+      background-color: #eff6ff;
+      border-radius: 4px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      transition: all 0.2s;
+    }
+    .dropzone:hover {
+      border-color: #2563eb;
+      background-color: #dbeafe;
+    }
+    .dropzone.active {
+      border-color: #059669;
+      background-color: #ecfdf5;
+    }
+    .dropzone-title {
+      font-weight: 700;
+      font-size: 11px;
+      color: #1e3a8a;
+    }
+    .dropzone-desc {
+      font-size: 9.5px;
+      color: #64748b;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .input-text {
+      flex: 1;
+      height: 25px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 0 7px;
+      font-size: 11px;
+      color: #0f172a;
+      background: #ffffff;
+      outline: none;
+    }
+    .input-text:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb;
+    }
+
+    .btn-secondary {
+      height: 25px;
+      padding: 0 9px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .btn-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-corel {
+      height: 38px;
+      background: linear-gradient(180deg, #059669 0%, #047857 100%);
+      color: #ffffff;
+      border: 1px solid #065f46;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25);
+      transition: all 0.15s;
+    }
+    .btn-corel:hover {
+      background: linear-gradient(180deg, #047857 0%, #064e3b 100%);
+      transform: translateY(-1px);
+    }
+    .btn-corel:disabled {
+      background: #94a3b8;
+      border-color: #64748b;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Preview Box */
+    .preview-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-nav {
+      display: flex;
+      background: #f1f5f9;
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    .tab-btn {
+      flex: 1;
+      height: 25px;
+      background: transparent;
+      border: none;
+      border-right: 1px solid #e2e8f0;
+      font-size: 10px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .tab-btn:last-child {
+      border-right: none;
+    }
+    .tab-btn.active {
+      background: #ffffff;
+      color: #1d4ed8;
+      font-weight: 700;
+      border-bottom: 2px solid #2563eb;
+    }
+
+    .preview-display {
+      height: 195px;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-display.transparent-bg {
+      background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+                        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+                        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+      background-color: #f8fafc;
+    }
+
+    .preview-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .preview-footer {
+      background-color: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      padding: 4px 8px;
+      font-size: 9.5px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Native Statusbar */
+    .statusbar {
+      height: 26px;
+      background-color: #1e293b;
+      border-top: 1px solid #334155;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    .toast-msg {
+      position: fixed;
+      top: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #065f46;
+      color: #ffffff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      display: none;
+      animation: fadeInOut 2.5s forwards;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -8px); }
+      15% { opacity: 1; transform: translate(-50%, 0); }
+      85% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -8px); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toastMsg" class="toast-msg">✓ Motif Flat Berhasil Diambil ke Companion!</div>
+
+  <!-- 1. Native Windows Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-icon">👕</div>
+      <span>GFX IT PRINTING — AI Jersey Tracer (Gemini Embedded ➔ CorelDRAW Auto-PowerClip)</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btnPin" title="Pin Selalu di Depan (Always on Top)">📌</button>
+      <button class="titlebar-btn" id="btnMinimize" title="Minimize">─</button>
+      <button class="titlebar-btn" id="btnMaximize" title="Maximize / Restore">🗖</button>
+      <button class="titlebar-btn close" id="btnClose" title="Tutup">✕</button>
+    </div>
+  </div>
+
+  <!-- 2. Main Split-Screen Container -->
+  <div class="main-container">
+
+    <!-- LEFT PANEL: Embedded Google Gemini AI Web -->
+    <div class="panel-left">
+
+      <!-- Top Toolbar for Gemini -->
+      <div class="gemini-toolbar">
+        <div class="gemini-title-wrap">
+          <span class="badge-gemini">✨ Gemini AI Tersemat</span>
+          <span class="gemini-session-hint">Sesi & login tersimpan permanen</span>
+        </div>
+
+        <div class="gemini-actions">
+          <button type="button" id="btnCopyPrompt" class="btn-secondary" style="background: #2563eb; color: #ffffff; border-color: #1d4ed8; font-weight: 700;">
+            <span>📋 Salin Prompt Bawaan</span>
+          </button>
+          <button type="button" id="btnTogglePrompt" class="btn-secondary" title="Lihat / Edit Teks Prompt">
+            <span>⚙️ Edit Prompt</span>
+          </button>
+          <button type="button" id="btnReloadGemini" class="btn-secondary" title="Muat Ulang Halaman Gemini">
+            <span>🔄 Refresh</span>
+          </button>
+          <button type="button" id="btnHomeGemini" class="btn-secondary" title="Kembali ke Beranda Gemini">
+            <span>🏠 Home</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Guidance Banner -->
+      <div class="workflow-banner">
+        <div class="workflow-steps">
+          <span><b>💡 Alur Cepat:</b></span>
+          <span class="step-tag">1. Tempel/Unggah Mockup Jersey di Gemini</span>
+          <span>➔</span>
+          <span class="step-tag">2. Tekan Ctrl+V (Prompt) & Kirim</span>
+          <span>➔</span>
+          <span class="step-tag">3. Klik Kanan Gambar Hasil ➔ "Salin Gambar ke Companion"</span>
+        </div>
+        <span id="lblPromptSuccess" style="font-weight: 700; color: #059669; display: none;">✓ Prompt Tersalin!</span>
+      </div>
+
+      <!-- Collapsible Prompt Editor -->
+      <div class="prompt-drawer" id="promptDrawer">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; color: #334155;">Teks Prompt Standar Sublimasi (Dapat Diedit):</span>
+          <button type="button" id="btnResetPrompt" class="btn-secondary" style="height: 20px; font-size: 9.5px;">Reset Bawaan</button>
+        </div>
+        <textarea id="txtPrompt" class="input-text" rows="3" style="width: 100%; font-size: 10px; resize: vertical; padding: 6px; box-sizing: border-box; line-height: 1.4;">buatkan motif pada bju ini menjadi pattern berbentuk kotak dengan kualitas full hd kotak potrait buatkan dengan sangat mirip dan presisi sperti yang di kirim contohnya,hanya motif bajunya saja hapus bajunya jadikan kotak pattern hapus logo dan tulisannya, jadikan satu gambar saja jangan di repeat jadikan satu kotak gambar saja,</textarea>
+      </div>
+
+      <!-- Webview Container with Progress Loader -->
+      <div class="webview-wrapper">
+        <div class="webview-loader" id="webviewLoader">
+          <div class="webview-loader-bar"></div>
+        </div>
+
+        <webview
+          id="geminiWebview"
+          src="https://gemini.google.com/app"
+          partition="persist:gemini_session"
+          useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          allowpopups
+        ></webview>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL: CorelDRAW Sublimation Companion -->
+    <div class="panel-right">
+
+      <!-- Header Banner -->
+      <div class="companion-header">
+        <div>
+          <div class="companion-title">⚡ CORELDRAW COMPANION</div>
+          <div style="font-size: 9.5px; opacity: 0.85;">Flat Pattern ➔ 300 DPI ➔ Auto-PowerClip</div>
+        </div>
+        <span class="badge-corel" id="badgeCorelStatus">COREL AKTIF</span>
+      </div>
+
+      <!-- Langkah 1: Ambil Gambar Motif -->
+      <div class="groupbox">
+        <div class="groupbox-header">
+          <div>
+            <span class="step-circle">1</span>
+            <span>AMBIL GAMBAR MOTIF DARI GEMINI</span>
+          </div>
+          <span id="lblPatternLoaded" style="font-size: 9.5px; color: #059669; font-weight: 700; display: none;">✓ Motif Siap!</span>
+        </div>
+
+        <!-- 1-Click Capture Button -->
+        <button type="button" id="btnCaptureClipboard" class="btn-capture-big" title="Ambil gambar yang baru saja disalin dari Gemini">
+          <span>📥 Ambil Gambar dari Panel Gemini (1-Klik)</span>
+        </button>
+
+        <!-- Dropzone / Drag Area -->
+        <div class="dropzone" id="pasteZone">
+          <div style="font-size: 18px;">📋</div>
+          <div class="dropzone-title">Atau Seret Gambar ke Sini / Tekan Ctrl+V</div>
+          <div class="dropzone-desc">Klik kanan gambar di Gemini ➔ Salin Gambar ➔ Klik tombol biru di atas</div>
+        </div>
+
+        <input type="file" id="filePattern" accept="image/png, image/jpeg, image/webp" style="display: none;" />
+
+        <div class="form-row">
+          <button type="button" id="btnPasteClipboard" class="btn-secondary" style="flex: 1; height: 26px;">
+            <span>📋 Tempel Clipboard (Ctrl+V)</span>
+          </button>
+          <button type="button" id="btnBrowsePattern" class="btn-secondary" style="height: 26px;">
+            <span>Pilih File...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Langkah 2: Preview Motif & Tab -->
+      <div class="preview-box">
+        <div class="preview-nav">
+          <button type="button" class="tab-btn active" id="tabPattern">🎨 Motif Flat 2D</button>
+          <button type="button" class="tab-btn" id="tabLogo">✂️ Logo Dada</button>
+          <button type="button" class="tab-btn" id="tabCompare">⚖️ Mockup Asli</button>
+        </div>
+        <div class="preview-display" id="previewDisplay">
+          <div id="emptyPreview" style="color:#94a3b8; font-size:10.5px; text-align:center; padding: 15px;">
+            Belum ada motif dimuat.<br>
+            Kirim gambar ke Gemini di panel kiri, lalu klik <b>"Ambil Gambar"</b> di atas.
+          </div>
+          <img id="imgPatternPreview" class="preview-img" style="display:none;" alt="Motif Flat" />
+          <img id="imgLogoPreview" class="preview-img" style="display:none;" alt="Logo Transparan" />
+          <img id="imgMockupCompare" class="preview-img" style="display:none;" alt="Mockup Asli" />
+        </div>
+        <div class="preview-footer">
+          <span id="lblImgInfo">Status: Menunggu gambar</span>
+          <span id="lblDpiBadge" style="color: #059669; font-weight: 700; display: none;">300 DPI Siap</span>
+        </div>
+      </div>
+
+      <!-- Langkah 3 (Opsional): Mockup Awal Konsumen -->
+      <div class="groupbox">
+        <div class="groupbox-header">
+          <div>
+            <span class="step-circle" style="background:#64748b;">2</span>
+            <span>MOCKUP ASLI (OPSIONAL: PISAH LOGO)</span>
+          </div>
+          <span id="btnRemoveMockup" style="color:#dc2626; cursor:pointer; font-size:9.5px; display:none;">Hapus</span>
+        </div>
+        <input type="file" id="fileMockup" accept="image/png, image/jpeg, image/webp" style="display:none;" />
+        <button type="button" id="btnSelectMockup" class="btn-secondary" style="height: 25px;">
+          <span>📁 Unggah Mockup (Ekstrak Logo Dada Transparan)</span>
+        </button>
+        <div id="lblMockupName" style="font-size: 9.5px; color: #64748b;">Belum ada mockup asli diunggah.</div>
+      </div>
+
+      <!-- Langkah 4: Pengaturan Cetak Sublimasi -->
+      <div class="groupbox">
+        <div class="groupbox-header">
+          <span>PENGATURAN CETAK SUBLIMASI</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+          <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 10.5px; color: #334155;">
+            <input type="checkbox" id="chkUpscale" checked />
+            <span><b>Auto-Upscale 300 DPI</b></span>
+          </label>
+          <div class="form-row">
+            <span style="color:#475569;">Lebihan (Bleed):</span>
+            <input type="number" id="numBleed" class="input-text" value="1.5" step="0.5" min="0" max="5" style="max-width: 48px; text-align:center;" />
+            <span style="color:#64748b;">cm</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Langkah 5: Eksekusi ke CorelDRAW -->
+      <button type="button" id="btnApplyCorel" class="btn-corel" disabled>
+        <span>⚡ Terapkan ke Pola CorelDRAW (Auto-PowerClip)</span>
+      </button>
+
+      <!-- Quick Action Buttons -->
+      <div style="display: flex; gap: 6px;">
+        <button type="button" id="btnCopyClipboard" class="btn-secondary" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 600;" disabled title="Salin motif ke Clipboard agar bisa langsung Ctrl+V di CorelDRAW">
+          <span>📋 Salin Gambar (Ctrl+C)</span>
+        </button>
+        <button type="button" id="btnOpenFolder" class="btn-secondary" style="flex: 1; padding: 6px 4px; font-size: 10px; font-weight: 600;" disabled title="Buka lokasi file PNG 300 DPI di Windows Explorer">
+          <span>📁 Buka File PNG</span>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 3. Native Status Bar -->
+  <div class="statusbar">
+    <div class="status-left">
+      <div class="status-dot" id="corelDot"></div>
+      <span id="lblCorelStatus">CorelDRAW: Memeriksa...</span>
+    </div>
+    <div id="lblActionStatus">Stat: Siap digunakan</div>
+  </div>
+
+  <script>
+    // Elements
+    const geminiWebview = document.getElementById('geminiWebview');
+    const webviewLoader = document.getElementById('webviewLoader');
+    const btnCopyPrompt = document.getElementById('btnCopyPrompt');
+    const btnTogglePrompt = document.getElementById('btnTogglePrompt');
+    const btnReloadGemini = document.getElementById('btnReloadGemini');
+    const btnHomeGemini = document.getElementById('btnHomeGemini');
+    const promptDrawer = document.getElementById('promptDrawer');
+    const txtPrompt = document.getElementById('txtPrompt');
+    const btnResetPrompt = document.getElementById('btnResetPrompt');
+    const lblPromptSuccess = document.getElementById('lblPromptSuccess');
+    const toastMsg = document.getElementById('toastMsg');
+
+    const btnPin = document.getElementById('btnPin');
+    const btnMinimize = document.getElementById('btnMinimize');
+    const btnMaximize = document.getElementById('btnMaximize');
+    const btnClose = document.getElementById('btnClose');
+
+    const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
+    const pasteZone = document.getElementById('pasteZone');
+    const filePattern = document.getElementById('filePattern');
+    const btnPasteClipboard = document.getElementById('btnPasteClipboard');
+    const btnBrowsePattern = document.getElementById('btnBrowsePattern');
+    const lblPatternLoaded = document.getElementById('lblPatternLoaded');
+
+    const btnSelectMockup = document.getElementById('btnSelectMockup');
+    const fileMockup = document.getElementById('fileMockup');
+    const lblMockupName = document.getElementById('lblMockupName');
+    const btnRemoveMockup = document.getElementById('btnRemoveMockup');
+
+    const chkUpscale = document.getElementById('chkUpscale');
+    const numBleed = document.getElementById('numBleed');
+
+    const tabPattern = document.getElementById('tabPattern');
+    const tabLogo = document.getElementById('tabLogo');
+    const tabCompare = document.getElementById('tabCompare');
+    const previewDisplay = document.getElementById('previewDisplay');
+    const emptyPreview = document.getElementById('emptyPreview');
+    const imgPatternPreview = document.getElementById('imgPatternPreview');
+    const imgLogoPreview = document.getElementById('imgLogoPreview');
+    const imgMockupCompare = document.getElementById('imgMockupCompare');
+    const lblImgInfo = document.getElementById('lblImgInfo');
+    const lblDpiBadge = document.getElementById('lblDpiBadge');
+
+    const btnCopyClipboard = document.getElementById('btnCopyClipboard');
+    const btnOpenFolder = document.getElementById('btnOpenFolder');
+    const btnApplyCorel = document.getElementById('btnApplyCorel');
+
+    const corelDot = document.getElementById('corelDot');
+    const lblCorelStatus = document.getElementById('lblCorelStatus');
+    const badgeCorelStatus = document.getElementById('badgeCorelStatus');
+    const lblActionStatus = document.getElementById('lblActionStatus');
+
+    const DEFAULT_PROMPT = "buatkan motif pada bju ini menjadi pattern berbentuk kotak dengan kualitas full hd kotak potrait buatkan dengan sangat mirip dan presisi sperti yang di kirim contohnya,hanya motif bajunya saja hapus bajunya jadikan kotak pattern hapus logo dan tulisannya, jadikan satu gambar saja jangan di repeat jadikan satu kotak gambar saja,";
+
+    let currentPatternPath = null;
+    let currentPatternDataUrl = null;
+    let currentMockupBase64 = null;
+    let currentLogoBase64 = null;
+    let isPinned = false;
+
+    // Window Controls
+    btnMinimize.addEventListener('click', () => {
+      if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
+    });
+    btnMaximize.addEventListener('click', () => {
+      if (window.electronAPI?.maximizeWindow) window.electronAPI.maximizeWindow();
+    });
+    btnClose.addEventListener('click', () => {
+      if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
+      else window.close();
+    });
+
+    btnPin.addEventListener('click', async () => {
+      try {
+        if (window.electronAPI?.tracerToggleAlwaysOnTop) {
+          const res = await window.electronAPI.tracerToggleAlwaysOnTop();
+          isPinned = res.isAlwaysOnTop;
+          btnPin.classList.toggle('active', isPinned);
+          showToast(isPinned ? '📌 Jendela dipin selalu di depan' : 'Jendela tidak dipin');
+        }
+      } catch {}
+    });
+
+    // Gemini Webview Loading Events
+    geminiWebview.addEventListener('did-start-loading', () => {
+      webviewLoader.style.display = 'block';
+    });
+    geminiWebview.addEventListener('did-stop-loading', () => {
+      webviewLoader.style.display = 'none';
+    });
+    btnReloadGemini.addEventListener('click', () => {
+      geminiWebview.reload();
+    });
+    btnHomeGemini.addEventListener('click', () => {
+      geminiWebview.loadURL('https://gemini.google.com/app');
+    });
+
+    // Prompt Drawer & Copy Actions
+    const savedPrompt = localStorage.getItem('gfx_custom_tracer_prompt');
+    if (savedPrompt) txtPrompt.value = savedPrompt;
+    txtPrompt.addEventListener('input', () => {
+      localStorage.setItem('gfx_custom_tracer_prompt', txtPrompt.value);
+    });
+    btnResetPrompt.addEventListener('click', () => {
+      txtPrompt.value = DEFAULT_PROMPT;
+      localStorage.removeItem('gfx_custom_tracer_prompt');
+    });
+
+    btnTogglePrompt.addEventListener('click', () => {
+      const isHidden = promptDrawer.style.display === 'none' || !promptDrawer.style.display;
+      promptDrawer.style.display = isHidden ? 'flex' : 'none';
+      btnTogglePrompt.style.background = isHidden ? '#e2e8f0' : '';
+    });
+
+    btnCopyPrompt.addEventListener('click', () => {
+      const p = txtPrompt.value.trim();
+      navigator.clipboard.writeText(p);
+      lblPromptSuccess.style.display = 'inline';
+      setTimeout(() => { lblPromptSuccess.style.display = 'none'; }, 3000);
+      showToast('✓ Prompt Tersalin! Tinggal tempel (Ctrl+V) di kolom chat Gemini');
+    });
+
+    // Capture from Clipboard (1-Click)
+    btnCaptureClipboard.addEventListener('click', () => pasteFromClipboard());
+    btnPasteClipboard.addEventListener('click', () => pasteFromClipboard());
+    pasteZone.addEventListener('click', () => pasteFromClipboard());
+    btnBrowsePattern.addEventListener('click', () => filePattern.click());
+
+    // Auto-listen to right-click context menu "Salin Gambar ke Companion" from webview
+    if (window.electronAPI?.onTracerClipboardReady) {
+      window.electronAPI.onTracerClipboardReady(() => {
+        pasteFromClipboard(true);
+      });
+    }
+
+    async function pasteFromClipboard(isAuto = false) {
+      lblActionStatus.innerText = 'Stat: Membaca gambar dari Clipboard...';
+      try {
+        if (window.electronAPI?.readImageFromClipboard) {
+          const res = await window.electronAPI.readImageFromClipboard();
+          if (res.success && res.dataUrl) {
+            await handleLoadedPattern(res.dataUrl);
+            showToast('✓ Sukses! Motif flat berhasil diambil');
+            return;
+          }
+        }
+        // Fallback browser navigator clipboard
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imgType = item.types.find(t => t.startsWith('image/'));
+          if (imgType) {
+            const blob = await item.getType(imgType);
+            const reader = new FileReader();
+            reader.onload = async (evt) => {
+              await handleLoadedPattern(evt.target.result);
+              showToast('✓ Sukses! Motif flat berhasil diambil');
+            };
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+        if (!isAuto) {
+          alert('Clipboard tidak berisi gambar.\n\nCara pakai:\n1. Di panel kiri (Gemini), klik kanan gambar hasil motif ➔ pilih "Salin Gambar" (Copy Image)\n2. Lalu tekan tombol biru "Ambil Gambar dari Panel Gemini".');
+        }
+      } catch (err) {
+        if (!isAuto) {
+          alert('Tidak dapat membaca gambar dari Clipboard: ' + err.message);
+        }
+      } finally {
+        lblActionStatus.innerText = 'Stat: Siap';
+      }
+    }
+
+    // Global Ctrl+V listener
+    window.addEventListener('paste', async (e) => {
+      // If user is typing in prompt textarea, allow normal paste
+      if (document.activeElement === txtPrompt) return;
+
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = async (evt) => {
+                await handleLoadedPattern(evt.target.result);
+                showToast('✓ Motif berhasil ditempel!');
+              };
+              reader.readAsDataURL(file);
+              return;
+            }
+          }
+        }
+      }
+      pasteFromClipboard();
+    });
+
+    // Drag & Drop to pasteZone
+    pasteZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      pasteZone.classList.add('active');
+    });
+    pasteZone.addEventListener('dragleave', () => pasteZone.classList.remove('active'));
+    pasteZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      pasteZone.classList.remove('active');
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          await handleLoadedPattern(evt.target.result);
+          showToast('✓ File motif berhasil dimuat!');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    filePattern.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+          await handleLoadedPattern(evt.target.result);
+          showToast('✓ File motif berhasil dimuat!');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    async function handleLoadedPattern(dataUrl) {
+      lblActionStatus.innerText = 'Stat: Mengoptimalkan gambar & 300 DPI...';
+      try {
+        if (window.electronAPI?.savePatternImage) {
+          const res = await window.electronAPI.savePatternImage({
+            dataUrl,
+            upscale4k: chkUpscale.checked,
+          });
+          if (res.success) {
+            currentPatternPath = res.filePath;
+            currentPatternDataUrl = res.dataUrl;
+            imgPatternPreview.src = res.dataUrl;
+            showTab('pattern');
+            btnApplyCorel.disabled = false;
+            btnCopyClipboard.disabled = false;
+            btnOpenFolder.disabled = false;
+            lblPatternLoaded.style.display = 'inline';
+            lblDpiBadge.style.display = 'inline';
+            lblImgInfo.innerText = 'Dimensi: Full HD / 300 DPI Siap Cetak';
+            lblActionStatus.innerText = 'Stat: Motif Siap di-PowerClip!';
+            return;
+          }
+        }
+        // Fallback
+        currentPatternDataUrl = dataUrl;
+        imgPatternPreview.src = dataUrl;
+        showTab('pattern');
+        btnApplyCorel.disabled = false;
+        btnCopyClipboard.disabled = false;
+        lblDpiBadge.style.display = 'inline';
+        lblImgInfo.innerText = 'Motif Flat Siap';
+      } catch (err) {
+        alert('Gagal memproses gambar: ' + err.message);
+      } finally {
+        lblActionStatus.innerText = 'Stat: Siap';
+      }
+    }
+
+    // Mockup Upload for Logo Extraction
+    btnSelectMockup.addEventListener('click', () => fileMockup.click());
+    fileMockup.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      lblMockupName.innerText = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+      btnRemoveMockup.style.display = 'inline';
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        currentMockupBase64 = evt.target.result;
+        imgMockupCompare.src = currentMockupBase64;
+        extractLogo(currentMockupBase64);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    btnRemoveMockup.addEventListener('click', () => {
+      currentMockupBase64 = null;
+      currentLogoBase64 = null;
+      fileMockup.value = '';
+      lblMockupName.innerText = 'Belum ada mockup asli diunggah.';
+      btnRemoveMockup.style.display = 'none';
+      imgMockupCompare.style.display = 'none';
+      imgLogoPreview.style.display = 'none';
+    });
+
+    function extractLogo(b64) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const cropX = Math.round(img.width * 0.20);
+          const cropY = Math.round(img.height * 0.25);
+          const cropW = Math.round(img.width * 0.60);
+          const cropH = Math.round(img.height * 0.25);
+
+          canvas.width = cropW;
+          canvas.height = cropH;
+          ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+          const imgData = ctx.getImageData(0, 0, cropW, cropH);
+          const data = imgData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const brightness = (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
+            if (brightness < 45) {
+              data[i + 3] = 0;
+            } else if (brightness < 70) {
+              data[i + 3] = Math.round(((brightness - 45) / 25) * 255);
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+          currentLogoBase64 = canvas.toDataURL('image/png');
+          imgLogoPreview.src = currentLogoBase64;
+        } catch {}
+      };
+      img.src = b64;
+    }
+
+    // Tabs
+    tabPattern.addEventListener('click', () => showTab('pattern'));
+    tabLogo.addEventListener('click', () => showTab('logo'));
+    tabCompare.addEventListener('click', () => showTab('compare'));
+
+    function showTab(name) {
+      [tabPattern, tabLogo, tabCompare].forEach(t => t.classList.remove('active'));
+      [imgPatternPreview, imgLogoPreview, imgMockupCompare, emptyPreview].forEach(el => el.style.display = 'none');
+      previewDisplay.classList.remove('transparent-bg');
+
+      if (name === 'pattern') {
+        tabPattern.classList.add('active');
+        if (imgPatternPreview.src && imgPatternPreview.src !== window.location.href) {
+          imgPatternPreview.style.display = 'block';
+        } else {
+          emptyPreview.style.display = 'block';
+        }
+      } else if (name === 'logo') {
+        tabLogo.classList.add('active');
+        previewDisplay.classList.add('transparent-bg');
+        if (imgLogoPreview.src && imgLogoPreview.src !== window.location.href) {
+          imgLogoPreview.style.display = 'block';
+        } else {
+          emptyPreview.style.display = 'block';
+          emptyPreview.innerText = 'Logo dada belum diekstrak (Unggah foto mockup asli di Langkah 2).';
+        }
+      } else if (name === 'compare') {
+        tabCompare.classList.add('active');
+        if (imgMockupCompare.src && imgMockupCompare.src !== window.location.href) {
+          imgMockupCompare.style.display = 'block';
+        } else {
+          emptyPreview.style.display = 'block';
+          emptyPreview.innerText = 'Mockup asli belum diunggah.';
+        }
+      }
+    }
+
+    // Quick Actions: Copy & Explorer
+    btnCopyClipboard.addEventListener('click', async () => {
+      if (!currentPatternPath && !currentPatternDataUrl) return;
+      btnCopyClipboard.innerText = 'Menyalin...';
+      try {
+        if (window.electronAPI?.copyImageToClipboard) {
+          const target = currentPatternPath || currentPatternDataUrl;
+          const res = await window.electronAPI.copyImageToClipboard(target);
+          if (res.success) {
+            btnCopyClipboard.innerText = '✓ Motif Tersalin!';
+            setTimeout(() => { btnCopyClipboard.innerText = '📋 Salin Gambar (Ctrl+C)'; }, 2500);
+            showToast('✓ SUKSES! Motif telah disalin ke Clipboard (Silakan Ctrl+V di CorelDRAW)');
+          }
+        }
+      } catch (err) {
+        alert('Gagal menyalin: ' + err.message);
+        btnCopyClipboard.innerText = '📋 Salin Gambar (Ctrl+C)';
+      }
+    });
+
+    btnOpenFolder.addEventListener('click', async () => {
+      if (!currentPatternPath) return;
+      if (window.electronAPI?.openFileInExplorer) {
+        await window.electronAPI.openFileInExplorer(currentPatternPath);
+      }
+    });
+
+    // Apply to CorelDRAW
+    btnApplyCorel.addEventListener('click', async () => {
+      if (!currentPatternPath && !currentPatternDataUrl) return;
+
+      btnApplyCorel.disabled = true;
+      btnApplyCorel.innerText = 'Mengirim ke CorelDRAW...';
+      lblActionStatus.innerText = 'Stat: Mengirim ke Corel...';
+
+      try {
+        if (window.electronAPI?.corelApplyAiPattern) {
+          const res = await window.electronAPI.corelApplyAiPattern({
+            patternPath: currentPatternPath,
+            logoBase64: currentLogoBase64,
+            bleedCm: parseFloat(numBleed.value) || 1.5,
+          });
+
+          if (res.success) {
+            lblActionStatus.innerText = 'Stat: Berhasil masuk pola!';
+            alert(`SUKSES!\n${res.message}`);
+          } else {
+            lblActionStatus.innerText = res.clipboardCopied ? 'Stat: Disalin ke Clipboard' : 'Stat: Gagal PowerClip';
+            alert(`Pemberitahuan CorelDRAW:\n${res.message}`);
+          }
+        }
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      } finally {
+        btnApplyCorel.disabled = false;
+        btnApplyCorel.innerText = '⚡ Terapkan ke Pola CorelDRAW (Auto-PowerClip)';
+      }
+    });
+
+    // Corel Status Polling
+    async function checkCorel() {
+      try {
+        if (window.electronAPI?.corelCheckStatus) {
+          const res = await window.electronAPI.corelCheckStatus();
+          if (res.connected) {
+            corelDot.style.background = '#10b981';
+            lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || 'Aktif'})`;
+            badgeCorelStatus.style.background = '#10b981';
+            badgeCorelStatus.innerText = 'COREL AKTIF';
+          } else {
+            corelDot.style.background = '#ef4444';
+            lblCorelStatus.innerText = 'CorelDRAW: Tidak Terdeteksi (Buka Corel)';
+            badgeCorelStatus.style.background = '#64748b';
+            badgeCorelStatus.innerText = 'COREL MATI';
+          }
+        }
+      } catch {
+        corelDot.style.background = '#ef4444';
+        lblCorelStatus.innerText = 'CorelDRAW: Terputus';
+        badgeCorelStatus.style.background = '#64748b';
+        badgeCorelStatus.innerText = 'TERPUTUS';
+      }
+    }
+
+    function showToast(msg) {
+      toastMsg.innerText = msg;
+      toastMsg.style.display = 'block';
+      setTimeout(() => {
+        toastMsg.style.display = 'none';
+      }, 2600);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkCorel();
+      setInterval(checkCorel, 8000);
+    });
+    window.addEventListener('focus', () => checkCorel());
+  </script>
+</body>
+</html>

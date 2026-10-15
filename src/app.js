@@ -633,23 +633,66 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 7. Tool: Merger (Variable Data & Certificate)
+  // 7. Tool: Generator Sertifikat & Data Bebas (VDP)
   // ==========================================
   const btnTabMergerExcel = document.getElementById('btnTabMergerExcel');
   const btnTabMergerManual = document.getElementById('btnTabMergerManual');
   const mergerExcelSection = document.getElementById('mergerExcelSection');
   const mergerManualSection = document.getElementById('mergerManualSection');
-  const btnPickExcelFile = document.getElementById('btnPickExcelFile');
-  const lblExcelLoadedName = document.getElementById('lblExcelLoadedName');
+  const mergerExcelDropzone = document.getElementById('mergerExcelDropzone');
+  const fileMergerExcelInput = document.getElementById('fileMergerExcelInput');
+  const boxMergerFileInfo = document.getElementById('boxMergerFileInfo');
+  const lblMergerFileName = document.getElementById('lblMergerFileName');
+  const lblMergerRowCount = document.getElementById('lblMergerRowCount');
+  const btnMergerChangeFile = document.getElementById('btnMergerChangeFile');
+  const selMergerSheet = document.getElementById('selMergerSheet');
+  const selMergerHeaderRow = document.getElementById('selMergerHeaderRow');
+  const boxMergerExcelPreview = document.getElementById('boxMergerExcelPreview');
+  const lblMergerColCount = document.getElementById('lblMergerColCount');
+  const tblMergerExcelHead = document.getElementById('tblMergerExcelHead');
+  const tblMergerExcelBody = document.getElementById('tblMergerExcelBody');
   const mergerMappingList = document.getElementById('mergerMappingList');
+  const btnMergerPresetA1 = document.getElementById('btnMergerPresetA1');
+  const btnMergerAddMapping = document.getElementById('btnMergerAddMapping');
+
+  const btnManualPresetA1 = document.getElementById('btnManualPresetA1');
+  const btnManualAddVar = document.getElementById('btnManualAddVar');
+  const mergerManualCardsContainer = document.getElementById('mergerManualCardsContainer');
+
   const selMergerOutputMode = document.getElementById('selMergerOutputMode');
   const boxMergerGridSettings = document.getElementById('boxMergerGridSettings');
-  const tbodyMergerPreview = document.getElementById('tbodyMergerPreview');
+  const numMergerGridCols = document.getElementById('numMergerGridCols');
+  const numMergerGridRows = document.getElementById('numMergerGridRows');
+  const numMergerSpacingX = document.getElementById('numMergerSpacingX');
+  const numMergerSpacingY = document.getElementById('numMergerSpacingY');
+  const selMergerGridOrder = document.getElementById('selMergerGridOrder');
+  const lblMergerGridSummary = document.getElementById('lblMergerGridSummary');
+  const chkMergerAutoCurves = document.getElementById('chkMergerAutoCurves');
+
+  const tblMergerPreview = document.getElementById('tblMergerPreview');
+  const tblMergerPreviewHead = document.getElementById('tblMergerPreviewHead');
+  const tblMergerPreviewBody = document.getElementById('tblMergerPreviewBody');
   const lblMergerSummaryCount = document.getElementById('lblMergerSummaryCount');
   const btnExecuteMerger = document.getElementById('btnExecuteMerger');
+  const btnMergerOpenCompanion = document.getElementById('btnMergerOpenCompanion');
 
   let mergerActiveSource = 'excel'; // 'excel' or 'manual'
+  let currentExcelFilePath = '';
+  let activeExcelWorkbookInfo = null;
 
+  let excelMappings = [
+    { placeholder: 'A1', col: 'B' },
+    { placeholder: 'A2', col: 'C' },
+    { placeholder: 'A3', col: 'D' }
+  ];
+
+  let manualVariables = [
+    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo' },
+    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri' },
+    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2' }
+  ];
+
+  // Tab switching
   if (btnTabMergerExcel) {
     btnTabMergerExcel.addEventListener('click', () => {
       mergerActiveSource = 'excel';
@@ -668,104 +711,420 @@ document.addEventListener('DOMContentLoaded', () => {
       btnTabMergerExcel.classList.remove('active');
       mergerManualSection.style.display = 'flex';
       mergerExcelSection.style.display = 'none';
+      renderManualCards();
       updateMergerPreview();
     });
+  }
+
+  // Grid settings toggle & summary calculation
+  function updateGridSummary() {
+    const cols = parseInt(numMergerGridCols?.value, 10) || 2;
+    const rows = parseInt(numMergerGridRows?.value, 10) || 5;
+    const perPage = cols * rows;
+    if (lblMergerGridSummary) {
+      lblMergerGridSummary.innerHTML = `📐 <b>${cols} Kolom × ${rows} Baris = ${perPage} Desain per Lembar Cetak</b>`;
+    }
   }
 
   if (selMergerOutputMode) {
     selMergerOutputMode.addEventListener('change', () => {
       if (selMergerOutputMode.value === 'grid') {
         boxMergerGridSettings.style.display = 'flex';
+        updateGridSummary();
       } else {
         boxMergerGridSettings.style.display = 'none';
       }
     });
   }
 
-  function updateMergerPreview() {
-    let rows = [];
-    if (mergerActiveSource === 'excel') {
-      rows = excelMergerData?.rows || [];
-    } else {
-      const a1Lines = (document.getElementById('txtManualA1')?.value || '').split(/\r?\n/).filter(l => l.trim());
-      const a2Lines = (document.getElementById('txtManualA2')?.value || '').split(/\r?\n/).filter(l => l.trim());
-      const maxL = Math.max(a1Lines.length, a2Lines.length);
-      for (let i = 0; i < maxL; i++) {
-        rows.push({
-          A1: a1Lines[i] || '',
-          A2: a2Lines[i] || ''
-        });
-      }
-    }
+  [numMergerGridCols, numMergerGridRows, numMergerSpacingX, numMergerSpacingY].forEach(el => {
+    if (el) el.addEventListener('input', updateGridSummary);
+  });
 
-    if (lblMergerSummaryCount) lblMergerSummaryCount.innerText = `(${rows.length} Data Siap)`;
-    if (tbodyMergerPreview) {
-      if (rows.length === 0) {
-        tbodyMergerPreview.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-dim); padding: 20px;">Belum ada data. Silakan pilih file Excel atau ketik teks manual.</td></tr>`;
-      } else {
-        tbodyMergerPreview.innerHTML = '';
-        const limit = Math.min(rows.length, 30);
-        for (let r = 0; r < limit; r++) {
-          const tr = document.createElement('tr');
-          const keys = Object.keys(rows[r]);
-          const col1 = rows[r][keys[0]] || '';
-          const col2 = rows[r][keys[1]] || '';
-          tr.innerHTML = `<td>${r + 1}</td><td>${col1}</td><td>${col2}</td>`;
-          tbodyMergerPreview.appendChild(tr);
-        }
-      }
-    }
-  }
-
-  if (btnPickExcelFile) {
-    btnPickExcelFile.addEventListener('click', async () => {
+  // Excel Dropzone & File Pickers
+  if (mergerExcelDropzone) {
+    mergerExcelDropzone.addEventListener('click', async () => {
       if (window.corelAPI?.selectExcelFile) {
         const res = await window.corelAPI.selectExcelFile();
         if (res.success && res.filePath) {
-          const parseRes = await window.corelAPI.parseExcelFile(res.filePath);
-          if (parseRes.success) {
-            excelMergerData = parseRes;
-            lblExcelLoadedName.innerText = `✓ ${parseRes.filePath.split(/[/\\]/).pop()} (${parseRes.totalRows} baris)`;
+          handleExcelFileSelected(res.filePath);
+        }
+      } else if (fileMergerExcelInput) {
+        fileMergerExcelInput.click();
+      }
+    });
 
-            // Render mapping rows
-            if (mergerMappingList) {
-              mergerMappingList.innerHTML = '';
-              const defMappings = [
-                { placeholder: 'A1', col: 'B' },
-                { placeholder: 'A2', col: 'C' },
-                { placeholder: 'A3', col: 'D' }
-              ];
-              defMappings.forEach((m, idx) => {
-                const row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.gap = '6px';
-                row.style.alignItems = 'center';
-                row.innerHTML = `
-                  <input type="text" class="input-text" value="${m.placeholder}" style="width: 70px;" />
-                  <span style="color: var(--text-dim);">➔</span>
-                  <select class="select-native" style="flex: 1;">
-                    ${parseRes.headers.map(h => `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>${h.label}</option>`).join('')}
-                  </select>
-                `;
-                mergerMappingList.appendChild(row);
-              });
-            }
+    mergerExcelDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      mergerExcelDropzone.classList.add('dragover');
+    });
 
-            updateMergerPreview();
-            showToast(`Berhasil membaca file Excel (${parseRes.totalRows} baris).`);
-          } else {
-            alert(`Gagal membaca Excel: ${parseRes.message}`);
-          }
+    mergerExcelDropzone.addEventListener('dragleave', () => {
+      mergerExcelDropzone.classList.remove('dragover');
+    });
+
+    mergerExcelDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      mergerExcelDropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        let filePath = '';
+        if (window.corelAPI?.getPathForFile) {
+          filePath = window.corelAPI.getPathForFile(file);
+        }
+        if (!filePath) filePath = file.path || '';
+        if (filePath) {
+          handleExcelFileSelected(filePath);
         }
       }
     });
   }
 
-  ['txtManualA1', 'txtManualA2'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateMergerPreview);
-  });
+  if (fileMergerExcelInput) {
+    fileMergerExcelInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        let filePath = '';
+        if (window.corelAPI?.getPathForFile) {
+          filePath = window.corelAPI.getPathForFile(file);
+        }
+        if (!filePath) filePath = file.path || '';
+        if (filePath) {
+          handleExcelFileSelected(filePath);
+        }
+      }
+    });
+  }
 
+  if (btnMergerChangeFile) {
+    btnMergerChangeFile.addEventListener('click', () => {
+      if (window.corelAPI?.selectExcelFile) {
+        window.corelAPI.selectExcelFile().then(res => {
+          if (res.success && res.filePath) handleExcelFileSelected(res.filePath);
+        });
+      } else if (fileMergerExcelInput) {
+        fileMergerExcelInput.click();
+      }
+    });
+  }
+
+  async function handleExcelFileSelected(filePath) {
+    if (!filePath) return;
+    currentExcelFilePath = filePath;
+    showToast('Membaca file Excel...');
+    try {
+      const res = await window.corelAPI.parseExcelFile(filePath);
+      if (res.success) {
+        activeExcelWorkbookInfo = res;
+        excelMergerData = res;
+
+        // Update badge
+        boxMergerFileInfo.style.display = 'flex';
+        lblMergerFileName.innerText = filePath.split(/[/\\]/).pop();
+        lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
+
+        // Populate sheets dropdown
+        selMergerSheet.innerHTML = '';
+        if (res.sheetNames) {
+          res.sheetNames.forEach(sh => {
+            const opt = document.createElement('option');
+            opt.value = sh;
+            opt.innerText = sh;
+            selMergerSheet.appendChild(opt);
+          });
+        }
+
+        // Populate header rows dropdown (Baris 1 s/d 10)
+        selMergerHeaderRow.innerHTML = '';
+        for (let r = 1; r <= 10; r++) {
+          const opt = document.createElement('option');
+          opt.value = r;
+          opt.innerText = `Baris ${r}`;
+          if (r === (res.headerRowIndex || 1)) opt.selected = true;
+          selMergerHeaderRow.appendChild(opt);
+        }
+
+        renderExcelPreviewTable(res);
+        renderMergerMappingList();
+        updateMergerPreview();
+        showToast(`✓ File Excel berhasil dimuat: ${res.totalRows} baris`);
+      } else {
+        alert(`Gagal membaca Excel: ${res.message}`);
+      }
+    } catch (err) {
+      alert(`Error membaca file Excel: ${err.message}`);
+    }
+  }
+
+  // Reload sheet when selection changes
+  if (selMergerSheet) {
+    selMergerSheet.addEventListener('change', async () => {
+      if (!currentExcelFilePath) return;
+      const sheetName = selMergerSheet.value;
+      const headerRowIndex = parseInt(selMergerHeaderRow.value, 10) || 1;
+      const res = await window.corelAPI.parseExcelFile({ filePath: currentExcelFilePath, sheetName, headerRowIndex });
+      if (res.success) {
+        excelMergerData = res;
+        lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
+        renderExcelPreviewTable(res);
+        renderMergerMappingList();
+        updateMergerPreview();
+      }
+    });
+  }
+
+  if (selMergerHeaderRow) {
+    selMergerHeaderRow.addEventListener('change', async () => {
+      if (!currentExcelFilePath) return;
+      const sheetName = selMergerSheet.value;
+      const headerRowIndex = parseInt(selMergerHeaderRow.value, 10) || 1;
+      const res = await window.corelAPI.parseExcelFile({ filePath: currentExcelFilePath, sheetName, headerRowIndex });
+      if (res.success) {
+        excelMergerData = res;
+        lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
+        renderExcelPreviewTable(res);
+        renderMergerMappingList();
+        updateMergerPreview();
+      }
+    });
+  }
+
+  function renderExcelPreviewTable(data) {
+    if (!boxMergerExcelPreview || !data) return;
+    boxMergerExcelPreview.style.display = 'flex';
+    lblMergerColCount.innerText = `${data.headers ? data.headers.length : 0} Kolom`;
+
+    tblMergerExcelHead.innerHTML = '';
+    tblMergerExcelBody.innerHTML = '';
+
+    if (data.headers) {
+      const trH = document.createElement('tr');
+      data.headers.forEach(h => {
+        const th = document.createElement('th');
+        th.innerText = `${h.letter}: ${h.label}`;
+        trH.appendChild(th);
+      });
+      tblMergerExcelHead.appendChild(trH);
+    }
+
+    if (data.previewRows && data.previewRows.length > 0) {
+      data.previewRows.forEach(row => {
+        const trB = document.createElement('tr');
+        data.headers.forEach(h => {
+          const td = document.createElement('td');
+          td.innerText = row[h.letter] ?? '';
+          trB.appendChild(td);
+        });
+        tblMergerExcelBody.appendChild(trB);
+      });
+    }
+  }
+
+  function renderMergerMappingList() {
+    if (!mergerMappingList) return;
+    mergerMappingList.innerHTML = '';
+
+    const headers = excelMergerData?.headers || [
+      { letter: 'A', label: 'Kolom A' },
+      { letter: 'B', label: 'Kolom B' },
+      { letter: 'C', label: 'Kolom C' },
+      { letter: 'D', label: 'Kolom D' }
+    ];
+
+    excelMappings.forEach((m, idx) => {
+      const row = document.createElement('div');
+      row.className = 'mapping-row';
+      row.innerHTML = `
+        <input type="text" class="input-text mapping-ph" value="${m.placeholder}" style="width: 75px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
+        <span style="color: var(--text-dim); font-size: 13px;">➔</span>
+        <select class="select-native mapping-col" style="flex: 1;">
+          ${headers.map(h => `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>[${h.letter}] ${h.label}</option>`).join('')}
+        </select>
+        <button type="button" class="btn-danger btn-remove-mapping" style="height: 24px; padding: 0 6px; font-size: 10px;" title="Hapus Pemetaan">✕</button>
+      `;
+
+      // Event listeners
+      row.querySelector('.mapping-ph').addEventListener('input', (e) => {
+        m.placeholder = e.target.value;
+        updateMergerPreview();
+      });
+      row.querySelector('.mapping-col').addEventListener('change', (e) => {
+        m.col = e.target.value;
+        updateMergerPreview();
+      });
+      row.querySelector('.btn-remove-mapping').addEventListener('click', () => {
+        excelMappings.splice(idx, 1);
+        renderMergerMappingList();
+        updateMergerPreview();
+      });
+
+      mergerMappingList.appendChild(row);
+    });
+  }
+
+  if (btnMergerAddMapping) {
+    btnMergerAddMapping.addEventListener('click', () => {
+      const nextIdx = excelMappings.length + 1;
+      const letters = ['A','B','C','D','E','F','G','H','I','J'];
+      const nextCol = letters[nextIdx] || 'A';
+      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol });
+      renderMergerMappingList();
+      updateMergerPreview();
+    });
+  }
+
+  if (btnMergerPresetA1) {
+    btnMergerPresetA1.addEventListener('click', () => {
+      excelMappings = [
+        { placeholder: 'A1', col: 'B' },
+        { placeholder: 'A2', col: 'C' },
+        { placeholder: 'A3', col: 'D' }
+      ];
+      renderMergerMappingList();
+      updateMergerPreview();
+      showToast('Pemetaan direset ke Preset A1-A3');
+    });
+  }
+
+  // Manual Mode Variable Cards
+  function renderManualCards() {
+    if (!mergerManualCardsContainer) return;
+    mergerManualCardsContainer.innerHTML = '';
+
+    manualVariables.forEach((v, idx) => {
+      const card = document.createElement('div');
+      card.className = 'variable-card';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="text" class="input-text manual-ph" value="${v.placeholder}" style="width: 65px; height: 24px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
+            <input type="text" class="input-text manual-label" value="${v.label}" placeholder="Label / Keterangan..." style="flex: 1; height: 24px; font-size: 11px;" />
+          </div>
+          <button type="button" class="btn-danger btn-remove-var" style="height: 22px; padding: 0 6px; font-size: 10px;" title="Hapus Variabel">✕</button>
+        </div>
+        <textarea class="textarea-native manual-text" style="height: 65px; font-size: 11px; line-height: 1.4;" placeholder="Ketik atau paste data teks di sini... (1 baris = 1 nilai)">${v.text}</textarea>
+      `;
+
+      card.querySelector('.manual-ph').addEventListener('input', (e) => {
+        v.placeholder = e.target.value;
+        updateMergerPreview();
+      });
+      card.querySelector('.manual-label').addEventListener('input', (e) => {
+        v.label = e.target.value;
+      });
+      card.querySelector('.manual-text').addEventListener('input', (e) => {
+        v.text = e.target.value;
+        updateMergerPreview();
+      });
+      card.querySelector('.btn-remove-var').addEventListener('click', () => {
+        manualVariables.splice(idx, 1);
+        renderManualCards();
+        updateMergerPreview();
+      });
+
+      mergerManualCardsContainer.appendChild(card);
+    });
+  }
+
+  if (btnManualAddVar) {
+    btnManualAddVar.addEventListener('click', () => {
+      const nextIdx = manualVariables.length + 1;
+      manualVariables.push({
+        placeholder: `A${nextIdx}`,
+        label: `Variabel ${nextIdx}`,
+        text: ''
+      });
+      renderManualCards();
+      updateMergerPreview();
+    });
+  }
+
+  if (btnManualPresetA1) {
+    btnManualPresetA1.addEventListener('click', () => {
+      manualVariables = [
+        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo' },
+        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri' },
+        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2' }
+      ];
+      renderManualCards();
+      updateMergerPreview();
+      showToast('Variabel manual direset ke Preset A1-A3');
+    });
+  }
+
+  // Update Right Preview Table
+  function updateMergerPreview() {
+    let previewCols = [];
+    let previewRows = [];
+
+    if (mergerActiveSource === 'excel') {
+      if (excelMergerData && excelMergerData.rows) {
+        previewCols = excelMappings.map(m => m.placeholder);
+        previewRows = excelMergerData.rows.map(r => {
+          const item = {};
+          excelMappings.forEach(m => {
+            item[m.placeholder] = r[m.col] ?? '';
+          });
+          return item;
+        });
+      }
+    } else {
+      previewCols = manualVariables.map(v => v.placeholder);
+      const splitLines = manualVariables.map(v => v.text.split(/\r?\n/).filter(l => l.trim()));
+      const maxRows = Math.max(...splitLines.map(l => l.length), 0);
+      for (let i = 0; i < maxRows; i++) {
+        const item = {};
+        manualVariables.forEach((v, vIdx) => {
+          item[v.placeholder] = splitLines[vIdx][i] || '';
+        });
+        previewRows.push(item);
+      }
+    }
+
+    if (lblMergerSummaryCount) {
+      lblMergerSummaryCount.innerText = `(${previewRows.length} Baris Siap Dicetak)`;
+    }
+
+    if (tblMergerPreviewHead && tblMergerPreviewBody) {
+      tblMergerPreviewHead.innerHTML = '';
+      tblMergerPreviewBody.innerHTML = '';
+
+      if (previewRows.length === 0 || previewCols.length === 0) {
+        tblMergerPreviewBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-dim); padding: 30px;">Belum ada data. Silakan pilih file Excel atau ketik teks manual.</td></tr>`;
+        return;
+      }
+
+      // Render Head
+      const trH = document.createElement('tr');
+      const thNo = document.createElement('th');
+      thNo.style.width = '35px';
+      thNo.innerText = 'No';
+      trH.appendChild(thNo);
+      previewCols.forEach(col => {
+        const th = document.createElement('th');
+        th.innerText = col;
+        trH.appendChild(th);
+      });
+      tblMergerPreviewHead.appendChild(trH);
+
+      // Render Rows (up to 50 for speed)
+      const maxDisplay = Math.min(previewRows.length, 50);
+      for (let i = 0; i < maxDisplay; i++) {
+        const trB = document.createElement('tr');
+        const tdNo = document.createElement('td');
+        tdNo.innerText = i + 1;
+        trB.appendChild(tdNo);
+        previewCols.forEach(col => {
+          const td = document.createElement('td');
+          td.innerText = previewRows[i][col] || '';
+          trB.appendChild(td);
+        });
+        tblMergerPreviewBody.appendChild(trB);
+      }
+    }
+  }
+
+  // Execute Certificate & Variable Data Merger
   if (btnExecuteMerger) {
     btnExecuteMerger.addEventListener('click', async () => {
       let finalRows = [];
@@ -773,39 +1132,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (mergerActiveSource === 'excel') {
         if (!excelMergerData || !excelMergerData.rows || !excelMergerData.rows.length) {
-          alert('Pilih file Excel terlebih dahulu.');
+          alert('Pilih file Excel yang memiliki baris data terlebih dahulu.');
+          return;
+        }
+        if (!excelMappings || excelMappings.length === 0) {
+          alert('Atur minimal 1 pemetaan placeholder teks Corel ➔ Kolom Excel.');
           return;
         }
         finalRows = excelMergerData.rows;
-        const mappingRows = mergerMappingList.querySelectorAll('div');
-        mappingRows.forEach(mr => {
-          const ph = mr.querySelector('input')?.value.trim();
-          const col = mr.querySelector('select')?.value;
-          if (ph && col) finalMappings.push({ placeholder: ph, column: col });
-        });
+        finalMappings = excelMappings.map(m => ({
+          placeholder: m.placeholder.trim(),
+          column: m.col
+        }));
       } else {
-        const a1Lines = (document.getElementById('txtManualA1')?.value || '').split(/\r?\n/).filter(l => l.trim());
-        const a2Lines = (document.getElementById('txtManualA2')?.value || '').split(/\r?\n/).filter(l => l.trim());
-        const maxL = Math.max(a1Lines.length, a2Lines.length);
-        if (maxL === 0) {
-          alert('Ketik minimal 1 baris data teks.');
+        const splitLines = manualVariables.map(v => v.text.split(/\r?\n/).filter(l => l.trim()));
+        const maxRows = Math.max(...splitLines.map(l => l.length), 0);
+        if (maxRows === 0) {
+          alert('Ketik minimal 1 baris teks pada variabel manual.');
           return;
         }
-        for (let i = 0; i < maxL; i++) {
-          finalRows.push({ A1: a1Lines[i] || '', A2: a2Lines[i] || '' });
+        for (let i = 0; i < maxRows; i++) {
+          const rowObj = {};
+          manualVariables.forEach((v, vIdx) => {
+            rowObj[v.placeholder] = splitLines[vIdx][i] || '';
+          });
+          finalRows.push(rowObj);
         }
-        finalMappings = [
-          { placeholder: 'A1', column: 'A1' },
-          { placeholder: 'A2', column: 'A2' }
-        ];
+        finalMappings = manualVariables.map(v => ({
+          placeholder: v.placeholder.trim(),
+          column: v.placeholder.trim()
+        }));
       }
 
-      const mode = selMergerOutputMode.value;
-      const cols = parseInt(document.getElementById('numMergerGridCols')?.value, 10) || 2;
-      const gridRows = parseInt(document.getElementById('numMergerGridRows')?.value, 10) || 5;
-      const spacingX = parseFloat(document.getElementById('numMergerSpacingX')?.value) || 0.5;
-      const spacingY = parseFloat(document.getElementById('numMergerSpacingY')?.value) || 0.5;
-      const autoCurves = document.getElementById('chkMergerAutoCurves')?.checked ?? true;
+      const mode = selMergerOutputMode?.value || 'page';
+      const cols = parseInt(numMergerGridCols?.value, 10) || 2;
+      const gridRows = parseInt(numMergerGridRows?.value, 10) || 5;
+      const spacingX = parseFloat(numMergerSpacingX?.value) || 0.5;
+      const spacingY = parseFloat(numMergerSpacingY?.value) || 0.5;
+      const gridOrder = selMergerGridOrder?.value || 'left_right';
+      const autoCurves = chkMergerAutoCurves?.checked ?? true;
 
       btnExecuteMerger.disabled = true;
       btnExecuteMerger.innerText = 'Memproses di CorelDRAW...';
@@ -820,26 +1185,485 @@ document.addEventListener('DOMContentLoaded', () => {
             gridRows,
             spacingX,
             spacingY,
-            gridOrder: 'left_right',
+            gridOrder,
             autoCurves
           });
 
           if (res.success) {
-            showToast(`Sukses: ${res.message || 'Data berhasil digabungkan!'}`, true);
+            showToast(`Sukses: ${res.message || 'Selesai!'}`, true);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
             showToast(`Gagal: ${res.message}`, false);
-            alert(`Gagal merger:\n\n${res.message}`);
+            alert(`Gagal memproses merger:\n\n${res.message}`);
           }
         }
       } catch (err) {
         showToast(`Error: ${err.message}`, false);
+        alert(`Error: ${err.message}`);
       } finally {
         btnExecuteMerger.disabled = false;
         btnExecuteMerger.innerText = '🚀 Gas Proses di CorelDRAW';
       }
     });
   }
+
+  // Floating Companion Windows Launchers
+  if (btnMergerOpenCompanion) {
+    btnMergerOpenCompanion.addEventListener('click', () => {
+      if (window.corelAPI?.corelOpenCertMergerTool) {
+        window.corelAPI.corelOpenCertMergerTool();
+      }
+    });
+  }
+
+  // ==========================================
+  // 8. Tool: Auto-Layout Jersey
+  // ==========================================
+  const btnJerseyOpenCompanion = document.getElementById('btnJerseyOpenCompanion');
+  const btnExecuteJerseyLayout = document.getElementById('btnExecuteJerseyLayout');
+  const btnJerseyAddPlayer = document.getElementById('btnJerseyAddPlayer');
+  const btnJerseyImportExcel = document.getElementById('btnJerseyImportExcel');
+  const btnJerseyClearPlayers = document.getElementById('btnJerseyClearPlayers');
+  const fileJerseyExcelInput = document.getElementById('fileJerseyExcelInput');
+  const tbodyJerseyPlayers = document.getElementById('tbodyJerseyPlayers');
+  const lblJerseyPlayerCount = document.getElementById('lblJerseyPlayerCount');
+
+  let jerseyPlayers = [
+    { name: 'ALEXANDER', number: '10', size: 'L' },
+    { name: 'CHRISTIAN', number: '07', size: 'M' },
+    { name: 'DAVID PRATAMA', number: '09', size: 'XL' },
+    { name: 'FERNANDO', number: '11', size: 'L' }
+  ];
+
+  function renderJerseyPlayerTable() {
+    if (!tbodyJerseyPlayers) return;
+    tbodyJerseyPlayers.innerHTML = '';
+    jerseyPlayers.forEach((p, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td><input type="text" class="input-text p-name" value="${p.name}" style="height: 22px; font-size: 11px;" /></td>
+        <td><input type="text" class="input-text p-num" value="${p.number}" style="height: 22px; font-size: 11px;" /></td>
+        <td>
+          <select class="select-native p-size" style="height: 22px; font-size: 11px;">
+            <option value="S" ${p.size === 'S' ? 'selected' : ''}>S</option>
+            <option value="M" ${p.size === 'M' ? 'selected' : ''}>M</option>
+            <option value="L" ${p.size === 'L' ? 'selected' : ''}>L</option>
+            <option value="XL" ${p.size === 'XL' ? 'selected' : ''}>XL</option>
+            <option value="XXL" ${p.size === 'XXL' ? 'selected' : ''}>XXL</option>
+          </select>
+        </td>
+        <td><button type="button" class="btn-danger p-del" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button></td>
+      `;
+
+      tr.querySelector('.p-name').addEventListener('input', (e) => { p.name = e.target.value; });
+      tr.querySelector('.p-num').addEventListener('input', (e) => { p.number = e.target.value; });
+      tr.querySelector('.p-size').addEventListener('change', (e) => { p.size = e.target.value; });
+      tr.querySelector('.p-del').addEventListener('click', () => {
+        jerseyPlayers.splice(idx, 1);
+        renderJerseyPlayerTable();
+      });
+
+      tbodyJerseyPlayers.appendChild(tr);
+    });
+
+    if (lblJerseyPlayerCount) {
+      lblJerseyPlayerCount.innerText = `(${jerseyPlayers.length} Pemain Siap)`;
+    }
+  }
+
+  if (btnJerseyAddPlayer) {
+    btnJerseyAddPlayer.addEventListener('click', () => {
+      jerseyPlayers.push({ name: `PEMAIN ${jerseyPlayers.length + 1}`, number: `${jerseyPlayers.length + 1}`, size: 'L' });
+      renderJerseyPlayerTable();
+    });
+  }
+
+  if (btnJerseyClearPlayers) {
+    btnJerseyClearPlayers.addEventListener('click', () => {
+      jerseyPlayers = [];
+      renderJerseyPlayerTable();
+    });
+  }
+
+  if (btnJerseyImportExcel) {
+    btnJerseyImportExcel.addEventListener('click', async () => {
+      if (window.corelAPI?.selectExcelFile) {
+        const res = await window.corelAPI.selectExcelFile();
+        if (res.success && res.filePath) {
+          const parsed = await window.corelAPI.parseExcelFile(res.filePath);
+          if (parsed.success && parsed.rows) {
+            jerseyPlayers = parsed.rows.map(r => ({
+              name: String(r.A || r.B || r.nama || r.Nama || 'PEMAIN').toUpperCase(),
+              number: String(r.C || r.no || r.Nomor || '-'),
+              size: String(r.D || r.ukuran || r.Size || 'L').toUpperCase()
+            }));
+            renderJerseyPlayerTable();
+            showToast(`Berhasil mengimpor ${jerseyPlayers.length} pemain dari Excel!`);
+          }
+        }
+      }
+    });
+  }
+
+  if (btnExecuteJerseyLayout) {
+    btnExecuteJerseyLayout.addEventListener('click', async () => {
+      if (jerseyPlayers.length === 0) {
+        alert('Daftar pemain masih kosong.');
+        return;
+      }
+      const targetSize = document.getElementById('selJerseyTargetSize')?.value || 'ALL';
+      const spacingCm = parseFloat(document.getElementById('numJerseySpacing')?.value) || 1.0;
+      const limitCopy = parseInt(document.getElementById('numJerseyLimit')?.value, 10) || 4;
+      const direction = document.getElementById('selJerseyDirection')?.value || 'vertical';
+      const maxNameWidthCm = parseFloat(document.getElementById('numJerseyMaxNameWidth')?.value) || 27.0;
+
+      btnExecuteJerseyLayout.disabled = true;
+      btnExecuteJerseyLayout.innerText = 'Menata di CorelDRAW...';
+
+      try {
+        if (window.corelAPI?.executeLayout) {
+          const res = await window.corelAPI.executeLayout({
+            targetSize,
+            players: jerseyPlayers,
+            spacingCm,
+            limitCopy,
+            direction,
+            maxNameWidthCm
+          });
+
+          if (res.success) {
+            showToast(`Sukses: ${res.message || 'Pola jersey selesai ditata!'}`, true);
+            alert(`🎉 Sukses!\n\n${res.message}`);
+          } else {
+            alert(`Gagal menata jersey:\n\n${res.message}`);
+          }
+        }
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      } finally {
+        btnExecuteJerseyLayout.disabled = false;
+        btnExecuteJerseyLayout.innerText = '🚀 Tata Pola di CorelDRAW';
+      }
+    });
+  }
+
+  if (btnJerseyOpenCompanion) {
+    btnJerseyOpenCompanion.addEventListener('click', () => {
+      if (window.corelAPI?.corelOpenCompanionTool) {
+        window.corelAPI.corelOpenCompanionTool({
+          teamName: document.getElementById('txtJerseyTeamName')?.value || 'GFX ESPORTS',
+          players: jerseyPlayers
+        });
+      }
+    });
+  }
+
+  // ==========================================
+  // 9. Tool: AI Jersey Tracer
+  // ==========================================
+  const txtTracerApiKey = document.getElementById('txtTracerApiKey');
+  const btnTracerSaveKey = document.getElementById('btnTracerSaveKey');
+  const lblTracerKeyStatus = document.getElementById('lblTracerKeyStatus');
+  const tracerDropzone = document.getElementById('tracerDropzone');
+  const fileTracerInput = document.getElementById('fileTracerInput');
+  const txtTracerPrompt = document.getElementById('txtTracerPrompt');
+  const selTracerModel = document.getElementById('selTracerModel');
+  const numTracerBleed = document.getElementById('numTracerBleed');
+  const btnTracerProcess = document.getElementById('btnTracerProcess');
+  const imgTracerPreview = document.getElementById('imgTracerPreview');
+  const lblTracerEmptyPreview = document.getElementById('lblTracerEmptyPreview');
+  const lblTracerStatus = document.getElementById('lblTracerStatus');
+  const btnExecuteTracerPowerClip = document.getElementById('btnExecuteTracerPowerClip');
+  const btnTracerCopyClipboard = document.getElementById('btnTracerCopyClipboard');
+  const btnTracerOpenFolder = document.getElementById('btnTracerOpenFolder');
+  const btnTracerOpenCompanion = document.getElementById('btnTracerOpenCompanion');
+
+  let tracerImageBase64 = '';
+  let tracerResultPatternPath = '';
+
+  // Load saved API Key
+  const savedApiKey = localStorage.getItem('gemini_api_key') || '';
+  if (txtTracerApiKey && savedApiKey) {
+    txtTracerApiKey.value = savedApiKey;
+  }
+
+  if (btnTracerSaveKey) {
+    btnTracerSaveKey.addEventListener('click', async () => {
+      const key = txtTracerApiKey.value.trim();
+      if (!key) {
+        alert('Masukkan API Key Gemini.');
+        return;
+      }
+      btnTracerSaveKey.disabled = true;
+      lblTracerKeyStatus.innerText = 'Memvalidasi...';
+      lblTracerKeyStatus.style.color = 'var(--accent-blue)';
+
+      try {
+        if (window.corelAPI?.aiTracerValidateKey) {
+          const res = await window.corelAPI.aiTracerValidateKey(key);
+          if (res.valid) {
+            localStorage.setItem('gemini_api_key', key);
+            lblTracerKeyStatus.innerText = '✓ Valid & Aktif';
+            lblTracerKeyStatus.style.color = 'var(--accent-green)';
+            showToast('API Key Gemini berhasil divalidasi dan disimpan.');
+          } else {
+            lblTracerKeyStatus.innerText = '✕ Tidak Valid';
+            lblTracerKeyStatus.style.color = 'var(--accent-red)';
+            alert(`Validasi API Key gagal: ${res.message}`);
+          }
+        }
+      } catch (err) {
+        alert(`Error validasi: ${err.message}`);
+      } finally {
+        btnTracerSaveKey.disabled = false;
+      }
+    });
+  }
+
+  if (tracerDropzone) {
+    tracerDropzone.addEventListener('click', () => {
+      if (fileTracerInput) fileTracerInput.click();
+    });
+    tracerDropzone.addEventListener('dragover', (e) => { e.preventDefault(); tracerDropzone.classList.add('dragover'); });
+    tracerDropzone.addEventListener('dragleave', () => { tracerDropzone.classList.remove('dragover'); });
+    tracerDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      tracerDropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleTracerImageFile(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  if (fileTracerInput) {
+    fileTracerInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleTracerImageFile(e.target.files[0]);
+      }
+    });
+  }
+
+  function handleTracerImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      tracerImageBase64 = e.target.result;
+      imgTracerPreview.src = tracerImageBase64;
+      imgTracerPreview.style.display = 'block';
+      if (lblTracerEmptyPreview) lblTracerEmptyPreview.style.display = 'none';
+      lblTracerStatus.innerText = `Gambar siap: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+      showToast('Gambar mockup jersey dimuat.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  if (btnTracerProcess) {
+    btnTracerProcess.addEventListener('click', async () => {
+      if (!tracerImageBase64) {
+        alert('Upload gambar mockup jersey terlebih dahulu.');
+        return;
+      }
+      const key = txtTracerApiKey?.value.trim() || localStorage.getItem('gemini_api_key');
+      if (!key) {
+        alert('Masukkan Gemini API Key terlebih dahulu.');
+        return;
+      }
+
+      btnTracerProcess.disabled = true;
+      btnTracerProcess.innerText = 'Memproses Analisa AI...';
+      lblTracerStatus.innerText = 'Status: AI sedang menganalisa motif...';
+
+      try {
+        if (window.corelAPI?.aiTracerProcess) {
+          const res = await window.corelAPI.aiTracerProcess({
+            imageBase64: tracerImageBase64,
+            prompt: txtTracerPrompt?.value || '',
+            model: selTracerModel?.value || 'gemini-2.5-flash',
+            apiKey: key
+          });
+
+          if (res.success && (res.patternPath || res.dataUrl)) {
+            tracerResultPatternPath = res.patternPath;
+            if (res.dataUrl) imgTracerPreview.src = res.dataUrl;
+            lblTracerStatus.innerText = '✓ Motif flat berhasil diekstrak!';
+            showToast('Motif pola berhasil diekstrak!');
+          } else {
+            alert(`Gagal memproses AI: ${res.message}`);
+          }
+        }
+      } catch (err) {
+        alert(`Error AI: ${err.message}`);
+      } finally {
+        btnTracerProcess.disabled = false;
+        btnTracerProcess.innerText = '✨ Analisa & Ekstrak Motif Flat dengan AI';
+      }
+    });
+  }
+
+  if (btnExecuteTracerPowerClip) {
+    btnExecuteTracerPowerClip.addEventListener('click', async () => {
+      if (!tracerResultPatternPath) {
+        alert('Belum ada motif yang diproses oleh AI. Klik Analisa AI terlebih dahulu.');
+        return;
+      }
+      const bleedCm = parseFloat(numTracerBleed?.value) || 1.5;
+      btnExecuteTracerPowerClip.disabled = true;
+
+      try {
+        if (window.corelAPI?.corelApplyAiPattern) {
+          const res = await window.corelAPI.corelApplyAiPattern({
+            patternPath: tracerResultPatternPath,
+            bleedCm
+          });
+          if (res.success) {
+            showToast(res.message || 'PowerClip berhasil!');
+            alert(`🎉 Sukses!\n\n${res.message}`);
+          } else {
+            alert(res.message);
+          }
+        }
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      } finally {
+        btnExecuteTracerPowerClip.disabled = false;
+      }
+    });
+  }
+
+  if (btnTracerCopyClipboard) {
+    btnTracerCopyClipboard.addEventListener('click', async () => {
+      const src = tracerResultPatternPath || imgTracerPreview.src;
+      if (!src) {
+        alert('Belum ada gambar untuk disalin.');
+        return;
+      }
+      if (window.corelAPI?.copyImageToClipboard) {
+        const res = await window.corelAPI.copyImageToClipboard(src);
+        if (res.success) showToast('Gambar disalin ke clipboard! Buka CorelDRAW dan tekan Ctrl+V.');
+      }
+    });
+  }
+
+  if (btnTracerOpenFolder) {
+    btnTracerOpenFolder.addEventListener('click', () => {
+      if (tracerResultPatternPath && window.corelAPI?.openFileInExplorer) {
+        window.corelAPI.openFileInExplorer(tracerResultPatternPath);
+      } else {
+        alert('File motif belum disimpan di komputer.');
+      }
+    });
+  }
+
+  if (btnTracerOpenCompanion) {
+    btnTracerOpenCompanion.addEventListener('click', () => {
+      if (window.corelAPI?.corelOpenAiTracerTool) {
+        window.corelAPI.corelOpenAiTracerTool();
+      }
+    });
+  }
+
+  // Right Sidebar Companion Openers & Quick Actions
+  let isCorelDark = false;
+  const btnQuickToggleDarkMode = document.getElementById('btnQuickToggleDarkMode');
+  const btnUtilDarkMode = document.getElementById('btnUtilDarkMode');
+  const badgeUtilDarkMode = document.getElementById('badgeUtilDarkMode');
+  const lblQuickDarkModeText = document.getElementById('lblQuickDarkModeText');
+
+  async function toggleCorelDark() {
+    const nextMode = !isCorelDark ? 'dark' : 'light';
+    try {
+      if (window.corelAPI?.corelToggleDarkMode) {
+        const res = await window.corelAPI.corelToggleDarkMode(nextMode);
+        if (res.success) {
+          isCorelDark = !isCorelDark;
+          const label = isCorelDark ? 'Mode Terang' : 'Mode Gelap';
+          if (lblQuickDarkModeText) lblQuickDarkModeText.innerText = `Corel ${label}`;
+          if (badgeUtilDarkMode) {
+            badgeUtilDarkMode.innerText = isCorelDark ? 'ON' : 'OFF';
+            badgeUtilDarkMode.style.background = isCorelDark ? '#059669' : '#374151';
+          }
+          showToast(res.message || 'Tema CorelDRAW berhasil diubah!');
+          alert(res.message);
+        } else {
+          alert(res.message);
+        }
+      }
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  if (btnQuickToggleDarkMode) btnQuickToggleDarkMode.addEventListener('click', toggleCorelDark);
+  if (btnUtilDarkMode) btnUtilDarkMode.addEventListener('click', toggleCorelDark);
+
+  const btnQuickConvertCurves = document.getElementById('btnQuickConvertCurves');
+  if (btnQuickConvertCurves) {
+    btnQuickConvertCurves.addEventListener('click', async () => {
+      try {
+        if (window.corelAPI?.corelConvertAllCurves) {
+          const res = await window.corelAPI.corelConvertAllCurves();
+          if (res.success) {
+            showToast(res.message || 'Semua teks berhasil dikonversi ke kurva!');
+            alert(`✓ ${res.message}`);
+          } else {
+            alert(res.message);
+          }
+        }
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+      }
+    });
+  }
+
+  const btnQuickCenterPage = document.getElementById('btnQuickCenterPage');
+  if (btnQuickCenterPage) {
+    btnQuickCenterPage.addEventListener('click', async () => {
+      if (window.corelAPI?.executeUtility) {
+        const res = await window.corelAPI.executeUtility('centerPage');
+        if (res.success) showToast('Objek berhasil ditengahkan ke halaman!');
+      }
+    });
+  }
+
+  const btnQuickDeleteGuides = document.getElementById('btnQuickDeleteGuides');
+  if (btnQuickDeleteGuides) {
+    btnQuickDeleteGuides.addEventListener('click', async () => {
+      if (window.corelAPI?.executeUtility) {
+        const res = await window.corelAPI.executeUtility('guidelines');
+        if (res.success) showToast('Guidelines berhasil dibersihkan!');
+      }
+    });
+  }
+
+  // Companion window openers
+  document.getElementById('btnLaunchCompanionNumerator')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenNumeratorTool?.();
+  });
+  document.getElementById('btnUtilOpenNumeratorComp')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenNumeratorTool?.();
+  });
+  document.getElementById('btnLaunchCompanionMerger')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenCertMergerTool?.();
+  });
+  document.getElementById('btnUtilOpenCertComp')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenCertMergerTool?.();
+  });
+  document.getElementById('btnLaunchCompanionJersey')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenCompanionTool?.();
+  });
+  document.getElementById('btnUtilOpenJerseyComp')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenCompanionTool?.();
+  });
+  document.getElementById('btnLaunchCompanionTracer')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenAiTracerTool?.();
+  });
+  document.getElementById('btnUtilOpenTracerComp')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenAiTracerTool?.();
+  });
+
+  // Render initial player table and manual cards
+  renderJerseyPlayerTable();
+  renderManualCards();
 
   // ==========================================
   // 8. Tool: Ukuran & Layout Logic
