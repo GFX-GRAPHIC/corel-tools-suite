@@ -14,25 +14,25 @@
     }
 
     body {
-      background-color: #111827;
-      color: #f8fafc;
+      background-color: #f8fafc;
+      color: #0f172a;
       font-size: 11.5px;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
     }
 
     /* Windows Native Titlebar */
     .titlebar {
       height: 28px;
-      background-color: #0f172a;
+      background-color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 8px;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #e2e8f0;
       -webkit-app-region: drag;
       flex-shrink: 0;
     }
@@ -43,7 +43,7 @@
       gap: 6px;
       font-size: 11px;
       font-weight: 700;
-      color: #f8fafc;
+      color: #0f172a;
     }
 
     .titlebar-icon {
@@ -69,7 +69,7 @@
       height: 28px;
       background: transparent;
       border: none;
-      color: #94a3b8;
+      color: #64748b;
       font-size: 11px;
       display: flex;
       align-items: center;
@@ -80,8 +80,8 @@
     }
 
     .titlebar-btn:hover {
-      background-color: #1e293b;
-      color: #f8fafc;
+      background-color: #f1f5f9;
+      color: #0f172a;
     }
 
     .titlebar-btn.active {
@@ -94,16 +94,16 @@
       color: #ffffff;
     }
 
-    /* Header Banner - Solid Native */
+    /* Header Banner - Solid Native Royal Blue */
     .app-header {
-      background-color: #1e293b;
-      color: #f8fafc;
-      padding: 8px 12px;
+      background-color: #1d4ed8;
+      color: #ffffff;
+      padding: 9px 12px;
       display: flex;
       flex-direction: column;
       gap: 2px;
       flex-shrink: 0;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #1e40af;
     }
 
     .app-title {
@@ -113,41 +113,43 @@
       align-items: center;
       gap: 6px;
       letter-spacing: -0.2px;
-      color: #f8fafc;
+      color: #ffffff;
     }
 
     .badge-vdp {
-      background-color: #2563eb;
-      color: #ffffff;
+      background-color: #ffffff;
+      color: #1d4ed8;
       font-size: 9px;
       font-weight: 900;
-      padding: 1px 5px;
-      border-radius: 2px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.3px;
     }
 
     .app-subtitle {
       font-size: 10px;
-      color: #94a3b8;
+      color: #dbeafe;
+      font-weight: 500;
     }
 
     /* Source Tabs */
     .tabs-bar {
       display: flex;
-      background-color: #0f172a;
-      padding: 3px 6px;
-      gap: 4px;
-      border-bottom: 1px solid #374151;
+      background-color: #ffffff;
+      padding: 5px 8px;
+      gap: 6px;
+      border-bottom: 1px solid #e2e8f0;
       flex-shrink: 0;
     }
 
     .tab-btn {
       flex: 1;
       padding: 6px 10px;
-      border: 1px solid transparent;
-      background: transparent;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
       font-size: 11px;
       font-weight: 700;
-      color: #94a3b8;
+      color: #475569;
       border-radius: 4px;
       cursor: pointer;
       display: flex;
@@ -158,15 +160,17 @@
     }
 
     .tab-btn:hover {
-      color: #f8fafc;
-      background-color: #1e293b;
+      color: #0f172a;
+      background-color: #f1f5f9;
+      border-color: #cbd5e1;
     }
 
     .tab-btn.active {
-      background: #1e293b;
-      color: #60a5fa;
-      border-color: #374151;
-      box-shadow: none;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+      font-weight: 800;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
     }
 
     /* Scrollable Container */
@@ -177,31 +181,31 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background: #111827;
+      background: #f8fafc;
     }
 
     /* Section Group Box */
     .section-box {
-      background: #1e293b;
-      border: 1px solid #374151;
-      border-radius: 4px;
-      padding: 8px 9px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      box-shadow: none;
-      color: #f8fafc;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      color: #0f172a;
     }
 
     .section-title {
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 700;
-      color: #f8fafc;
+      color: #0f172a;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #374151;
-      padding-bottom: 4px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 5px;
     }
 
     .step-badge {
@@ -211,19 +215,19 @@
       background: #2563eb;
       color: #ffffff;
       border-radius: 50%;
-      width: 15px;
-      height: 15px;
-      font-size: 9px;
+      width: 16px;
+      height: 16px;
+      font-size: 9.5px;
       font-weight: 800;
-      margin-right: 4px;
+      margin-right: 5px;
     }
 
     /* Dropzone Excel */
     .dropzone {
-      border: 2px dashed #3b82f6;
-      background-color: #0f172a;
-      border-radius: 4px;
-      padding: 12px 10px;
+      border: 2px dashed #93c5fd;
+      background-color: #f8fafc;
+      border-radius: 5px;
+      padding: 14px 10px;
       text-align: center;
       cursor: pointer;
       display: flex;
@@ -235,36 +239,36 @@
     }
 
     .dropzone:hover {
-      border-color: #60a5fa;
-      background-color: #1e293b;
+      border-color: #2563eb;
+      background-color: #eff6ff;
     }
 
     .dropzone.active {
-      border-color: #10b981;
-      background-color: #064e3b;
+      border-color: #059669;
+      background-color: #ecfdf5;
     }
 
     .dropzone-title {
       font-weight: 700;
-      font-size: 11px;
-      color: #60a5fa;
+      font-size: 11.5px;
+      color: #1d4ed8;
     }
 
     .dropzone-desc {
-      font-size: 9.5px;
-      color: #94a3b8;
+      font-size: 10px;
+      color: #64748b;
     }
 
     .file-info-badge {
-      background-color: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 3px;
-      padding: 4px 7px;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 5px 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 10px;
-      color: #f8fafc;
+      color: #0f172a;
     }
 
     /* Form Controls */
@@ -276,40 +280,41 @@
 
     .input-text {
       height: 25px;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
       padding: 0 7px;
       font-size: 11px;
-      color: #f8fafc;
-      background: #111827;
+      color: #0f172a;
+      background: #ffffff;
       outline: none;
     }
     .input-text:focus {
       border-color: #2563eb;
-      box-shadow: 0 0 0 1px #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
     select {
       height: 25px;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      padding: 0 5px;
+      padding: 0 6px;
       font-size: 10.5px;
-      color: #f8fafc;
-      background: #111827;
+      color: #0f172a;
+      background: #ffffff;
       outline: none;
     }
     select:focus {
       border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
     .btn-secondary {
       height: 25px;
       padding: 0 8px;
-      background: #334155;
-      border: 1px solid #475569;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      color: #f8fafc;
+      color: #1e293b;
       font-size: 10px;
       font-weight: 600;
       cursor: pointer;
@@ -319,39 +324,41 @@
       transition: all 0.15s;
     }
     .btn-secondary:hover {
-      background: #475569;
-      border-color: #64748b;
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
     /* Mapping Rows */
     .mapping-list {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 6px;
     }
 
     .mapping-row {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 5px;
-      background: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 4px;
-      padding: 6px 8px;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 7px 9px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
     }
 
     .mapping-idx {
       font-weight: 800;
-      font-size: 10px;
-      color: #94a3b8;
+      font-size: 11px;
+      color: #1d4ed8;
       width: 18px;
       text-align: center;
     }
 
     .mapping-arrow {
-      color: #60a5fa;
-      font-size: 12px;
+      color: #2563eb;
+      font-size: 13px;
       font-weight: 800;
     }
 
@@ -360,13 +367,13 @@
       border: none;
       color: #ef4444;
       cursor: pointer;
-      font-size: 11px;
-      padding: 2px 4px;
-      border-radius: 2px;
+      font-size: 12px;
+      padding: 2px 5px;
+      border-radius: 3px;
     }
     .btn-delete-row:hover {
-      background: #7f1d1d;
-      color: #fca5a5;
+      background: #fee2e2;
+      color: #b91c1c;
     }
 
     /* Corel Size Controls */
@@ -374,17 +381,17 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 6px;
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 3px;
+      padding: 4px 7px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
       flex-wrap: wrap;
     }
 
     .size-label {
       font-size: 9.5px;
       font-weight: 700;
-      color: #94a3b8;
+      color: #334155;
       display: flex;
       align-items: center;
       gap: 3px;
@@ -393,8 +400,8 @@
     .size-input-group {
       display: inline-flex;
       align-items: center;
-      background: #0f172a;
-      border: 1px solid #374151;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
       padding: 0 4px;
       height: 22px;
@@ -403,7 +410,7 @@
     .size-icon {
       font-size: 11px;
       font-weight: 800;
-      color: #60a5fa;
+      color: #2563eb;
       margin-right: 3px;
       line-height: 1;
     }
@@ -415,7 +422,7 @@
       background: transparent;
       font-size: 10.5px;
       font-weight: 700;
-      color: #f8fafc;
+      color: #0f172a;
       text-align: right;
       padding: 0 2px;
       outline: none;
@@ -423,44 +430,44 @@
 
     .size-unit {
       font-size: 9px;
-      color: #94a3b8;
+      color: #64748b;
       margin-left: 2px;
     }
 
     .btn-lock {
       height: 22px;
       padding: 0 6px;
-      border: 1px solid #374151;
       border-radius: 3px;
-      background: #1e293b;
-      color: #f8fafc;
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 3px;
       transition: all 0.15s;
-    }
-
-    .btn-lock:hover {
-      background: #334155;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
     }
 
     .btn-lock.locked {
-      background: #064e3b;
-      border-color: #059669;
-      color: #6ee7b7;
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
       font-weight: 700;
+    }
+
+    .btn-lock:hover {
+      opacity: 0.9;
     }
 
     .sel-fit-mode, .sel-align, .sel-text-case {
       height: 22px;
       padding: 0 4px;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      background: #111827;
-      color: #f8fafc;
+      background: #ffffff;
+      color: #0f172a;
       font-size: 10px;
       font-weight: 600;
       outline: none;
@@ -468,19 +475,19 @@
     }
 
     .sel-fit-mode:hover, .sel-align:hover, .sel-text-case:hover {
-      background: #1e293b;
+      background: #f8fafc;
+      border-color: #94a3b8;
     }
 
     .sel-fit-mode:focus, .sel-align:focus, .sel-text-case:focus {
       border-color: #2563eb;
-      background: #111827;
     }
 
-    /* Change Case Modal - CorelDRAW Native Dark Style */
+    /* Change Case Modal - CorelDRAW Native Light Style */
     .change-case-modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(15, 23, 42, 0.45);
       display: none;
       align-items: center;
       justify-content: center;
@@ -491,11 +498,11 @@
     }
     .change-case-dialog {
       width: 290px;
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid #374151;
-      border-radius: 4px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
       font-family: 'Segoe UI', Tahoma, sans-serif;
       overflow: hidden;
       animation: modalFadeIn 0.15s ease-out;
@@ -505,26 +512,26 @@
       to { opacity: 1; transform: scale(1); }
     }
     .change-case-dialog-header {
-      background: #0f172a;
-      padding: 7px 12px;
+      background: #f8fafc;
+      padding: 8px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #e2e8f0;
       font-size: 11.5px;
       font-weight: 700;
-      color: #f8fafc;
+      color: #0f172a;
     }
     .change-case-dialog-header .btn-close-modal {
       background: transparent;
       border: none;
-      color: #94a3b8;
+      color: #64748b;
       cursor: pointer;
       font-size: 13px;
       line-height: 1;
     }
     .change-case-dialog-header .btn-close-modal:hover {
-      color: #ffffff;
+      color: #0f172a;
     }
     .change-case-dialog-body {
       padding: 14px 16px;
@@ -532,7 +539,7 @@
       flex-direction: column;
       gap: 10px;
       font-size: 11px;
-      background: #1e293b;
+      background: #ffffff;
     }
     .change-case-radio-item {
       display: flex;
@@ -540,38 +547,40 @@
       gap: 8px;
       cursor: pointer;
       user-select: none;
-      color: #f8fafc;
+      color: #0f172a;
+      font-weight: 600;
     }
     .change-case-radio-item input[type="radio"] {
       cursor: pointer;
       accent-color: #2563eb;
-      width: 13px;
-      height: 13px;
+      width: 14px;
+      height: 14px;
       margin: 0;
     }
     .change-case-dialog-footer {
       padding: 10px 14px;
-      background: #0f172a;
-      border-top: 1px solid #374151;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
     }
     .change-case-dialog-footer .btn-modal-action {
-      height: 25px;
+      height: 26px;
       min-width: 65px;
       padding: 0 12px;
-      background: #334155;
-      border: 1px solid #475569;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      color: #f8fafc;
+      color: #1e293b;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
     }
     .change-case-dialog-footer .btn-modal-action:hover {
-      background: #475569;
+      background: #f1f5f9;
+      border-color: #94a3b8;
     }
     .change-case-dialog-footer .btn-modal-primary {
       background: #2563eb;
@@ -584,13 +593,13 @@
 
     .btn-sample-size {
       height: 22px;
-      padding: 0 6px;
-      border: 1px solid #374151;
+      padding: 0 7px;
+      border: 1px solid #bfdbfe;
       border-radius: 3px;
-      background: #1e293b;
-      color: #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -606,29 +615,30 @@
     .btn-clear-size {
       height: 22px;
       padding: 0 5px;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      background: #1e293b;
-      color: #94a3b8;
+      background: #ffffff;
+      color: #64748b;
       font-size: 9.5px;
       cursor: pointer;
     }
 
     .btn-clear-size:hover {
-      background: #7f1d1d;
-      color: #fca5a5;
-      border-color: #ef4444;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fca5a5;
     }
 
     /* Manual Variable Card */
     .manual-card {
-      background: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 4px;
-      padding: 6px 8px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 7px 9px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
     }
 
     .manual-card-header {
@@ -643,13 +653,13 @@
       height: 60px;
       min-height: 48px;
       max-height: 120px;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      padding: 4px 6px;
+      padding: 5px 7px;
       font-family: Consolas, "Courier New", monospace;
-      font-size: 10px;
-      color: #f8fafc;
-      background: #111827;
+      font-size: 10.5px;
+      color: #0f172a;
+      background: #ffffff;
       resize: vertical;
       line-height: 1.4;
       white-space: pre;
@@ -657,41 +667,41 @@
     .manual-textarea:focus {
       border-color: #2563eb;
       outline: none;
-      box-shadow: 0 0 0 1px #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
     /* Table Preview */
     .table-container {
       max-height: 140px;
       overflow: auto;
-      border: 1px solid #374151;
-      border-radius: 3px;
-      background: #111827;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10px;
+      font-size: 10.5px;
     }
 
     th {
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 4px 6px;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 5px 7px;
       font-weight: 700;
-      border-bottom: 1px solid #374151;
-      border-right: 1px solid #374151;
+      border-bottom: 1px solid #cbd5e1;
+      border-right: 1px solid #cbd5e1;
       position: sticky;
       top: 0;
       white-space: nowrap;
     }
 
     td {
-      padding: 3px 6px;
-      border-bottom: 1px solid #1f2937;
-      border-right: 1px solid #1f2937;
-      color: #f8fafc;
+      padding: 4px 7px;
+      border-bottom: 1px solid #f1f5f9;
+      border-right: 1px solid #f1f5f9;
+      color: #0f172a;
       white-space: nowrap;
       max-width: 140px;
       overflow: hidden;
@@ -699,7 +709,7 @@
     }
 
     tr:nth-child(even) td {
-      background-color: #1e293b;
+      background-color: #f8fafc;
     }
 
     /* Checkbox Label */
@@ -708,7 +718,7 @@
       align-items: center;
       gap: 6px;
       font-size: 10.5px;
-      color: #f8fafc;
+      color: #0f172a;
       cursor: pointer;
     }
 
@@ -730,14 +740,14 @@
       color: #ffffff;
       border: 1px solid #1d4ed8;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 800;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      box-shadow: none;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
       transition: all 0.15s;
     }
     .btn-gas:hover {
@@ -745,9 +755,9 @@
       transform: translateY(-1px);
     }
     .btn-gas:disabled {
-      background: #475569;
-      border-color: #374151;
-      color: #94a3b8;
+      background: #94a3b8;
+      border-color: #cbd5e1;
+      color: #f8fafc;
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
@@ -755,16 +765,17 @@
 
     /* Status Bar */
     .statusbar {
-      height: 25px;
-      background-color: #0f172a;
-      border-top: 1px solid #374151;
-      padding: 0 8px;
+      height: 26px;
+      background-color: #ffffff;
+      border-top: 1px solid #e2e8f0;
+      padding: 0 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 10px;
-      color: #94a3b8;
+      color: #475569;
       flex-shrink: 0;
+      font-weight: 500;
     }
 
     .status-dot {
@@ -773,7 +784,7 @@
       border-radius: 50%;
       background: #94a3b8;
       display: inline-block;
-      margin-right: 4px;
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -1642,13 +1653,13 @@
           <div style="display: flex; align-items: center; gap: 6px;">
             <span class="mapping-idx">#${index + 1}</span>
             <div style="display: flex; flex-direction: column; gap: 1px; width: 110px;">
-              <span style="font-size: 8.5px; color: #64748b; font-weight: 600;">Teks Corel:</span>
-              <input type="text" class="input-text txt-placeholder" value="${v.placeholder}" style="height: 24px; font-weight: 700; color: #312e81;" placeholder="misal A1" />
+              <span style="font-size: 8.5px; color: #475569; font-weight: 700;">Teks Corel:</span>
+              <input type="text" class="input-text txt-placeholder" value="${v.placeholder}" style="height: 24px; font-weight: 800; color: #1d4ed8;" placeholder="misal A1" />
             </div>
             <span class="mapping-arrow">➔</span>
             <div style="display: flex; flex-direction: column; gap: 1px; flex: 1;">
-              <span style="font-size: 8.5px; color: #64748b; font-weight: 600;">Ambil dari Kolom Excel:</span>
-              <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600;">
+              <span style="font-size: 8.5px; color: #475569; font-weight: 700;">Ambil dari Kolom Excel:</span>
+              <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600; color: #0f172a;">
                 ${headers.map(h => `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${h.label || `${h.letter}: ${h.name}`}</option>`).join('')}
               </select>
             </div>
@@ -1723,11 +1734,11 @@
           <div class="manual-card-header" style="flex-direction: column; align-items: stretch; gap: 5px;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
               <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                <span style="font-weight: 800; color: #4338ca; font-size: 10px;">#${index + 1}</span>
-                <span style="font-size: 9px; color: #64748b; font-weight: 600;">Teks Corel:</span>
-                <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 75px; height: 22px; font-weight: 800; color: #312e81;" placeholder="misal A1" />
-                <span style="font-size: 9px; color: #64748b; font-weight: 600; margin-left: 4px;">Label:</span>
-                <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600;" placeholder="Nama / Juara / Nomor" />
+                <span style="font-weight: 800; color: #1d4ed8; font-size: 10px;">#${index + 1}</span>
+                <span style="font-size: 9px; color: #475569; font-weight: 700;">Teks Corel:</span>
+                <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 75px; height: 22px; font-weight: 800; color: #1d4ed8;" placeholder="misal A1" />
+                <span style="font-size: 9px; color: #475569; font-weight: 700; margin-left: 4px;">Label:</span>
+                <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600; color: #0f172a;" placeholder="Nama / Juara / Nomor" />
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span class="manual-badge-lines" style="font-size: 9.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 3px; border: 1px solid #a7f3d0;">${lineCount} baris</span>

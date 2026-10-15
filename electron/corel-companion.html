@@ -14,25 +14,25 @@
     }
 
     body {
-      background-color: #111827;
-      color: #f8fafc;
+      background-color: #f8fafc;
+      color: #0f172a;
       font-size: 11.5px;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border: 1px solid #374151;
+      border: 1px solid #cbd5e1;
     }
 
     /* Windows Native Titlebar */
     .titlebar {
       height: 28px;
-      background-color: #0f172a;
+      background-color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 8px;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #e2e8f0;
       -webkit-app-region: drag;
       flex-shrink: 0;
     }
@@ -43,25 +43,26 @@
       gap: 6px;
       font-size: 11px;
       font-weight: 700;
-      color: #f8fafc;
+      color: #0f172a;
     }
 
     .titlebar-icon {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       background-color: #2563eb;
       color: #ffffff;
-      border-radius: 2px;
+      border-radius: 3px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 9px;
+      font-size: 9.5px;
       font-weight: 700;
     }
 
     .titlebar-controls {
       display: flex;
       -webkit-app-region: no-drag;
+      gap: 2px;
     }
 
     .titlebar-btn {
@@ -69,18 +70,19 @@
       height: 28px;
       background: transparent;
       border: none;
-      color: #94a3b8;
+      color: #64748b;
       font-size: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      border-radius: 2px;
       transition: all 0.15s;
     }
 
     .titlebar-btn:hover {
-      background-color: #1e293b;
-      color: #f8fafc;
+      background-color: #f1f5f9;
+      color: #0f172a;
     }
 
     .titlebar-btn.close:hover {
@@ -88,28 +90,29 @@
       color: #ffffff;
     }
 
-    /* Header Blue Banner - Solid Native */
+    /* Header Blue Banner - Solid Native Royal Blue */
     .app-header {
-      background-color: #1e293b;
-      color: #f8fafc;
-      padding: 8px 12px;
+      background-color: #1d4ed8;
+      color: #ffffff;
+      padding: 9px 12px;
       display: flex;
       flex-direction: column;
       gap: 2px;
       flex-shrink: 0;
-      border-bottom: 1px solid #374151;
+      border-bottom: 1px solid #1e40af;
     }
 
     .app-header-title {
       font-size: 13px;
       font-weight: 800;
       letter-spacing: 0.5px;
-      color: #f8fafc;
+      color: #ffffff;
     }
 
     .app-header-sub {
       font-size: 10px;
-      color: #94a3b8;
+      color: #dbeafe;
+      font-weight: 500;
     }
 
     /* Form Container */
@@ -119,7 +122,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background-color: #111827;
+      background-color: #f8fafc;
       overflow-y: auto;
     }
 
@@ -132,7 +135,7 @@
     .field-label {
       font-size: 11px;
       font-weight: 600;
-      color: #94a3b8;
+      color: #334155;
     }
 
     .input-row {
@@ -143,11 +146,11 @@
     input[type="text"], input[type="number"], select {
       width: 100%;
       height: 26px;
-      padding: 0 6px;
-      background-color: #111827;
-      border: 1px solid #374151;
+      padding: 0 7px;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 3px;
-      color: #f8fafc;
+      color: #0f172a;
       font-size: 11.5px;
       outline: none;
       transition: border-color 0.15s;
@@ -155,21 +158,21 @@
 
     input[type="text"]:focus, input[type="number"]:focus, select:focus {
       border-color: #2563eb;
-      box-shadow: 0 0 0 1px #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
     input[readonly] {
-      background-color: #1e293b;
-      color: #93c5fd;
+      background-color: #f1f5f9;
+      color: #1d4ed8;
       font-weight: 600;
     }
 
     .btn-browse {
       width: 70px;
       height: 26px;
-      background-color: #334155;
-      border: 1px solid #475569;
-      color: #f8fafc;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #1e293b;
       font-size: 11px;
       font-weight: 600;
       border-radius: 3px;
@@ -179,7 +182,9 @@
     }
 
     .btn-browse:hover {
-      background-color: #475569;
+      background-color: #f1f5f9;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
     .grid-2 {
@@ -198,9 +203,9 @@
     .btn-primary {
       flex: 1;
       height: 32px;
-      background-color: #334155;
-      border: 1px solid #475569;
-      color: #f8fafc;
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #1e293b;
       font-size: 11px;
       font-weight: 600;
       border-radius: 3px;
@@ -212,15 +217,19 @@
     }
 
     .btn-primary:hover {
-      background-color: #475569;
+      background-color: #f1f5f9;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
     .btn-primary.btn-gas {
       background-color: #2563eb;
       color: #ffffff;
       border-color: #1d4ed8;
-      font-weight: 700;
-      font-size: 12px;
+      font-weight: 800;
+      font-size: 12.5px;
+      height: 36px;
+      box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
     }
 
     .btn-primary.btn-gas:hover {
@@ -228,30 +237,33 @@
     }
 
     .btn-primary:disabled {
-      opacity: 0.5;
+      background-color: #94a3b8;
+      border-color: #cbd5e1;
+      color: #f8fafc;
       cursor: not-allowed;
+      box-shadow: none;
     }
 
     /* Info Box & Status Bar */
     .info-box {
-      background-color: #0f172a;
-      border: 1px dashed #3b82f6;
-      border-radius: 4px;
-      padding: 6px 8px;
+      background-color: #eff6ff;
+      border: 1px dashed #93c5fd;
+      border-radius: 6px;
+      padding: 8px 10px;
       font-size: 10.5px;
-      color: #93c5fd;
-      line-height: 1.4;
+      color: #1e40af;
+      line-height: 1.45;
     }
 
     .info-box strong {
-      color: #60a5fa;
+      color: #1d4ed8;
     }
 
     .status-bar {
-      background-color: #0f172a;
-      border: 1px solid #374151;
-      border-radius: 3px;
-      padding: 5px 8px;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 6px 9px;
       display: flex;
       flex-direction: column;
       gap: 2px;
@@ -261,7 +273,8 @@
 
     .status-line {
       font-size: 11px;
-      color: #f8fafc;
+      color: #334155;
+      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -269,8 +282,12 @@
 
     .status-corel {
       font-size: 10px;
-      color: #93c5fd;
+      color: #1d4ed8;
+      font-weight: 700;
       font-family: Consolas, Monaco, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .footer-author {
