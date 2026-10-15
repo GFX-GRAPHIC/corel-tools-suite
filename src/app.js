@@ -767,15 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       mergerExcelDropzone.classList.remove('dragover');
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        let filePath = '';
-        if (window.corelAPI?.getPathForFile) {
-          filePath = window.corelAPI.getPathForFile(file);
-        }
-        if (!filePath) filePath = file.path || '';
-        if (filePath) {
-          handleExcelFileSelected(filePath);
-        }
+        handleExcelFileSelected(e.dataTransfer.files[0]);
       }
     });
   }
@@ -783,15 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fileMergerExcelInput) {
     fileMergerExcelInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files.length > 0) {
-        const file = e.target.files[0];
-        let filePath = '';
-        if (window.corelAPI?.getPathForFile) {
-          filePath = window.corelAPI.getPathForFile(file);
-        }
-        if (!filePath) filePath = file.path || '';
-        if (filePath) {
-          handleExcelFileSelected(filePath);
-        }
+        handleExcelFileSelected(e.target.files[0]);
       }
     });
   }
@@ -800,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnMergerChangeFile.addEventListener('click', () => {
       if (window.corelAPI?.selectExcelFile) {
         window.corelAPI.selectExcelFile().then(res => {
-          if (res.success && res.filePath) handleExcelFileSelected(res.filePath);
+          if (res && res.success && res.filePath) handleExcelFileSelected(res.filePath);
         });
       } else if (fileMergerExcelInput) {
         fileMergerExcelInput.click();
@@ -808,20 +792,59 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function handleExcelFileSelected(filePath) {
-    if (!filePath) return;
-    currentExcelFilePath = filePath;
+  async function handleExcelFileSelected(filePathOrFile) {
+    if (!filePathOrFile) return;
     showToast('Membaca file Excel...');
     try {
-      const res = await window.corelAPI.parseExcelFile(filePath);
-      if (res.success) {
+      let payload = null;
+      let displayPath = '';
+
+      if (typeof filePathOrFile === 'object') {
+        const file = filePathOrFile;
+        let nativePath = '';
+        if (window.corelAPI?.getPathForFile) {
+          try { nativePath = window.corelAPI.getPathForFile(file); } catch {}
+        }
+        if (!nativePath && file.path) nativePath = file.path;
+        displayPath = nativePath || file.name || 'data.xlsx';
+
+        // Convert to Base64 (100% reliable across Electron/browser)
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = reader.result;
+            const b64 = typeof res === 'string' ? (res.split(',')[1] || res) : '';
+            resolve(b64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        payload = {
+          base64,
+          fileName: file.name || 'data_peserta.xlsx',
+          filePath: nativePath || file.name || ''
+        };
+      } else {
+        displayPath = filePathOrFile;
+        payload = filePathOrFile;
+      }
+
+      currentExcelFilePath = displayPath;
+
+      const res = await window.corelAPI.parseExcelFile(payload);
+      if (res && res.success) {
         activeExcelWorkbookInfo = res;
         excelMergerData = res;
 
-        // Update badge
-        boxMergerFileInfo.style.display = 'flex';
-        lblMergerFileName.innerText = filePath.split(/[/\\]/).pop();
+        // Update UI visibility
+        if (mergerExcelDropzone) mergerExcelDropzone.style.display = 'none';
+        if (boxMergerFileInfo) boxMergerFileInfo.style.display = 'flex';
+        if (boxMergerExcelPreview) boxMergerExcelPreview.style.display = 'flex';
+
+        lblMergerFileName.innerText = (res.filePath || displayPath).split(/[/\\]/).pop();
         lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
+        lblMergerColCount.innerText = `${res.headers ? res.headers.length : 0} Kolom`;
 
         // Populate sheets dropdown
         selMergerSheet.innerHTML = '';
@@ -830,43 +853,157 @@ document.addEventListener('DOMContentLoaded', () => {
             const opt = document.createElement('option');
             opt.value = sh;
             opt.innerText = sh;
+            if (sh === res.activeSheet) opt.selected = true;
             selMergerSheet.appendChild(opt);
           });
         }
 
-        // Populate header rows dropdown (Baris 1 s/d 10)
-        selMergerHeaderRow.innerHTML = '';
-        for (let r = 1; r <= 10; r++) {
-          const opt = document.createElement('option');
-          opt.value = r;
-          opt.innerText = `Baris ${r}`;
-          if (r === (res.headerRowIndex || 1)) opt.selected = true;
-          selMergerHeaderRow.appendChild(opt);
-        }
+        // Populate header rows dropdown
+        populateHeaderRowSelector(res.headerRowIdx, res.rawData?.length || 10);
 
-        renderExcelPreviewTable(res);
+        renderExcelPreviewTable(res.headers, res.rows);
+        autoMapVariablesFromHeaders(res.headers);
         renderMergerMappingList();
         updateMergerPreview();
         showToast(`✓ File Excel berhasil dimuat: ${res.totalRows} baris`);
       } else {
-        alert(`Gagal membaca Excel: ${res.message}`);
+        alert(`Gagal membaca Excel: ${res?.message || 'Format tidak valid'}`);
       }
     } catch (err) {
       alert(`Error membaca file Excel: ${err.message}`);
     }
   }
 
+  function populateHeaderRowSelector(activeIdx, totalRowsCount) {
+    if (!selMergerHeaderRow) return;
+    selMergerHeaderRow.innerHTML = '';
+    const limit = Math.min(10, Math.max(5, totalRowsCount || 10));
+    for (let i = 0; i < limit; i++) {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.innerText = (i === activeIdx) ? `Baris ${i + 1} (Otomatis)` : `Baris ${i + 1}`;
+      if (i === activeIdx) opt.selected = true;
+      selMergerHeaderRow.appendChild(opt);
+    }
+  }
+
+  function recomputeSheetHeaders(sheetName, headerRowIdx) {
+    if (!activeExcelWorkbookInfo || !activeExcelWorkbookInfo.sheetsData) return;
+    const sheet = activeExcelWorkbookInfo.sheetsData[sheetName];
+    if (!sheet || !sheet.rawData || sheet.rawData.length === 0) return;
+
+    const rawData = sheet.rawData;
+    const headerRow = rawData[headerRowIdx] || [];
+    const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
+
+    function indexToLetter(idx) {
+      let letter = '';
+      let temp = idx;
+      while (temp >= 0) {
+        letter = String.fromCharCode((temp % 26) + 65) + letter;
+        temp = Math.floor(temp / 26) - 1;
+      }
+      return letter;
+    }
+
+    const rows = [];
+    for (let rIdx = headerRowIdx + 1; rIdx < rawData.length; rIdx++) {
+      const rowValues = rawData[rIdx];
+      if (!rowValues) continue;
+      const hasData = rowValues.some(val => val !== undefined && val !== null && String(val).trim() !== '');
+      if (!hasData) continue;
+
+      const rowObj = {};
+      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+        const letter = indexToLetter(colIdx);
+        const cellVal = rowValues[colIdx];
+        rowObj[letter] = cellVal !== undefined && cellVal !== null ? String(cellVal).trim() : '';
+      }
+      rows.push(rowObj);
+    }
+
+    const headers = [];
+    for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+      const letter = indexToLetter(colIdx);
+      const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+      const name = rawName || `Kolom ${letter}`;
+
+      let sample = '';
+      for (const r of rows) {
+        if (r[letter] && r[letter].trim() !== '') {
+          sample = r[letter].trim();
+          if (sample.length > 25) sample = sample.substring(0, 22) + '...';
+          break;
+        }
+      }
+
+      const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
+      headers.push({ letter, name, sample, label });
+    }
+
+    sheet.headers = headers;
+    sheet.rows = rows;
+    sheet.totalRows = rows.length;
+    sheet.headerRowIdx = headerRowIdx;
+
+    activeExcelWorkbookInfo.headers = headers;
+    activeExcelWorkbookInfo.rows = rows;
+    activeExcelWorkbookInfo.totalRows = rows.length;
+    activeExcelWorkbookInfo.headerRowIdx = headerRowIdx;
+    excelMergerData = activeExcelWorkbookInfo;
+
+    lblMergerRowCount.innerText = `(${rows.length} Baris Data)`;
+    lblMergerColCount.innerText = `${headers.length} Kolom`;
+
+    renderExcelPreviewTable(headers, rows);
+    autoMapVariablesFromHeaders(headers);
+    renderMergerMappingList();
+    updateMergerPreview();
+  }
+
+  function autoMapVariablesFromHeaders(headers) {
+    if (!headers || headers.length === 0) return;
+
+    const nameCol = headers.find(h => /nama|peserta|name/i.test(h.name));
+    const awardCol = headers.find(h => /juara|predikat|kategori|sebagai|instrumen|award/i.test(h.name));
+    const noCol = headers.find(h => /nomor|no\.|sertifikat|kode/i.test(h.name));
+
+    excelMappings.forEach(v => {
+      const p = (v.placeholder || '').toUpperCase();
+
+      if (p === 'A1') {
+        if (noCol) v.col = noCol.letter;
+        else if (nameCol) v.col = nameCol.letter;
+      } else if (p === 'A2') {
+        if (nameCol) v.col = nameCol.letter;
+        else if (awardCol) v.col = awardCol.letter;
+      } else if (p === 'A3') {
+        if (awardCol) v.col = awardCol.letter;
+        else if (noCol) v.col = noCol.letter;
+      }
+    });
+  }
+
   // Reload sheet when selection changes
   if (selMergerSheet) {
-    selMergerSheet.addEventListener('change', async () => {
-      if (!currentExcelFilePath) return;
+    selMergerSheet.addEventListener('change', () => {
+      if (!activeExcelWorkbookInfo || !activeExcelWorkbookInfo.sheetsData) return;
       const sheetName = selMergerSheet.value;
-      const headerRowIndex = parseInt(selMergerHeaderRow.value, 10) || 1;
-      const res = await window.corelAPI.parseExcelFile({ filePath: currentExcelFilePath, sheetName, headerRowIndex });
-      if (res.success) {
-        excelMergerData = res;
-        lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
-        renderExcelPreviewTable(res);
+      const sheet = activeExcelWorkbookInfo.sheetsData[sheetName];
+      if (sheet) {
+        activeExcelWorkbookInfo.activeSheet = sheetName;
+        activeExcelWorkbookInfo.headers = sheet.headers;
+        activeExcelWorkbookInfo.rows = sheet.rows;
+        activeExcelWorkbookInfo.totalRows = sheet.totalRows;
+        activeExcelWorkbookInfo.headerRowIdx = sheet.headerRowIdx || 0;
+        excelMergerData = activeExcelWorkbookInfo;
+
+        lblMergerRowCount.innerText = `(${sheet.totalRows} Baris Data)`;
+        lblMergerColCount.innerText = `${sheet.headers.length} Kolom`;
+
+        populateHeaderRowSelector(sheet.headerRowIdx, sheet.rawData?.length || 10);
+        renderExcelPreviewTable(sheet.headers, sheet.rows);
+        autoMapVariablesFromHeaders(sheet.headers);
         renderMergerMappingList();
         updateMergerPreview();
       }
@@ -874,43 +1011,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (selMergerHeaderRow) {
-    selMergerHeaderRow.addEventListener('change', async () => {
-      if (!currentExcelFilePath) return;
-      const sheetName = selMergerSheet.value;
-      const headerRowIndex = parseInt(selMergerHeaderRow.value, 10) || 1;
-      const res = await window.corelAPI.parseExcelFile({ filePath: currentExcelFilePath, sheetName, headerRowIndex });
-      if (res.success) {
-        excelMergerData = res;
-        lblMergerRowCount.innerText = `(${res.totalRows} Baris Data)`;
-        renderExcelPreviewTable(res);
-        renderMergerMappingList();
-        updateMergerPreview();
-      }
+    selMergerHeaderRow.addEventListener('change', () => {
+      const idx = parseInt(selMergerHeaderRow.value, 10);
+      recomputeSheetHeaders(selMergerSheet.value, idx);
     });
   }
 
-  function renderExcelPreviewTable(data) {
-    if (!boxMergerExcelPreview || !data) return;
+  function renderExcelPreviewTable(headers, rows) {
+    if (!boxMergerExcelPreview || !tblMergerExcelHead || !tblMergerExcelBody) return;
     boxMergerExcelPreview.style.display = 'flex';
-    lblMergerColCount.innerText = `${data.headers ? data.headers.length : 0} Kolom`;
+    lblMergerColCount.innerText = `${headers ? headers.length : 0} Kolom`;
 
     tblMergerExcelHead.innerHTML = '';
     tblMergerExcelBody.innerHTML = '';
 
-    if (data.headers) {
+    if (headers && headers.length > 0) {
       const trH = document.createElement('tr');
-      data.headers.forEach(h => {
+      headers.forEach(h => {
         const th = document.createElement('th');
-        th.innerText = `${h.letter}: ${h.label}`;
+        th.innerText = `${h.letter}: ${h.name}`;
         trH.appendChild(th);
       });
       tblMergerExcelHead.appendChild(trH);
     }
 
-    if (data.previewRows && data.previewRows.length > 0) {
-      data.previewRows.forEach(row => {
+    const previewSlice = (rows || []).slice(0, 5);
+    if (previewSlice.length > 0) {
+      previewSlice.forEach(row => {
         const trB = document.createElement('tr');
-        data.headers.forEach(h => {
+        headers.forEach(h => {
           const td = document.createElement('td');
           td.innerText = row[h.letter] ?? '';
           trB.appendChild(td);

@@ -347,13 +347,18 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
     if (payload && payload.base64) {
       const buf = Buffer.from(payload.base64, 'base64');
       workbook = xlsx.read(buf, { type: 'buffer' });
-      targetPath = payload.fileName || 'Data Excel';
+      targetPath = payload.fileName || payload.filePath || 'Data Excel';
+    } else if (payload && payload.buffer) {
+      const buf = Buffer.isBuffer(payload.buffer) ? payload.buffer : Buffer.from(payload.buffer);
+      workbook = xlsx.read(buf, { type: 'buffer' });
+      targetPath = payload.fileName || payload.filePath || 'Data Excel';
     } else {
       let filePath = typeof payload === 'string' ? payload : payload?.filePath;
-      if (!filePath || !fs.existsSync(filePath)) {
+      if (!filePath || typeof filePath !== 'string' || !fs.existsSync(filePath)) {
         return { success: false, message: 'File Excel tidak ditemukan.' };
       }
-      workbook = xlsx.readFile(filePath, { type: 'file' });
+      const buf = fs.readFileSync(filePath);
+      workbook = xlsx.read(buf, { type: 'buffer' });
       targetPath = filePath;
     }
 
@@ -373,13 +378,14 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
 
     const sheetsData = {};
     const sheetNames = workbook.SheetNames;
-    const activeSheet = sheetNames[0];
+    const requestedSheet = (payload && typeof payload === 'object' && payload.sheetName) ? payload.sheetName : null;
+    const activeSheet = (requestedSheet && sheetNames.includes(requestedSheet)) ? requestedSheet : sheetNames[0];
 
     for (const sName of sheetNames) {
       const ws = workbook.Sheets[sName];
       const rawData = xlsx.utils.sheet_to_json(ws, { header: 1, defval: '' });
       if (!rawData || rawData.length === 0) {
-        sheetsData[sName] = { headers: [], rows: [], totalRows: 0, headerRowIdx: 0 };
+        sheetsData[sName] = { headers: [], rows: [], totalRows: 0, headerRowIdx: 0, rawData: [] };
         continue;
       }
 
@@ -394,6 +400,11 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
           maxNonEmpty = count;
           headerRowIdx = r;
         }
+      }
+
+      // If user explicitly specified headerRowIndex for the active sheet
+      if (sName === activeSheet && payload && typeof payload === 'object' && typeof payload.headerRowIndex === 'number' && payload.headerRowIndex >= 0) {
+        headerRowIdx = Math.min(payload.headerRowIndex, rawData.length - 1);
       }
 
       const headerRow = rawData[headerRowIdx] || [];
@@ -428,14 +439,14 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
             break;
           }
         }
-        const label = sample ? `${letter}: ${name} (${sample})` : `${letter}: ${name}`;
+        const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
         headers.push({ letter, name, sample, label });
       }
 
       sheetsData[sName] = { headers, rows, totalRows: rows.length, headerRowIdx, rawData };
     }
 
-    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0, headerRowIdx: 0 };
+    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0, headerRowIdx: 0, rawData: [] };
     return {
       success: true,
       filePath: targetPath,
@@ -445,10 +456,12 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
       headers: primary.headers,
       rows: primary.rows,
       totalRows: primary.totalRows,
-      headerRowIdx: primary.headerRowIdx
+      headerRowIdx: primary.headerRowIdx,
+      rawData: primary.rawData
     };
   } catch (err) {
-    return { success: false, message: `Gagal membaca Excel: ${err.message}` };
+    console.error('[Excel Parse Error]', err);
+    return { success: false, message: `Gagal membaca Excel: ${err?.message || err}` };
   }
 });
 
@@ -870,7 +883,7 @@ $result | ConvertTo-Json -Compress
 });
 
 // 5. Execute Merger (Variable Data & Certificates)
-ipcMain.handle('corel:execute-merger', async (_event, payload) => {
+async function executeMergerWorkflow(payload) {
   const {
     rows = [],
     mappings = [],
@@ -935,9 +948,11 @@ function Apply-RowReplacement($textList, $rowObj, $mapList) {
     foreach ($m in $mapList) {
         $ph = [string]$m.placeholder
         $col = [string]$m.column
+        if (-not $col -and $m.col) { $col = [string]$m.col }
         if (-not $ph) { continue }
         $val = ""
-        if ($rowObj.PSObject.Properties[$col]) { $val = [string]($rowObj.$col) }
+        if ($col -and $rowObj.PSObject.Properties[$col]) { $val = [string]($rowObj.$col) }
+        elseif ($ph -and $rowObj.PSObject.Properties[$ph]) { $val = [string]($rowObj.$ph) }
         if ($null -eq $val) { $val = "" }
         foreach ($t in $textList) { Replace-ShapeText $t $ph $val }
     }
@@ -1117,7 +1132,10 @@ finally {
 $result | ConvertTo-Json -Compress
 `;
   return runPowerShellScript(ps);
-});
+}
+
+ipcMain.handle('corel:execute-merger', async (_event, payload) => executeMergerWorkflow(payload));
+ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => executeMergerWorkflow(payload));
 
 // 6. Execute File Format Conversion (CDR to PDF, PNG, JPG, EPS, AI, SVG)
 ipcMain.handle('corel:execute-conversion', async (_event, payload) => {
@@ -1645,13 +1663,6 @@ catch {
 $result | ConvertTo-Json -Compress
 `;
   return runPowerShellScript(ps);
-});
-
-// Alias for Certificate & Variable Data Merger
-ipcMain.handle('corel:execute-cert-merger', async (event, payload) => {
-  return await ipcMain._invokeHandler
-    ? ipcMain._invokeHandler('corel:execute-merger', event, payload)
-    : mainWindow.webContents.executeJavaScript;
 });
 
 // CorelDRAW Dark Mode Toggle
