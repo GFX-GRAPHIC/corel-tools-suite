@@ -883,26 +883,54 @@ $result | ConvertTo-Json -Compress
 });
 
 // 5. Execute Merger (Variable Data & Certificates)
-async function executeMergerWorkflow(payload) {
-  const {
-    rows = [],
-    mappings = [],
-    mode = 'page',
-    cols = 2,
-    gridRows = 5,
-    spacingX = 0.5,
-    spacingY = 0.5,
-    gridOrder = 'left_right',
-    autoCurves = true,
-  } = payload || {};
+// Exact battle-tested engine copied from Cetak Pro POS
+async function executeCertMergerWorkflow(payload) {
+  return new Promise((resolve) => {
+    const {
+      rows = [],
+      mappings = [],
+      mode = 'page',
+      autoCurves = true,
+      cols = 2,
+      gridRows = 5,
+      spacingX = 0.5,
+      spacingY = 0.5,
+      gridOrder = 'left_right',
+    } = payload || {};
 
-  if (!rows.length) return { success: false, message: 'Data baris kosong.' };
-  if (!mappings.length) return { success: false, message: 'Pemetaan placeholder belum diatur.' };
+    if (!rows || rows.length === 0) {
+      return resolve({ success: false, message: 'Tidak ada data baris Excel yang diproses.' });
+    }
+    if (!mappings || mappings.length === 0) {
+      return resolve({ success: false, message: 'Tidak ada pemetaan variabel teks yang ditentukan.' });
+    }
 
-  const tempJsonPath = path.join(app.getPath('temp'), `cts_merger_data_${Date.now()}.json`);
-  fs.writeFileSync(tempJsonPath, JSON.stringify({ rows, mappings, mode, cols, gridRows, spacingX, spacingY, gridOrder, autoCurves }), 'utf-8');
+    const tempDir = app.getPath('temp');
+    const timestamp = Date.now();
+    const tempJsonPath = path.join(tempDir, `corel_cert_data_${timestamp}.json`);
+    const tempPs1Path = path.join(tempDir, `corel_cert_${timestamp}.ps1`);
 
-  const ps = `
+    try {
+      fs.writeFileSync(
+        tempJsonPath,
+        JSON.stringify({
+          rows,
+          mappings,
+          mode,
+          autoCurves,
+          cols: Number(cols) || 2,
+          gridRows: Number(gridRows) || 5,
+          spacingX: Number(spacingX) >= 0 ? Number(spacingX) : 0.5,
+          spacingY: Number(spacingY) >= 0 ? Number(spacingY) : 0.5,
+          gridOrder: gridOrder || 'left_right'
+        }),
+        'utf-8'
+      );
+    } catch (err) {
+      return resolve({ success: false, message: `Gagal menyiapkan file data: ${err.message}` });
+    }
+
+    const psScript = `
 $ErrorActionPreference = 'Stop'
 $result = @{ success = $false; message = ''; count = 0; totalPages = 0 }
 
@@ -910,16 +938,36 @@ trap {
     $errLine = $_.InvocationInfo.ScriptLineNumber
     $errMsg = $_.Exception.Message
     if (-not $errMsg) { $errMsg = "$_" }
-    $res = @{ success = $false; message = "CorelDRAW Error (Line $errLine): $errMsg" }
+    $res = @{
+        success = $false
+        message = "CorelDRAW Error (Line $errLine): $errMsg"
+    }
     $res | ConvertTo-Json -Compress
     exit 0
 }
 
+function Get-RangeCount($r) {
+    if (-not $r) { return 0 }
+    try { if ($r.Count -ne $null) { return [int]$r.Count } } catch {}
+    try { if ($r.Shapes -and $r.Shapes.Count -ne $null) { return [int]$r.Shapes.Count } } catch {}
+    return 0
+}
+
+function Get-RangeItem($r, [int]$idx) {
+    if (-not $r) { return $null }
+    try { $it = $r.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r.Shapes.Item($idx); if ($it) { return $it } } catch {}
+    try { $it = $r[$idx]; if ($it) { return $it } } catch {}
+    return $null
+}
+
+# Helper function: Replace text in shape case-insensitively
 function Replace-ShapeText($shp, $findText, $replaceVal) {
     if (-not $shp) { return }
-    if ($shp.Type -eq 6) {
-        try { [void]$shp.Text.Story.Replace($findText, $replaceVal, $false) }
-        catch {
+    if ($shp.Type -eq 6) { # cdrTextShape
+        try {
+            [void]$shp.Text.Story.Replace($findText, $replaceVal, $false)
+        } catch {
             try {
                 $cur = $shp.Text.Story.Text
                 if ($cur) {
@@ -931,91 +979,223 @@ function Replace-ShapeText($shp, $findText, $replaceVal) {
     }
 }
 
+# Helper function: Find all text shapes recursively including groups and PowerClips
 function Get-AllTextShapes($container) {
     $list = @()
     if (-not $container) { return $list }
     try {
         $found = $container.Shapes.FindShapes($null, 6, $true)
-        if ($found) {
-            for ($k = 1; $k -le $found.Count; $k++) { $list += $found.Item($k) }
+        if ($found -and $found.Count -gt 0) {
+            for ($k = 1; $k -le $found.Count; $k++) {
+                $list += $found.Item($k)
+            }
+        }
+    } catch {}
+
+    try {
+        $all = $container.Shapes.FindShapes()
+        if ($all -and $all.Count -gt 0) {
+            for ($k = 1; $k -le $all.Count; $k++) {
+                $s = $all.Item($k)
+                try {
+                    if ($s.PowerClip) {
+                        $pcShapes = $s.PowerClip.Shapes.FindShapes($null, 6, $true)
+                        if ($pcShapes -and $pcShapes.Count -gt 0) {
+                            for ($j = 1; $j -le $pcShapes.Count; $j++) {
+                                $list += $pcShapes.Item($j)
+                            }
+                        }
+                    }
+                } catch {}
+            }
         }
     } catch {}
     return $list
 }
 
+# Helper function: Apply variable row data to text shapes
 function Apply-RowReplacement($textList, $rowObj, $mapList) {
     if (-not $textList -or -not $rowObj -or -not $mapList) { return }
     foreach ($m in $mapList) {
         $ph = [string]$m.placeholder
         $col = [string]$m.column
-        if (-not $col -and $m.col) { $col = [string]$m.col }
         if (-not $ph) { continue }
         $val = ""
-        if ($col -and $rowObj.PSObject.Properties[$col]) { $val = [string]($rowObj.$col) }
-        elseif ($ph -and $rowObj.PSObject.Properties[$ph]) { $val = [string]($rowObj.$ph) }
+        if ($rowObj.PSObject.Properties[$col]) {
+            $val = [string]($rowObj.$col)
+        }
         if ($null -eq $val) { $val = "" }
-        foreach ($t in $textList) { Replace-ShapeText $t $ph $val }
+        foreach ($t in $textList) {
+            Replace-ShapeText $t $ph $val
+        }
+    }
+}
+
+# Helper function: Convert texts to curves backwards
+function Convert-TextsToCurves($textList) {
+    if (-not $textList) { return }
+    for ($k = $textList.Count - 1; $k -ge 0; $k--) {
+        try {
+            $t = $textList[$k]
+            if ($t -and $t.Type -eq 6) {
+                try { [void]$t.ConvertToCurves() } catch { try { [void]$t.CreateCurves() } catch {} }
+            }
+        } catch {}
     }
 }
 
 try {
+    # 1. Read JSON input data
     $jsonPath = '${tempJsonPath.replace(/'/g, "''")}'
-    $data = [System.IO.File]::ReadAllText($jsonPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    $jsonRaw = [System.IO.File]::ReadAllText($jsonPath, [System.Text.Encoding]::UTF8)
+    $data = $jsonRaw | ConvertFrom-Json
     $rows = $data.rows
     $mappings = $data.mappings
     $mode = [string]$data.mode
     $autoCurves = [bool]$data.autoCurves
-    $cols = [int]$data.cols
-    $gridRows = [int]$data.gridRows
-    $spacingX = [double]$data.spacingX
-    $spacingY = [double]$data.spacingY
-    $gridOrder = [string]$data.gridOrder
+    $cols = if ($data.cols) { [int]$data.cols } else { 2 }
+    $gridRows = if ($data.gridRows) { [int]$data.gridRows } else { 5 }
+    $spacingX = if ($null -ne $data.spacingX) { [double]$data.spacingX } else { 0.5 }
+    $spacingY = if ($null -ne $data.spacingY) { [double]$data.spacingY } else { 0.5 }
+    $gridOrder = if ($data.gridOrder) { [string]$data.gridOrder } else { 'left_right' }
 
+    # Sort mappings by placeholder length descending (e.g. A10 before A1, [NAMA_LENGKAP] before [NAMA])
     $sortedMappings = @($mappings | Sort-Object -Property @{ Expression = { $_.placeholder.Length }; Descending = $true })
 
+    # 2. Connect to CorelDRAW COM instance (Multi-strategy connection for CorelDRAW X7 - 2025)
     $corel = $null
-    for ($v = 26; $v -ge 14; $v--) {
-        try {
-            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
-            if ($c -and ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0))) {
-                $corel = $c
-                break
-            }
-        } catch {}
+
+    # 2a. Try CurVer ProgID from Registry
+    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
+    if ($curVer) {
+        try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer) } catch {}
+        if (-not $corel) {
+            try { $corel = New-Object -ComObject $curVer -ErrorAction SilentlyContinue } catch {}
+        }
     }
+
+    # 2b. Try Generic ProgID
     if (-not $corel) {
         try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+        if (-not $corel) {
+            try { $corel = New-Object -ComObject "CorelDRAW.Application" -ErrorAction SilentlyContinue } catch {}
+        }
     }
-    if (-not $corel) { throw "CorelDRAW belum dibuka." }
+
+    # 2c. Try loop through known version ProgIDs (26 down to 14)
+    if (-not $corel) {
+        for ($v = 26; $v -ge 14; $v--) {
+            try {
+                $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
+                if ($c) {
+                    if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
+                        $corel = $c
+                        break
+                    } elseif (-not $corel) {
+                        $corel = $c
+                    }
+                }
+            } catch {}
+            if (-not $corel) {
+                try {
+                    $c = New-Object -ComObject "CorelDRAW.Application.$v" -ErrorAction SilentlyContinue
+                    if ($c -and ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0))) {
+                        $corel = $c
+                        break
+                    }
+                } catch {}
+            }
+        }
+    }
+
+    if (-not $corel) {
+        $proc = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($proc) {
+            throw "CorelDRAW terdeteksi terbuka di komputer (PID $($proc.Id)), namun Windows membatasi hak akses COM. Jika CorelDRAW dibuka dengan opsi 'Run as Administrator', jalankan juga aplikasi GFX IT PRINTING sebagai Administrator agar izinnya setara."
+        }
+        throw "CorelDRAW tidak sedang berjalan. Silakan buka CorelDRAW dan dokumen template sertifikat Anda terlebih dahulu."
+    }
 
     $doc = $null
     try { $doc = $corel.ActiveDocument } catch {}
-    if (-not $doc) { throw "Buka file desain sertifikat di CorelDRAW." }
+    if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
+        try { $doc = $corel.Documents.Item(1) } catch {}
+    }
+    if (-not $doc) {
+        throw "Tidak ada dokumen template yang terbuka di CorelDRAW. Buka file sertifikat Anda terlebih dahulu."
+    }
 
-    $doc.Unit = 3 # cdrCentimeter
-    $doc.BeginCommandGroup("CTS Variable Data Merge")
+    # Optimization ON
+    try { $corel.Optimization = $true } catch {}
+    try { $corel.EventsEnabled = $false } catch {}
+    $doc.BeginCommandGroup("GFX Batch Certificate Mail Merge")
+
     $totalRows = $rows.Count
 
     if ($mode -eq 'inplace') {
-        $target = $doc.ActiveSelection
-        if (-not $target -or $target.Shapes.Count -eq 0) { $target = $doc.ActivePage }
-        $texts = Get-AllTextShapes $target
+        # IN-PLACE: update active page or active selection only using first row
+        $targetContainer = $null
+        try {
+            if ($doc.ActiveSelection -and $doc.ActiveSelection.Shapes.Count -gt 0) {
+                $targetContainer = $doc.ActiveSelection
+            }
+        } catch {}
+        if (-not $targetContainer) {
+            $targetContainer = $doc.ActivePage
+            if (-not $targetContainer) { $targetContainer = $doc.Pages.Item(1) }
+        }
+
+        $texts = Get-AllTextShapes $targetContainer
+        if ($texts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks pada seleksi/halaman aktif CorelDRAW."
+        }
+
         Apply-RowReplacement $texts $rows[0] $sortedMappings
-        if ($autoCurves) { foreach ($t in $texts) { try { $t.ConvertToCurves() } catch {} } }
+        if ($autoCurves) {
+            Convert-TextsToCurves $texts
+        }
+
         $result.count = 1
         $result.totalPages = 1
     }
     elseif ($mode -eq 'grid') {
-        $sel = $doc.ActiveSelection
-        $masterShape = $null
-        if ($sel -and $sel.Shapes.Count -gt 1) { $masterShape = $sel.Group() }
-        elseif ($sel -and $sel.Shapes.Count -eq 1) { $masterShape = $sel.Shapes.Item(1) }
-        else {
-            $masterPage = $doc.ActivePage
-            if ($masterPage.Shapes.Count -gt 1) { $masterShape = $masterPage.Shapes.All().Group() }
-            elseif ($masterPage.Shapes.Count -eq 1) { $masterShape = $masterPage.Shapes.Item(1) }
+        $doc.Unit = 3 # cdrCentimeter
+
+        $sel = $null
+        try { $sel = $corel.ActiveSelection } catch {}
+        if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
+            try { $sel = $doc.Selection } catch {}
         }
-        if (-not $masterShape) { throw "Seleksi master desain di CorelDRAW." }
+        $selCount = Get-RangeCount $sel
+
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        $masterPage.Activate()
+
+        $masterShape = $null
+        if ($selCount -gt 1) {
+            $masterShape = $sel.Group()
+        } elseif ($selCount -eq 1) {
+            $masterShape = Get-RangeItem $sel 1
+        } else {
+            if ($masterPage.Shapes.Count -eq 0) {
+                throw "Dokumen CorelDRAW masih kosong. Silakan buka desain sertifikat/voucher atau seleksi objek master terlebih dahulu."
+            }
+            if ($masterPage.Shapes.Count -gt 1) {
+                $masterShape = $masterPage.Shapes.All().Group()
+            } else {
+                $masterShape = $masterPage.Shapes.Item(1)
+            }
+        }
+
+        if (-not $masterShape) {
+            throw "Gagal mendapatkan objek desain master di CorelDRAW."
+        }
+
+        $initialTexts = Get-AllTextShapes $masterShape
+        if ($initialTexts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks placeholder pada objek master di CorelDRAW."
+        }
 
         $w = [double]$masterShape.SizeWidth
         $h = [double]$masterShape.SizeHeight
@@ -1025,63 +1205,80 @@ try {
         $perPage = [int]($cols * $gridRows)
         if ($perPage -lt 1) { $perPage = 1 }
         $totalPages = [int][math]::Ceiling($totalRows / $perPage)
-        $masterPage = $doc.ActivePage
 
+        # 1. Tata susunan grid lengkap di Halaman 1 selagi placeholder masih utuh
         $page1Shapes = @()
         for ($r = 0; $r -lt $gridRows; $r++) {
             for ($c = 0; $c -lt $cols; $c++) {
-                $posX = $origX + ($c * ($w + $spacingX))
-                $posY = $origY - ($r * ($h + $spacingY))
+                $targetPosX = $origX + ($c * ($w + $spacingX))
+                $targetPosY = $origY - ($r * ($h + $spacingY))
+
                 if ($r -eq 0 -and $c -eq 0) {
-                    $masterShape.PositionX = $posX
-                    $masterShape.PositionY = $posY
+                    $masterShape.PositionX = $targetPosX
+                    $masterShape.PositionY = $targetPosY
                     $page1Shapes += $masterShape
                 } else {
                     $dup = $masterShape.Duplicate()
-                    $dup.PositionX = $posX
-                    $dup.PositionY = $posY
+                    $dup.PositionX = $targetPosX
+                    $dup.PositionY = $targetPosY
                     $page1Shapes += $dup
                 }
             }
         }
 
+        # 2. Jika total data memerlukan lebih dari 1 halaman, copy susunan grid Page 1 ke Halaman 2..N
         if ($totalPages -gt 1) {
             $masterPage.Activate()
             [void]$masterPage.Shapes.All().Copy()
+
             for ($p = 2; $p -le $totalPages; $p++) {
-                $np = $doc.AddPages(1)
-                $np.Activate()
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
                 $pIdx = $p - 1
+
                 [void]$doc.ActiveLayer.Paste()
 
                 $newShapes = @()
-                for ($k = 1; $k -le $np.Shapes.Count; $k++) {
-                    $shp = $np.Shapes.Item($k)
-                    $newShapes += [PSCustomObject]@{ Shape = $shp; PosX = [double]$shp.PositionX; PosY = [double]$shp.PositionY }
+                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
+                    $shp = $newPage.Shapes.Item($k)
+                    $newShapes += [PSCustomObject]@{
+                        Shape = $shp
+                        PosX = [double]$shp.PositionX
+                        PosY = [double]$shp.PositionY
+                        Height = [double]$shp.SizeHeight
+                    }
                 }
-                $rowTol = [math]::Max(0.2, $h * 0.35)
-                $sorted = $newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false }
 
-                for ($s = 0; $s -lt $sorted.Count; $s++) {
-                    $idx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
-                    if ($idx -lt $totalRows) {
-                        $txts = Get-AllTextShapes $sorted[$s].Shape
-                        Apply-RowReplacement $txts $rows[$idx] $sortedMappings
-                        if ($autoCurves) { foreach ($t in $txts) { try { $t.ConvertToCurves() } catch {} } }
+                $rowTol = [math]::Max(0.2, $h * 0.35)
+                $sortedVouchers = $newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false }
+
+                for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
+                    $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
+                    if ($itemIdx -lt $totalRows) {
+                        $voucherShape = $sortedVouchers[$s].Shape
+                        $shpTexts = Get-AllTextShapes $voucherShape
+                        Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                        if ($autoCurves) {
+                            Convert-TextsToCurves $shpTexts
+                        }
                     } else {
-                        try { $sorted[$s].Shape.Delete() } catch {}
+                        try { $sortedVouchers[$s].Shape.Delete() } catch {}
                     }
                 }
             }
         }
 
+        # 3. Sekarang kembali ke Halaman 1 dan isi teks untuk Record Halaman 1
         $masterPage.Activate()
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
-            $idx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
-            if ($idx -lt $totalRows) {
-                $txts = Get-AllTextShapes $page1Shapes[$s]
-                Apply-RowReplacement $txts $rows[$idx] $sortedMappings
-                if ($autoCurves) { foreach ($t in $txts) { try { $t.ConvertToCurves() } catch {} } }
+            $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
+            if ($itemIdx -lt $totalRows) {
+                $voucherShape = $page1Shapes[$s]
+                $shpTexts = Get-AllTextShapes $voucherShape
+                Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                if ($autoCurves) {
+                    Convert-TextsToCurves $shpTexts
+                }
             } else {
                 try { $page1Shapes[$s].Delete() } catch {}
             }
@@ -1091,51 +1288,125 @@ try {
         $result.totalPages = $totalPages
     }
     else {
-        # 1 Desain per Halaman
+        # MODE PAGE: 1 certificate per page
         $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
         $masterPage.Activate()
 
+        if ($masterPage.Shapes.Count -eq 0) {
+            throw "Halaman template sertifikat (Halaman $($masterPage.Index)) masih kosong."
+        }
+
+        $initialMasterTexts = Get-AllTextShapes $masterPage
+        if ($initialMasterTexts.Count -eq 0) {
+            throw "Tidak ditemukan objek teks pada halaman template sertifikat di CorelDRAW."
+        }
+
         if ($totalRows -gt 1) {
+            # Copy template shapes before replacing placeholders on Page 1
             [void]$masterPage.Shapes.All().Copy()
+
+            # Create pages 2..N
             for ($i = 1; $i -lt $totalRows; $i++) {
-                $np = $doc.AddPages(1)
-                $np.Activate()
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
                 [void]$doc.ActiveLayer.Paste()
-                $txts = Get-AllTextShapes $np
-                Apply-RowReplacement $txts $rows[$i] $sortedMappings
-                if ($autoCurves) { foreach ($t in $txts) { try { $t.ConvertToCurves() } catch {} } }
+
+                $newTexts = Get-AllTextShapes $newPage
+                Apply-RowReplacement $newTexts $rows[$i] $sortedMappings
+                if ($autoCurves) {
+                    Convert-TextsToCurves $newTexts
+                }
             }
         }
 
+        # Now replace Record 0 on Page 1 (Master Page)
         $masterPage.Activate()
-        $mTexts = Get-AllTextShapes $masterPage
-        Apply-RowReplacement $mTexts $rows[0] $sortedMappings
-        if ($autoCurves) { foreach ($t in $mTexts) { try { $t.ConvertToCurves() } catch {} } }
+        $masterTexts = Get-AllTextShapes $masterPage
+        Apply-RowReplacement $masterTexts $rows[0] $sortedMappings
+        if ($autoCurves) {
+            Convert-TextsToCurves $masterTexts
+        }
 
         $result.count = $totalRows
         $result.totalPages = $totalRows
     }
 
-    $doc.EndCommandGroup()
+    try { $doc.EndCommandGroup() } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
     try { $corel.Refresh() } catch {}
+    try { if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() } } catch {}
+
     $result.success = $true
-    $result.message = "Berhasil menggabungkan $($result.count) data pada $($result.totalPages) halaman di CorelDRAW."
+    if ($mode -eq 'grid') {
+        $result.message = "Berhasil menata $($result.count) desain dalam Grid $cols x $gridRows pada $($result.totalPages) lembar cetak di CorelDRAW!"
+    } elseif ($mode -eq 'inplace') {
+        $result.message = "Berhasil mengganti data teks pada objek aktif di CorelDRAW!"
+    } else {
+        $result.message = "Berhasil membuat $($result.count) sertifikat pada $($result.totalPages) halaman di CorelDRAW!"
+    }
 }
 catch {
-    try { if ($doc) { $doc.EndCommandGroup() } } catch {}
+    try {
+        if ($doc) { $doc.EndCommandGroup() }
+        try { $corel.Optimization = $false } catch {}
+        try { $corel.EventsEnabled = $true } catch {}
+        try { $corel.Refresh() } catch {}
+        try { if ($corel.ActiveWindow) { $corel.ActiveWindow.Refresh() } } catch {}
+    } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
-finally {
-    try { if (Test-Path $jsonPath) { Remove-Item $jsonPath -Force } } catch {}
-}
+
 $result | ConvertTo-Json -Compress
 `;
-  return runPowerShellScript(ps);
+
+    fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
+      { timeout: 600000 },
+      (err, stdout, stderr) => {
+        try {
+          if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
+          if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
+        } catch {}
+
+        if (err && !stdout) {
+          const cleanErr = (stderr || err?.message || 'Gagal menjalankan pembuat sertifikat di CorelDRAW')
+            .replace(/Command failed:.*?\n/, '')
+            .trim();
+          resolve({ success: false, message: cleanErr || 'Gagal menjalankan pembuat sertifikat di CorelDRAW' });
+          return;
+        }
+
+        try {
+          const raw = (stdout || '').trim();
+          const jsonMatch = raw.match(/\{"success":[\s\S]*\}$/);
+          if (jsonMatch) {
+            return resolve(JSON.parse(jsonMatch[0]));
+          }
+          const lines = raw.split('\n');
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i].trim();
+            if (line.startsWith('{') && line.endsWith('}')) {
+              return resolve(JSON.parse(line));
+            }
+          }
+          resolve(JSON.parse(raw));
+        } catch {
+          resolve({ success: false, message: stdout.trim() || stderr || 'Gagal memproses respon CorelDRAW' });
+        }
+      }
+    );
+  });
+
 }
 
-ipcMain.handle('corel:execute-merger', async (_event, payload) => executeMergerWorkflow(payload));
-ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => executeMergerWorkflow(payload));
+ipcMain.handle('corel:execute-cert-merger', async (_event, payload) => executeCertMergerWorkflow(payload));
+ipcMain.handle('corel:execute-merger', async (_event, payload) => executeCertMergerWorkflow(payload));
 
 // 6. Execute File Format Conversion (CDR to PDF, PNG, JPG, EPS, AI, SVG)
 ipcMain.handle('corel:execute-conversion', async (_event, payload) => {
