@@ -962,7 +962,7 @@ function Get-RangeItem($r, [int]$idx) {
 }
 
 # Helper function: Replace text in shape case-insensitively with Width/Height and LockRatio support
-function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio) {
+function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio, $fitMode, $align, $docPage) {
     if (-not $shp) { return $false }
     $replaced = $false
     if ($shp.Type -eq 6) { # cdrTextShape
@@ -975,6 +975,15 @@ function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, 
         } catch {}
 
         if ($hasMatch) {
+            # 1. Capture original coordinates BEFORE text replacement
+            $origCenterX = [double]$shp.CenterX
+            $origCenterY = [double]$shp.CenterY
+            $origLeft = [double]$shp.PositionX
+            $origTop = [double]$shp.PositionY
+            $origW = [double]$shp.SizeWidth
+            $origH = [double]$shp.SizeHeight
+
+            # 2. Replace the text
             try {
                 [void]$shp.Text.Story.Replace($findText, $replaceVal, $false)
                 $replaced = $true
@@ -989,58 +998,126 @@ function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, 
                 } catch {}
             }
 
-            # Apply font size / dimension scaling if configured
             if ($replaced) {
+                # 3. Set Text Story Alignment in Corel
+                try {
+                    if ($align -eq 'center' -or $align -eq 'page_center') {
+                        $shp.Text.Story.Alignment = 3 # cdrCenterAlignment
+                    } elseif ($align -eq 'left') {
+                        $shp.Text.Story.Alignment = 1 # cdrLeftAlignment
+                    } elseif ($align -eq 'right') {
+                        $shp.Text.Story.Alignment = 2 # cdrRightAlignment
+                    }
+                } catch {}
+
+                # 4. Sizing logic: Auto-Fit (Batas Maksimum) vs Fixed Size
                 try {
                     $targetW = [double]$optWidth
                     $targetH = [double]$optHeight
                     $isLocked = [bool]$lockRatio
+                    $modeFit = if ($fitMode) { [string]$fitMode } else { 'max' }
 
-                    if ($targetW -gt 0 -and $targetH -gt 0) {
-                        if ($isLocked) {
-                            $curW = [double]$shp.SizeWidth
-                            $curH = [double]$shp.SizeHeight
-                            if ($curW -gt 0 -and $curH -gt 0) {
-                                $scaleW = $targetW / $curW
-                                $scaleH = $targetH / $curH
-                                $scale = [math]::Min($scaleW, $scaleH)
-                                $shp.SizeWidth = $curW * $scale
-                                $shp.SizeHeight = $curH * $scale
-                            }
-                        } else {
-                            $shp.SizeWidth = $targetW
-                            $shp.SizeHeight = $targetH
-                        }
-                    } elseif ($targetW -gt 0) {
-                        $curW = [double]$shp.SizeWidth
-                        $curH = [double]$shp.SizeHeight
-                        if ($curW -gt 0) {
+                    $curW = [double]$shp.SizeWidth
+                    $curH = [double]$shp.SizeHeight
+
+                    if ($modeFit -eq 'max') {
+                        # AUTO-FIT / BATAS MAKSIMUM:
+                        # Do NOT scale up short names (keep natural template font size)!
+                        # Only scale down if current text width/height exceeds limits!
+                        $scale = 1.0
+                        if ($targetW -gt 0 -and $curW -gt $targetW) {
                             $scale = $targetW / $curW
-                            if ($isLocked -and $curH -gt 0) {
-                                $newH = $curH * $scale
-                                try { $shp.SetSize($targetW, $newH) } catch {
-                                    $shp.SizeWidth = $targetW
-                                    $shp.SizeHeight = $newH
+                        }
+                        if ($targetH -gt 0 -and $curH -gt $targetH) {
+                            $scaleH = $targetH / $curH
+                            if ($isLocked) {
+                                $scale = [math]::Min($scale, $scaleH)
+                            }
+                        }
+                        if ($scale -lt 0.999) {
+                            $newW = $curW * $scale
+                            $newH = if ($isLocked) { $curH * $scale } else { $curH }
+                            try { $shp.SetSize($newW, $newH) } catch {
+                                $shp.SizeWidth = $newW
+                                if ($isLocked) { $shp.SizeHeight = $newH }
+                            }
+                        }
+                    } else {
+                        # EXACT FIXED SIZE: Force exact dimensions
+                        if ($targetW -gt 0 -and $targetH -gt 0) {
+                            if ($isLocked) {
+                                if ($curW -gt 0 -and $curH -gt 0) {
+                                    $scaleW = $targetW / $curW
+                                    $scaleH = $targetH / $curH
+                                    $scale = [math]::Min($scaleW, $scaleH)
+                                    $newW = $curW * $scale
+                                    $newH = $curH * $scale
+                                    try { $shp.SetSize($newW, $newH) } catch {
+                                        $shp.SizeWidth = $newW
+                                        $shp.SizeHeight = $newH
+                                    }
                                 }
                             } else {
-                                $shp.SizeWidth = $targetW
-                            }
-                        }
-                    } elseif ($targetH -gt 0) {
-                        $curW = [double]$shp.SizeWidth
-                        $curH = [double]$shp.SizeHeight
-                        if ($curH -gt 0) {
-                            $scale = $targetH / $curH
-                            if ($isLocked -and $curW -gt 0) {
-                                $newW = $curW * $scale
-                                try { $shp.SetSize($newW, $targetH) } catch {
-                                    $shp.SizeWidth = $newW
+                                try { $shp.SetSize($targetW, $targetH) } catch {
+                                    $shp.SizeWidth = $targetW
                                     $shp.SizeHeight = $targetH
                                 }
-                            } else {
-                                $shp.SizeHeight = $targetH
+                            }
+                        } elseif ($targetW -gt 0) {
+                            if ($curW -gt 0) {
+                                $scale = $targetW / $curW
+                                if ($isLocked -and $curH -gt 0) {
+                                    $newH = $curH * $scale
+                                    try { $shp.SetSize($targetW, $newH) } catch {
+                                        $shp.SizeWidth = $targetW
+                                        $shp.SizeHeight = $newH
+                                    }
+                                } else {
+                                    $shp.SizeWidth = $targetW
+                                }
+                            }
+                        } elseif ($targetH -gt 0) {
+                            if ($curH -gt 0) {
+                                $scale = $targetH / $curH
+                                if ($isLocked -and $curW -gt 0) {
+                                    $newW = $curW * $scale
+                                    try { $shp.SetSize($newW, $targetH) } catch {
+                                        $shp.SizeWidth = $newW
+                                        $shp.SizeHeight = $targetH
+                                    }
+                                } else {
+                                    $shp.SizeHeight = $targetH
+                                }
                             }
                         }
+                    }
+                } catch {}
+
+                # 5. Position & Alignment Enforcement (Guarantee 100% Center & Baseline!)
+                try {
+                    if ($align -eq 'page_center') {
+                        $pCenter = $null
+                        if ($docPage) {
+                            try { $pCenter = [double]$docPage.CenterX } catch {}
+                        }
+                        if (-not $pCenter) {
+                            try { $pCenter = [double]$shp.Layer.Page.CenterX } catch {}
+                        }
+                        if ($pCenter -and $pCenter -gt 0) {
+                            $shp.CenterX = $pCenter
+                        } else {
+                            $shp.CenterX = $origCenterX
+                        }
+                        $shp.CenterY = $origCenterY
+                    } elseif ($align -eq 'center' -or -not $align) {
+                        $shp.CenterX = $origCenterX
+                        $shp.CenterY = $origCenterY
+                    } elseif ($align -eq 'left') {
+                        $shp.PositionX = $origLeft
+                        $shp.CenterY = $origCenterY
+                    } elseif ($align -eq 'right') {
+                        $shp.PositionX = ($origLeft + $origW) - $shp.SizeWidth
+                        $shp.CenterY = $origCenterY
                     }
                 } catch {}
             }
@@ -1084,7 +1161,7 @@ function Get-AllTextShapes($container) {
 }
 
 # Helper function: Apply variable row data to text shapes with width/height/lockRatio
-function Apply-RowReplacement($textList, $rowObj, $mapList) {
+function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
     if (-not $textList -or -not $rowObj -or -not $mapList) { return }
     foreach ($m in $mapList) {
         $ph = [string]$m.placeholder
@@ -1107,9 +1184,13 @@ function Apply-RowReplacement($textList, $rowObj, $mapList) {
         if ($m.PSObject.Properties['lockRatio'] -and $m.lockRatio -ne $null) {
             $lock = [bool]$m.lockRatio
         }
+        $fit = 'max'
+        if ($m.fitMode) { $fit = [string]$m.fitMode }
+        $al = 'center'
+        if ($m.align) { $al = [string]$m.align }
 
         foreach ($t in $textList) {
-            Replace-ShapeText $t $ph $val $w $h $lock
+            Replace-ShapeText $t $ph $val $w $h $lock $fit $al $docPage
         }
     }
 }
@@ -1237,7 +1318,7 @@ try {
             throw "Tidak ditemukan objek teks pada seleksi/halaman aktif CorelDRAW."
         }
 
-        Apply-RowReplacement $texts $rows[0] $sortedMappings
+        Apply-RowReplacement $texts $rows[0] $sortedMappings $doc.ActivePage
         if ($autoCurves) {
             Convert-TextsToCurves $texts
         }
@@ -1344,7 +1425,7 @@ try {
                     if ($itemIdx -lt $totalRows) {
                         $voucherShape = $sortedVouchers[$s].Shape
                         $shpTexts = Get-AllTextShapes $voucherShape
-                        Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                        Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $newPage
                         if ($autoCurves) {
                             Convert-TextsToCurves $shpTexts
                         }
@@ -1362,7 +1443,7 @@ try {
             if ($itemIdx -lt $totalRows) {
                 $voucherShape = $page1Shapes[$s]
                 $shpTexts = Get-AllTextShapes $voucherShape
-                Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings
+                Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $masterPage
                 if ($autoCurves) {
                     Convert-TextsToCurves $shpTexts
                 }
@@ -1400,7 +1481,7 @@ try {
                 [void]$doc.ActiveLayer.Paste()
 
                 $newTexts = Get-AllTextShapes $newPage
-                Apply-RowReplacement $newTexts $rows[$i] $sortedMappings
+                Apply-RowReplacement $newTexts $rows[$i] $sortedMappings $newPage
                 if ($autoCurves) {
                     Convert-TextsToCurves $newTexts
                 }
@@ -1410,7 +1491,7 @@ try {
         # Now replace Record 0 on Page 1 (Master Page)
         $masterPage.Activate()
         $masterTexts = Get-AllTextShapes $masterPage
-        Apply-RowReplacement $masterTexts $rows[0] $sortedMappings
+        Apply-RowReplacement $masterTexts $rows[0] $sortedMappings $masterPage
         if ($autoCurves) {
             Convert-TextsToCurves $masterTexts
         }

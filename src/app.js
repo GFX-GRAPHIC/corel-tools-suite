@@ -681,15 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeExcelWorkbookInfo = null;
 
   let excelMappings = [
-    { placeholder: 'A1', col: 'B', width: '', height: '', lockRatio: true },
-    { placeholder: 'A2', col: 'C', width: '', height: '', lockRatio: true },
-    { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true }
+    { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+    { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+    { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
   ];
 
   let manualVariables = [
-    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: '', height: '', lockRatio: true },
-    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: '', height: '', lockRatio: true },
-    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true }
+    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
   ];
 
   // Tab switching
@@ -1054,8 +1054,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const bar = document.createElement('div');
     bar.className = 'corel-size-bar';
 
+    if (item.lockRatio === undefined) item.lockRatio = true;
+    if (!item.fitMode) item.fitMode = 'max';
+    if (!item.align) item.align = 'center';
+
     bar.innerHTML = `
       <span class="size-label">📐 Ukuran:</span>
+      <select class="sel-fit-mode" title="Metode Ukuran: Auto-Fit (Batas Maks) menjaga font normal & hanya mengecilkan nama yang melebihi batas; Paksa Persis memaksakan lebar/tinggi sama persis.">
+        <option value="max" ${item.fitMode === 'max' ? 'selected' : ''}>🛡️ Auto-Fit (Batas Maks)</option>
+        <option value="exact" ${item.fitMode === 'exact' ? 'selected' : ''}>📏 Paksa Persis</option>
+      </select>
       <div class="size-input-group" title="Lebar objek teks di CorelDRAW (cm)">
         <span class="size-icon">↔</span>
         <input type="number" step="0.01" min="0" class="input-size txt-width" placeholder="Auto" value="${item.width ?? ''}" />
@@ -1069,22 +1077,38 @@ document.addEventListener('DOMContentLoaded', () => {
       <button type="button" class="btn-lock ${item.lockRatio !== false ? 'locked' : ''}" title="${item.lockRatio !== false ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.' : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.'}">
         ${item.lockRatio !== false ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka'}
       </button>
+      <select class="sel-align" title="Perataan & Posisi Teks di CorelDRAW">
+        <option value="center" ${item.align === 'center' ? 'selected' : ''}>🎯 Rata Tengah</option>
+        <option value="page_center" ${item.align === 'page_center' ? 'selected' : ''}>📄 Tengah Lembar</option>
+        <option value="left" ${item.align === 'left' ? 'selected' : ''}>⬅️ Rata Kiri</option>
+        <option value="right" ${item.align === 'right' ? 'selected' : ''}>➡️ Rata Kanan</option>
+        <option value="none" ${item.align === 'none' ? 'selected' : ''}>↔️ Posisi Asli</option>
+      </select>
       <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${item.placeholder}) yang sedang dipilih di CorelDRAW">
         🎯 Ambil Seleksi Corel
       </button>
       ${(item.width || item.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
     `;
 
+    const selFitMode = bar.querySelector('.sel-fit-mode');
     const inputW = bar.querySelector('.txt-width');
     const inputH = bar.querySelector('.txt-height');
     const btnLock = bar.querySelector('.btn-lock');
+    const selAlign = bar.querySelector('.sel-align');
     const btnSample = bar.querySelector('.btn-sample-size');
     const btnClear = bar.querySelector('.btn-clear-size');
 
-    if (item.lockRatio === undefined) item.lockRatio = true;
     if (item.width && item.height && !item.aspectRatio) {
       item.aspectRatio = parseFloat(item.width) / parseFloat(item.height);
     }
+
+    selFitMode.addEventListener('change', () => {
+      item.fitMode = selFitMode.value;
+    });
+
+    selAlign.addEventListener('change', () => {
+      item.align = selAlign.value;
+    });
 
     inputW.addEventListener('input', () => {
       const val = parseFloat(inputW.value);
@@ -1223,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const nextIdx = excelMappings.length + 1;
       const letters = ['A','B','C','D','E','F','G','H','I','J'];
       const nextCol = letters[nextIdx] || 'A';
-      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol, width: '', height: '', lockRatio: true });
+      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol, width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center' });
       renderMergerMappingList();
       updateMergerPreview();
     });
@@ -1232,9 +1256,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnMergerPresetA1) {
     btnMergerPresetA1.addEventListener('click', () => {
       excelMappings = [
-        { placeholder: 'A1', col: 'B', width: '', height: '', lockRatio: true },
-        { placeholder: 'A2', col: 'C', width: '', height: '', lockRatio: true },
-        { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true }
+        { placeholder: 'A1', col: 'B', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A2', col: 'C', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
       ];
       renderMergerMappingList();
       updateMergerPreview();
@@ -1294,7 +1318,9 @@ document.addEventListener('DOMContentLoaded', () => {
         text: '',
         width: '',
         height: '',
-        lockRatio: true
+        lockRatio: true,
+        fitMode: 'max',
+        align: 'center'
       });
       renderManualCards();
       updateMergerPreview();
@@ -1304,9 +1330,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnManualPresetA1) {
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: '', height: '', lockRatio: true },
-        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: '', height: '', lockRatio: true },
-        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true }
+        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
       ];
       renderManualCards();
       updateMergerPreview();
@@ -1407,7 +1433,9 @@ document.addEventListener('DOMContentLoaded', () => {
           column: m.col,
           width: m.width ? parseFloat(m.width) : 0,
           height: m.height ? parseFloat(m.height) : 0,
-          lockRatio: m.lockRatio !== false
+          lockRatio: m.lockRatio !== false,
+          fitMode: m.fitMode || 'max',
+          align: m.align || 'center'
         }));
       } else {
         const splitLines = manualVariables.map(v => v.text.split(/\r?\n/).filter(l => l.trim()));
@@ -1429,7 +1457,9 @@ document.addEventListener('DOMContentLoaded', () => {
           label: v.label || v.placeholder,
           width: v.width ? parseFloat(v.width) : 0,
           height: v.height ? parseFloat(v.height) : 0,
-          lockRatio: v.lockRatio !== false
+          lockRatio: v.lockRatio !== false,
+          fitMode: v.fitMode || 'max',
+          align: v.align || 'center'
         }));
       }
 

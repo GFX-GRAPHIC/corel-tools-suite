@@ -449,6 +449,28 @@
       font-weight: 700;
     }
 
+    .sel-fit-mode, .sel-align {
+      height: 22px;
+      padding: 0 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #f8fafc;
+      color: #1e293b;
+      font-size: 10px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sel-fit-mode:hover, .sel-align:hover {
+      background: #f1f5f9;
+    }
+
+    .sel-fit-mode:focus, .sel-align:focus {
+      border-color: #6366f1;
+      background: #ffffff;
+    }
+
     .btn-sample-size {
       height: 22px;
       padding: 0 6px;
@@ -899,16 +921,16 @@
 
     // Excel Mode Variables mapping
     let excelVariables = [
-      { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: '', height: '', lockRatio: true },
-      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: '', height: '', lockRatio: true },
-      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true }
+      { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
     ];
 
     // Manual Mode Variables
     let manualVariables = [
-      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: '', height: '', lockRatio: true },
-      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: '', height: '', lockRatio: true },
-      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true }
+      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
     ];
 
     // Elements
@@ -1328,14 +1350,22 @@
       const bar = document.createElement('div');
       bar.className = 'corel-size-bar';
 
+      if (v.lockRatio === undefined) v.lockRatio = true;
+      if (!v.fitMode) v.fitMode = 'max';
+      if (!v.align) v.align = 'center';
+
       bar.innerHTML = `
-        <span class="size-label">📐 Ukuran Teks:</span>
-        <div class="size-input-group" title="Lebar objek teks di CorelDRAW (cm)">
+        <span class="size-label">📐 Ukuran:</span>
+        <select class="sel-fit-mode" title="Metode Ukuran: Auto-Fit (Batas Maks) menjaga font normal & hanya mengecilkan nama yang melebihi batas; Paksa Persis memaksakan lebar/tinggi sama persis.">
+          <option value="max" ${v.fitMode === 'max' ? 'selected' : ''}>🛡️ Auto-Fit (Batas Maks)</option>
+          <option value="exact" ${v.fitMode === 'exact' ? 'selected' : ''}>📏 Paksa Persis</option>
+        </select>
+        <div class="size-input-group" title="Lebar teks di CorelDRAW (cm)">
           <span class="size-icon">↔</span>
           <input type="number" step="0.01" min="0" class="input-size txt-width" placeholder="Auto" value="${v.width ?? ''}" />
           <span class="size-unit">cm</span>
         </div>
-        <div class="size-input-group" title="Tinggi objek teks di CorelDRAW (cm)">
+        <div class="size-input-group" title="Tinggi teks di CorelDRAW (cm)">
           <span class="size-icon">↕</span>
           <input type="number" step="0.01" min="0" class="input-size txt-height" placeholder="Auto" value="${v.height ?? ''}" />
           <span class="size-unit">cm</span>
@@ -1343,22 +1373,38 @@
         <button type="button" class="btn-lock ${v.lockRatio !== false ? 'locked' : ''}" title="${v.lockRatio !== false ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.' : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.'}">
           ${v.lockRatio !== false ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka'}
         </button>
+        <select class="sel-align" title="Perataan & Posisi Teks di CorelDRAW">
+          <option value="center" ${v.align === 'center' ? 'selected' : ''}>🎯 Rata Tengah</option>
+          <option value="page_center" ${v.align === 'page_center' ? 'selected' : ''}>📄 Tengah Lembar</option>
+          <option value="left" ${v.align === 'left' ? 'selected' : ''}>⬅️ Rata Kiri</option>
+          <option value="right" ${v.align === 'right' ? 'selected' : ''}>➡️ Rata Kanan</option>
+          <option value="none" ${v.align === 'none' ? 'selected' : ''}>↔️ Posisi Asli</option>
+        </select>
         <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
           🎯 Ambil Seleksi Corel
         </button>
         ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
       `;
 
+      const selFitMode = bar.querySelector('.sel-fit-mode');
       const inputW = bar.querySelector('.txt-width');
       const inputH = bar.querySelector('.txt-height');
       const btnLock = bar.querySelector('.btn-lock');
+      const selAlign = bar.querySelector('.sel-align');
       const btnSample = bar.querySelector('.btn-sample-size');
       const btnClear = bar.querySelector('.btn-clear-size');
 
-      if (v.lockRatio === undefined) v.lockRatio = true;
       if (v.width && v.height && !v.aspectRatio) {
         v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
       }
+
+      selFitMode.addEventListener('change', () => {
+        v.fitMode = selFitMode.value;
+      });
+
+      selAlign.addEventListener('change', () => {
+        v.align = selAlign.value;
+      });
 
       inputW.addEventListener('input', () => {
         const val = parseFloat(inputW.value);
@@ -1511,16 +1557,18 @@
         label: `Teks ${nextIdx}`,
         width: '',
         height: '',
-        lockRatio: true
+        lockRatio: true,
+        fitMode: 'max',
+        align: 'center'
       });
       renderExcelMappingRows();
     });
 
     btnPresetA1.addEventListener('click', () => {
       excelVariables = [
-        { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: '', height: '', lockRatio: true },
-        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: '', height: '', lockRatio: true },
-        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true }
+        { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
       ];
       renderExcelMappingRows();
     });
@@ -1675,16 +1723,18 @@
         text: '',
         width: '',
         height: '',
-        lockRatio: true
+        lockRatio: true,
+        fitMode: 'max',
+        align: 'center'
       });
       renderManualUI();
     });
 
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: '', height: '', lockRatio: true },
-        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: '', height: '', lockRatio: true },
-        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true }
+        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: 14, height: '', lockRatio: true, fitMode: 'max', align: 'center' },
+        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'none' }
       ];
       renderManualUI();
     });
@@ -1739,7 +1789,9 @@
           label: v.label || v.placeholder,
           width: v.width ? parseFloat(v.width) : 0,
           height: v.height ? parseFloat(v.height) : 0,
-          lockRatio: v.lockRatio !== false
+          lockRatio: v.lockRatio !== false,
+          fitMode: v.fitMode || 'max',
+          align: v.align || 'center'
         }));
       } else {
         // Manual Mode
@@ -1774,7 +1826,9 @@
             label: v.label.trim(),
             width: v.width ? parseFloat(v.width) : 0,
             height: v.height ? parseFloat(v.height) : 0,
-            lockRatio: v.lockRatio !== false
+            lockRatio: v.lockRatio !== false,
+            fitMode: v.fitMode || 'max',
+            align: v.align || 'center'
           }));
       }
 

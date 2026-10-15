@@ -1017,6 +1017,25 @@ body {
   font-weight: 700;
 }
 
+.sel-fit-mode,
+.sel-align {
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-size: 10px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.sel-fit-mode:focus,
+.sel-align:focus {
+  border-color: var(--accent-indigo);
+}
+
 .btn-sample-size {
   height: 22px;
   padding: 0 6px;
