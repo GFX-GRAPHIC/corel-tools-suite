@@ -600,13 +600,34 @@ if ($corel -and $corel.Documents) {
     }
 }
 
-# Fallback to standard demo list if none open
-if ($files.Count -eq 0) {
-    $files += @{ name = 'Desain Undangan.cdr'; path = 'C:\\Project\\Undangan'; isOpen = $false }
-    $files += @{ name = 'Label Produk.cdr'; path = 'C:\\Project\\Label'; isOpen = $false }
-    $files += @{ name = 'Stiker.cdr'; path = 'C:\\Project\\Stiker'; isOpen = $false }
-    $files += @{ name = 'Logo.cdr'; path = 'C:\\Project\\Logo'; isOpen = $false }
-    $files += @{ name = 'Banner.cdr'; path = 'C:\\Project\\Banner'; isOpen = $false }
+# Check Windows Recent .cdr if less than 5
+if ($files.Count -lt 5) {
+    try {
+        $recentPath = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Recent)
+        if (Test-Path $recentPath) {
+            $wsh = New-Object -ComObject WScript.Shell
+            $lnks = Get-ChildItem -Path $recentPath -Filter "*.lnk" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+            foreach ($lnk in $lnks) {
+                if ($files.Count -ge 8) { break }
+                try {
+                    $target = $wsh.CreateShortcut($lnk.FullName).TargetPath
+                    if ($target -and ($target.ToLower().EndsWith('.cdr')) -and (Test-Path $target)) {
+                        $already = $false
+                        foreach ($f in $files) {
+                            if ($f.path -eq $target) { $already = $true; break }
+                        }
+                        if (-not $already) {
+                            $files += @{
+                                name = [System.IO.Path]::GetFileName($target)
+                                path = $target
+                                isOpen = $false
+                            }
+                        }
+                    }
+                } catch {}
+            }
+        }
+    } catch {}
 }
 
 @{ success = $true; files = $files } | ConvertTo-Json -Compress

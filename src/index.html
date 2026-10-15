@@ -346,40 +346,8 @@
                 <span style="font-size: 10px; color: var(--accent-blue); cursor: pointer;" id="btnRefreshFiles">Perbarui</span>
               </div>
               <div class="recent-files-list" id="recentFilesContainer">
-                <div class="recent-file-item">
-                  <span class="recent-icon-badge">CDR</span>
-                  <div class="recent-file-meta">
-                    <span class="recent-file-name">Desain Undangan.cdr</span>
-                    <span class="recent-file-path">C:\Project\Undangan</span>
-                  </div>
-                </div>
-                <div class="recent-file-item">
-                  <span class="recent-icon-badge">CDR</span>
-                  <div class="recent-file-meta">
-                    <span class="recent-file-name">Label Produk.cdr</span>
-                    <span class="recent-file-path">C:\Project\Label</span>
-                  </div>
-                </div>
-                <div class="recent-file-item">
-                  <span class="recent-icon-badge">CDR</span>
-                  <div class="recent-file-meta">
-                    <span class="recent-file-name">Stiker.cdr</span>
-                    <span class="recent-file-path">C:\Project\Stiker</span>
-                  </div>
-                </div>
-                <div class="recent-file-item">
-                  <span class="recent-icon-badge">CDR</span>
-                  <div class="recent-file-meta">
-                    <span class="recent-file-name">Logo.cdr</span>
-                    <span class="recent-file-path">C:\Project\Logo</span>
-                  </div>
-                </div>
-                <div class="recent-file-item">
-                  <span class="recent-icon-badge">CDR</span>
-                  <div class="recent-file-meta">
-                    <span class="recent-file-name">Banner.cdr</span>
-                    <span class="recent-file-path">C:\Project\Banner</span>
-                  </div>
+                <div style="padding: 16px 8px; font-size: 11px; color: var(--text-dim); text-align: center; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); margin: 6px 0;">
+                  📂 Belum ada dokumen CorelDRAW dibuka
                 </div>
               </div>
             </div>
@@ -412,6 +380,7 @@
               <div class="tool-view-title">123 Enumerator / Penomoran Otomatis</div>
             </div>
             <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" id="btnLaunchNumeratorFromView" style="font-weight: 700; color: var(--accent-blue);" title="Buka jendela melayang Numerator Machine">🪟 Buka Companion Melayang</button>
               <button class="btn-secondary" id="btnEnumReset">Reset</button>
               <button class="btn-primary" id="btnEnumGenerate">⚡ Generate di CorelDRAW</button>
             </div>
@@ -504,6 +473,11 @@
               <label class="checkbox-native-label" style="margin-top: 4px;">
                 <input type="checkbox" id="enumAutoCurves" checked />
                 <span>Otomatis Convert ke Kurva (Ctrl+Q) setelah selesai</span>
+              </label>
+
+              <label class="checkbox-native-label" style="margin-top: 4px;">
+                <input type="checkbox" id="enumDoubleNumber" checked />
+                <span>Dukung nomor ganda (isi semua teks angka dummy pada desain)</span>
               </label>
             </div>
 

@@ -195,6 +195,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await window.corelAPI.getRecentFiles();
         if (res.success && res.files && recentFilesContainer) {
           recentFilesContainer.innerHTML = '';
+          if (res.files.length === 0) {
+            recentFilesContainer.innerHTML = `
+              <div style="padding: 16px 8px; font-size: 11px; color: var(--text-dim); text-align: center; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); margin: 6px 0;">
+                📂 Belum ada dokumen CorelDRAW dibuka
+              </div>
+            `;
+            return;
+          }
           res.files.forEach(f => {
             const item = document.createElement('div');
             item.className = 'recent-file-item';
@@ -365,7 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
             spacingX,
             spacingY,
             gridOrder,
-            autoCurves
+            autoCurves,
+            doubleNumber: document.getElementById('enumDoubleNumber')?.checked ?? true
           });
 
           if (res.success) {
@@ -1953,6 +1962,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Companion window openers
   document.getElementById('btnLaunchCompanionNumerator')?.addEventListener('click', () => {
+    window.corelAPI?.corelOpenNumeratorTool?.();
+  });
+  document.getElementById('btnLaunchNumeratorFromView')?.addEventListener('click', () => {
     window.corelAPI?.corelOpenNumeratorTool?.();
   });
   document.getElementById('btnUtilOpenNumeratorComp')?.addEventListener('click', () => {

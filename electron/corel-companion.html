@@ -3,36 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GFX IT PRINTING</title>
+  <title>Corel Tools Suite — Auto-Layout Jersey</title>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       user-select: none;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-family: "Segoe UI", -apple-system, system-ui, BlinkMacSystemFont, Roboto, sans-serif;
     }
 
     body {
-      background-color: #f1f5f9;
-      color: #0f172a;
+      background-color: #111827;
+      color: #f8fafc;
       font-size: 11.5px;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border: 1px solid #94a3b8;
+      border: 1px solid #374151;
     }
 
     /* Windows Native Titlebar */
     .titlebar {
       height: 28px;
-      background-color: #ffffff;
+      background-color: #0f172a;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 8px;
-      border-bottom: 1px solid #cbd5e1;
+      border-bottom: 1px solid #374151;
       -webkit-app-region: drag;
       flex-shrink: 0;
     }
@@ -42,14 +42,14 @@
       align-items: center;
       gap: 6px;
       font-size: 11px;
-      font-weight: 600;
-      color: #334155;
+      font-weight: 700;
+      color: #f8fafc;
     }
 
     .titlebar-icon {
       width: 14px;
       height: 14px;
-      background-color: #1e40af;
+      background-color: #2563eb;
       color: #ffffff;
       border-radius: 2px;
       display: flex;
@@ -69,17 +69,18 @@
       height: 28px;
       background: transparent;
       border: none;
-      color: #64748b;
+      color: #94a3b8;
       font-size: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      transition: all 0.15s;
     }
 
     .titlebar-btn:hover {
-      background-color: #e2e8f0;
-      color: #0f172a;
+      background-color: #1e293b;
+      color: #f8fafc;
     }
 
     .titlebar-btn.close:hover {
@@ -87,26 +88,28 @@
       color: #ffffff;
     }
 
-    /* Header Blue Banner */
+    /* Header Blue Banner - Solid Native */
     .app-header {
-      background-color: #1e40af;
-      color: #ffffff;
+      background-color: #1e293b;
+      color: #f8fafc;
       padding: 8px 12px;
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 2px;
       flex-shrink: 0;
+      border-bottom: 1px solid #374151;
     }
 
     .app-header-title {
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 800;
       letter-spacing: 0.5px;
+      color: #f8fafc;
     }
 
     .app-header-sub {
       font-size: 10px;
-      color: #93c5fd;
+      color: #94a3b8;
     }
 
     /* Form Container */
@@ -116,7 +119,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background-color: #ffffff;
+      background-color: #111827;
       overflow-y: auto;
     }
 
@@ -129,7 +132,7 @@
     .field-label {
       font-size: 11px;
       font-weight: 600;
-      color: #334155;
+      color: #94a3b8;
     }
 
     .input-row {
@@ -141,40 +144,42 @@
       width: 100%;
       height: 26px;
       padding: 0 6px;
-      background-color: #ffffff;
-      border: 1px solid #94a3b8;
-      border-radius: 2px;
-      color: #0f172a;
+      background-color: #111827;
+      border: 1px solid #374151;
+      border-radius: 3px;
+      color: #f8fafc;
       font-size: 11.5px;
       outline: none;
+      transition: border-color 0.15s;
     }
 
     input[type="text"]:focus, input[type="number"]:focus, select:focus {
-      border-color: #1e40af;
-      box-shadow: 0 0 0 1px #1e40af;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb;
     }
 
     input[readonly] {
-      background-color: #f8fafc;
-      color: #1e293b;
+      background-color: #1e293b;
+      color: #93c5fd;
       font-weight: 600;
     }
 
     .btn-browse {
       width: 70px;
       height: 26px;
-      background-color: #e2e8f0;
-      border: 1px solid #94a3b8;
-      color: #0f172a;
+      background-color: #334155;
+      border: 1px solid #475569;
+      color: #f8fafc;
       font-size: 11px;
       font-weight: 600;
-      border-radius: 2px;
+      border-radius: 3px;
       cursor: pointer;
       flex-shrink: 0;
+      transition: background-color 0.15s;
     }
 
     .btn-browse:hover {
-      background-color: #cbd5e1;
+      background-color: #475569;
     }
 
     .grid-2 {
@@ -192,28 +197,30 @@
 
     .btn-primary {
       flex: 1;
-      height: 28px;
-      background-color: #e2e8f0;
-      border: 1px solid #94a3b8;
-      color: #0f172a;
+      height: 32px;
+      background-color: #334155;
+      border: 1px solid #475569;
+      color: #f8fafc;
       font-size: 11px;
       font-weight: 600;
-      border-radius: 2px;
+      border-radius: 3px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: background-color 0.15s;
     }
 
     .btn-primary:hover {
-      background-color: #cbd5e1;
+      background-color: #475569;
     }
 
     .btn-primary.btn-gas {
-      background-color: #1e40af;
+      background-color: #2563eb;
       color: #ffffff;
-      border-color: #1e40af;
+      border-color: #1d4ed8;
       font-weight: 700;
+      font-size: 12px;
     }
 
     .btn-primary.btn-gas:hover {
@@ -221,29 +228,29 @@
     }
 
     .btn-primary:disabled {
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: not-allowed;
     }
 
     /* Info Box & Status Bar */
     .info-box {
-      background-color: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 2px;
+      background-color: #0f172a;
+      border: 1px dashed #3b82f6;
+      border-radius: 4px;
       padding: 6px 8px;
       font-size: 10.5px;
-      color: #1e40af;
+      color: #93c5fd;
       line-height: 1.4;
     }
 
     .info-box strong {
-      color: #172554;
+      color: #60a5fa;
     }
 
     .status-bar {
-      background-color: #f8fafc;
-      border: 1px solid #cbd5e1;
-      border-radius: 2px;
+      background-color: #0f172a;
+      border: 1px solid #374151;
+      border-radius: 3px;
       padding: 5px 8px;
       display: flex;
       flex-direction: column;
@@ -254,7 +261,7 @@
 
     .status-line {
       font-size: 11px;
-      color: #334155;
+      color: #f8fafc;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -262,13 +269,13 @@
 
     .status-corel {
       font-size: 10px;
-      color: #64748b;
+      color: #93c5fd;
       font-family: Consolas, Monaco, monospace;
     }
 
     .footer-author {
       font-size: 9.5px;
-      color: #94a3b8;
+      color: #64748b;
       text-align: center;
       padding-top: 2px;
       flex-shrink: 0;
@@ -279,8 +286,8 @@
   <!-- Titlebar -->
   <div class="titlebar">
     <div class="titlebar-left">
-      <div class="titlebar-icon">G</div>
-      <span>GFX IT PRINTING — Auto-Layout</span>
+      <div class="titlebar-icon">#</div>
+      <span>Corel Tools Suite — Auto-Layout Jersey</span>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="btnMinimize">_</button>
@@ -290,7 +297,7 @@
 
   <!-- Header Banner -->
   <div class="app-header">
-    <div class="app-header-title">GFX IT PRINTING</div>
+    <div class="app-header-title">AUTO-LAYOUT JERSEY</div>
     <div class="app-header-sub">automatic jersey naming & layout generator</div>
   </div>
 
