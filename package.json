@@ -1,0 +1,53 @@
+{
+  "name": "corel-tools-suite",
+  "version": "1.0.0",
+  "description": "Corel Tools Suite - Kumpulan Alat Profesional Otomasi & Desain CorelDRAW",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis portable"
+  },
+  "author": "GFX GRAPHIC",
+  "license": "ISC",
+  "build": {
+    "appId": "com.gfx.coreltoolssuite",
+    "productName": "Corel Tools Suite",
+    "directories": {
+      "output": "dist-release"
+    },
+    "files": [
+      "src/**/*",
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/favicon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Corel Tools Suite",
+      "artifactName": "${productName} Setup ${version}.${ext}"
+    }
+  }
+}

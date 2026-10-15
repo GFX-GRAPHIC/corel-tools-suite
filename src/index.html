@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corel Tools Suite</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ==========================================
+       1. Window Native Titlebar
+       ========================================== -->
+  <div class="titlebar">
+    <div class="titlebar-brand">
+      <img src="../public/logo.png" alt="Logo" class="titlebar-logo" id="appLogo" onerror="this.style.display='none'" />
+      <span>Corel Tools Suite</span>
+      <span class="titlebar-badge">PRO</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="btnPin" title="Pin Always on Top">📌</button>
+      <button class="titlebar-btn" id="btnMinimize" title="Minimize">_</button>
+      <button class="titlebar-btn" id="btnMaximize" title="Maximize">□</button>
+      <button class="titlebar-btn close" id="btnClose" title="Close">✕</button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       2. Main Workspace Container
+       ========================================== -->
+  <div class="app-container">
+
+    <!-- 2A. Left Sidebar Navigation -->
+    <nav class="sidebar">
+      <div class="nav-item active" data-view="beranda">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </span>
+        <span>Beranda</span>
+      </div>
+
+      <div class="nav-item" data-view="enumerator">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+        </span>
+        <span>Enumerator</span>
+      </div>
+
+      <div class="nav-item" data-view="penomoran">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+        </span>
+        <span>Penomoran</span>
+      </div>
+
+      <div class="nav-item" data-view="merger">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </span>
+        <span>Merger</span>
+      </div>
+
+      <div class="nav-item" data-view="split">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/></svg>
+        </span>
+        <span>Split</span>
+      </div>
+
+      <div class="nav-item" data-view="konversi">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </span>
+        <span>Konversi</span>
+      </div>
+
+      <div class="nav-item" data-view="warna">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        </span>
+        <span>Warna</span>
+      </div>
+
+      <div class="nav-item" data-view="ukuran">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+        </span>
+        <span>Ukuran & Layout</span>
+      </div>
+
+      <div class="nav-item" data-view="batch">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="8" x="2" y="2" rx="1"/><rect width="8" height="8" x="14" y="2" rx="1"/><rect width="8" height="8" x="14" y="14" rx="1"/><rect width="8" height="8" x="2" y="14" rx="1"/></svg>
+        </span>
+        <span>Batch</span>
+      </div>
+
+      <div class="nav-item" data-view="utilitas">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </span>
+        <span>Utilitas</span>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="nav-item" data-view="pengaturan">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        <span>Pengaturan</span>
+      </div>
+
+      <div class="nav-item" data-view="tentang">
+        <span class="nav-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        </span>
+        <span>Tentang</span>
+      </div>
+    </nav>
+
+    <!-- 2B. Central Content Area -->
+    <main class="content-area">
+
+      <!-- ==============================================
+           PAGE 1: BERANDA (DASHBOARD SUITE)
+           ============================================== -->
+      <div class="view-page active" id="view-beranda">
+        <div class="beranda-container">
+          
+          <div class="beranda-main">
+            <div class="beranda-header">
+              <h1>Corel Tools Suite</h1>
+              <p>Kumpulan alat untuk mempercepat pekerjaan desain di CorelDRAW</p>
+            </div>
+
+            <!-- Search Filter Bar -->
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="searchToolsInput" class="search-input" placeholder="Cari alat... (contoh: numerator, penomoran, konversi, warna)" />
+            </div>
+
+            <!-- 3x3 Tool Cards Grid -->
+            <div class="tools-grid" id="toolsCardsGrid">
+              
+              <!-- Card 1: Enumerator -->
+              <div class="tool-card" data-open="enumerator" data-keywords="enumerator nomor voucher tiket invoice otomatis">
+                <div class="card-icon-box" style="background-color: var(--accent-blue);">123</div>
+                <div class="card-content">
+                  <div class="card-title">Enumerator</div>
+                  <div class="card-desc">Membuat nomor otomatis dengan berbagai format.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 2: Penomoran -->
+              <div class="tool-card" data-open="penomoran" data-keywords="penomoran nomor teks objek kupon fleksibel">
+                <div class="card-icon-box" style="background-color: var(--accent-green);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Penomoran</div>
+                  <div class="card-desc">Penomoran teks/objek lebih fleksibel.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 3: Merger -->
+              <div class="tool-card" data-open="merger" data-keywords="merger sertifikat excel vdp mail merge variable data">
+                <div class="card-icon-box" style="background-color: var(--accent-orange);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Merger</div>
+                  <div class="card-desc">Menggabungkan banyak file atau data Excel menjadi satu.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 4: Split -->
+              <div class="tool-card" data-open="split" data-keywords="split pisahkan halaman objek cdr pdf potong">
+                <div class="card-icon-box" style="background-color: var(--accent-red);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Split</div>
+                  <div class="card-desc">Memisahkan objek atau halaman menjadi beberapa file.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 5: Konversi -->
+              <div class="tool-card" data-open="konversi" data-keywords="konversi format file cdr pdf ai png jpg svg export">
+                <div class="card-icon-box" style="background-color: var(--accent-purple);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Konversi</div>
+                  <div class="card-desc">Konversi format file (CDR, PDF, AI, PNG, JPG, SVG).</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 6: Warna -->
+              <div class="tool-card" data-open="warna" data-keywords="warna ganti warna replace color palette pantone cmyk rgb">
+                <div class="card-icon-box" style="background-color: var(--accent-yellow);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="13.5" cy="6.5" r=".5" fill="#fff"/><circle cx="17.5" cy="10.5" r=".5" fill="#fff"/><circle cx="8.5" cy="7.5" r=".5" fill="#fff"/><circle cx="6.5" cy="12.5" r=".5" fill="#fff"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Warna</div>
+                  <div class="card-desc">Kelola warna, ganti warna otomatis, palette, dll.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 7: Ukuran & Layout -->
+              <div class="tool-card" data-open="ukuran" data-keywords="ukuran layout margin resize bleed crop gang run tata letak">
+                <div class="card-icon-box" style="background-color: var(--accent-cyan);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Ukuran & Layout</div>
+                  <div class="card-desc">Ubah ukuran, margin, layout otomatis.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 8: Batch -->
+              <div class="tool-card" data-open="batch" data-keywords="batch processing antrian banyak file sekaligus pipeline">
+                <div class="card-icon-box" style="background-color: var(--accent-indigo);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><rect width="8" height="8" x="2" y="2" rx="1"/><rect width="8" height="8" x="14" y="2" rx="1"/><rect width="8" height="8" x="14" y="14" rx="1"/><rect width="8" height="8" x="2" y="14" rx="1"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Batch</div>
+                  <div class="card-desc">Proses banyak file sekaligus.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+              <!-- Card 9: Utilitas -->
+              <div class="tool-card" data-open="utilitas" data-keywords="utilitas tools convert kurva ctrl+q guidelines ungroup font">
+                <div class="card-icon-box" style="background-color: var(--accent-slate);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </div>
+                <div class="card-content">
+                  <div class="card-title">Utilitas</div>
+                  <div class="card-desc">Alat tambahan untuk mempercepat workflow.</div>
+                </div>
+                <div class="card-arrow">➔</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right Sidebar Panel -->
+          <aside class="beranda-right-panel">
+            
+            <!-- Aksi Cepat -->
+            <div>
+              <div class="panel-section-title">Aksi Cepat</div>
+              <div class="quick-actions-list">
+                <button class="btn-quick-action" data-open="enumerator">
+                  <span class="btn-quick-icon" style="background: var(--accent-blue);">123</span>
+                  <span>Buat Enumerator</span>
+                </button>
+                <button class="btn-quick-action" data-open="konversi">
+                  <span class="btn-quick-icon" style="background: var(--accent-purple);">🔄</span>
+                  <span>Konversi File</span>
+                </button>
+                <button class="btn-quick-action" data-open="warna">
+                  <span class="btn-quick-icon" style="background: var(--accent-yellow);">🎨</span>
+                  <span>Ubah Warna</span>
+                </button>
+                <button class="btn-quick-action" data-open="batch">
+                  <span class="btn-quick-icon" style="background: var(--accent-indigo);">🗂️</span>
+                  <span>Batch Processing</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- File Terbaru -->
+            <div>
+              <div class="panel-section-title">
+                <span>File Terbaru</span>
+                <span style="font-size: 10px; color: var(--accent-blue); cursor: pointer;" id="btnRefreshFiles">Perbarui</span>
+              </div>
+              <div class="recent-files-list" id="recentFilesContainer">
+                <div class="recent-file-item">
+                  <span class="recent-icon-badge">CDR</span>
+                  <div class="recent-file-meta">
+                    <span class="recent-file-name">Desain Undangan.cdr</span>
+                    <span class="recent-file-path">C:\Project\Undangan</span>
+                  </div>
+                </div>
+                <div class="recent-file-item">
+                  <span class="recent-icon-badge">CDR</span>
+                  <div class="recent-file-meta">
+                    <span class="recent-file-name">Label Produk.cdr</span>
+                    <span class="recent-file-path">C:\Project\Label</span>
+                  </div>
+                </div>
+                <div class="recent-file-item">
+                  <span class="recent-icon-badge">CDR</span>
+                  <div class="recent-file-meta">
+                    <span class="recent-file-name">Stiker.cdr</span>
+                    <span class="recent-file-path">C:\Project\Stiker</span>
+                  </div>
+                </div>
+                <div class="recent-file-item">
+                  <span class="recent-icon-badge">CDR</span>
+                  <div class="recent-file-meta">
+                    <span class="recent-file-name">Logo.cdr</span>
+                    <span class="recent-file-path">C:\Project\Logo</span>
+                  </div>
+                </div>
+                <div class="recent-file-item">
+                  <span class="recent-icon-badge">CDR</span>
+                  <div class="recent-file-meta">
+                    <span class="recent-file-name">Banner.cdr</span>
+                    <span class="recent-file-path">C:\Project\Banner</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status CorelDRAW -->
+            <div>
+              <div class="panel-section-title">Status CorelDRAW</div>
+              <div class="corel-status-box">
+                <div class="status-indicator-row">
+                  <span class="status-dot-indicator" id="corelDotStatus"></span>
+                  <span id="lblCorelConnected">Memeriksa koneksi...</span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-dim);" id="lblActiveDocName">Dokumen: -</div>
+              </div>
+            </div>
+
+          </aside>
+
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 2: ENUMERATOR & PENOMORAN
+           ============================================== -->
+      <div class="view-page" id="view-enumerator">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">123 Enumerator / Penomoran Otomatis</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" id="btnEnumReset">Reset</button>
+              <button class="btn-primary" id="btnEnumGenerate">⚡ Generate di CorelDRAW</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <!-- Left: Pengaturan -->
+            <div class="tool-panel" style="flex: 1.2;">
+              <div class="tool-panel-title">Pengaturan Nomor</div>
+
+              <div class="form-group">
+                <label class="form-label">Format Nomor:</label>
+                <select id="enumFormat" class="select-native">
+                  <option value="4" selected>4 Digit (0001, 0002, 0003...)</option>
+                  <option value="5">5 Digit (00001, 00002...)</option>
+                  <option value="6">6 Digit (000001, 000002...)</option>
+                  <option value="3">3 Digit (001, 002...)</option>
+                  <option value="0">Tanpa Nol di Depan (1, 2, 3...)</option>
+                </select>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Nomor Awal:</label>
+                  <input type="number" id="enumStart" class="input-text" value="1" min="0" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nomor Akhir:</label>
+                  <input type="number" id="enumEnd" class="input-text" value="100" min="1" />
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Kenaikan (Increment / Step):</label>
+                  <input type="number" id="enumStep" class="input-text" value="1" min="1" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Mode Output Corel:</label>
+                  <select id="enumMode" class="select-native">
+                    <option value="page" selected>1 Desain per Halaman (Page 1..N)</option>
+                    <option value="grid">Susun Grid N-Up (Banyak per Lembar)</option>
+                    <option value="inplace">In-Place (Objek Terseleksi Saja)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Awalan (Prefix):</label>
+                  <input type="text" id="enumPrefix" class="input-text" value="INV-" placeholder="Contoh: INV- / NO." />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Akhiran (Suffix):</label>
+                  <input type="text" id="enumSuffix" class="input-text" placeholder="Contoh: /2026 / -A" />
+                </div>
+              </div>
+
+              <!-- N-Up Grid Settings (shown if mode === 'grid') -->
+              <div id="enumGridSettings" style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Kolom (Ke Samping):</label>
+                    <input type="number" id="enumGridCols" class="input-text" value="2" min="1" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Baris (Ke Bawah):</label>
+                    <input type="number" id="enumGridRows" class="input-text" value="5" min="1" />
+                  </div>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Jarak X (cm):</label>
+                    <input type="number" id="enumSpacingX" class="input-text" value="0.5" step="0.1" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Jarak Y (cm):</label>
+                    <input type="number" id="enumSpacingY" class="input-text" value="0.5" step="0.1" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Urutan Penataan:</label>
+                  <select id="enumGridOrder" class="select-native">
+                    <option value="cut_stack" selected>✂️ Cut & Stack (Tumpuk-Potong: Langsung Urut)</option>
+                    <option value="left_right">➡️ Kiri ke Kanan lalu ke Bawah</option>
+                  </select>
+                </div>
+              </div>
+
+              <label class="checkbox-native-label" style="margin-top: 4px;">
+                <input type="checkbox" id="enumAutoCurves" checked />
+                <span>Otomatis Convert ke Kurva (Ctrl+Q) setelah selesai</span>
+              </label>
+            </div>
+
+            <!-- Right: Live Preview List -->
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">
+                <span>Pratinjau Nomor (<span id="enumTotalCount">100</span> nomor)</span>
+                <button class="btn-secondary" id="btnEnumCopyPreview" style="height: 24px; font-size: 10px; padding: 0 8px;">Salin Semua</button>
+              </div>
+              <div style="flex: 1; overflow-y: auto; background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; font-family: Consolas, monospace; font-size: 11.5px; line-height: 1.6; color: #38bdf8;" id="enumPreviewList">
+                INV-0001<br>INV-0002<br>INV-0003<br>INV-0004<br>INV-0005<br>INV-0006<br>INV-0007<br>INV-0008<br>...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 3: KONVERSI FILE (CDR, PDF, AI, PNG, JPG)
+           ============================================== -->
+      <div class="view-page" id="view-konversi">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Konversi Format File (CDR, PDF, AI, PNG, JPG, SVG)</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="btnStartConversion">🚀 Mulai Konversi</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body" style="flex-direction: column;">
+            <!-- Toolbar Table Actions -->
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between;">
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-secondary" id="btnAddFiles">+ Tambah File</button>
+                <button class="btn-secondary" id="btnAddFolder">+ Tambah Folder</button>
+                <button class="btn-danger" id="btnClearFiles">Hapus Semua</button>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);" id="lblConversionFileCount">0 File Terpilih</div>
+            </div>
+
+            <!-- Table Files -->
+            <div class="table-wrapper">
+              <table class="table-native" id="tblConversionFiles">
+                <thead>
+                  <tr>
+                    <th style="width: 30px;"><input type="checkbox" id="chkSelectAllFiles" checked /></th>
+                    <th>Nama File</th>
+                    <th style="width: 80px;">Format</th>
+                    <th style="width: 100px;">Ukuran</th>
+                    <th style="width: 100px;">Status</th>
+                    <th style="width: 50px;">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyConversionFiles">
+                  <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 30px;">Belum ada file. Klik "+ Tambah File" atau drag & drop file ke sini.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Output Settings Panel -->
+            <div class="tool-panel" style="padding: 12px;">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Format Output:</label>
+                  <select id="selConvertOutputFormat" class="select-native">
+                    <option value="PDF" selected>PDF - Portable Document Format</option>
+                    <option value="PNG">PNG - Raster Transparan (Hi-Res)</option>
+                    <option value="JPG">JPG - High Quality JPEG</option>
+                    <option value="EPS">EPS - Encapsulated PostScript</option>
+                    <option value="AI">AI - Adobe Illustrator</option>
+                    <option value="SVG">SVG - Scalable Vector Graphics</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Resolusi (DPI) untuk Gambar:</label>
+                  <select id="selConvertDPI" class="select-native">
+                    <option value="300" selected>300 DPI (Standar Percetakan / Cetak Tajam)</option>
+                    <option value="600">600 DPI (Ultra Tajam / Offset)</option>
+                    <option value="150">150 DPI (Draft / Banner Besar)</option>
+                    <option value="72">72 DPI (Web / Layar HP)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Folder Output Tujuan:</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="txtConvertOutputFolder" class="input-text" style="flex: 1;" placeholder="Pilih folder tujuan simpan..." readonly />
+                  <button class="btn-secondary" id="btnBrowseOutputFolder">Pilih Folder...</button>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 16px;">
+                <label class="checkbox-native-label">
+                  <input type="checkbox" id="chkOpenFolderAfter" checked />
+                  <span>Buka folder output setelah selesai</span>
+                </label>
+                <label class="checkbox-native-label">
+                  <input type="checkbox" id="chkOverwriteFiles" checked />
+                  <span>Timpa file jika sudah ada</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 4: WARNA (REPLACE COLOR & PALETTE)
+           ============================================== -->
+      <div class="view-page" id="view-warna">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Penggantian & Pengelolaan Warna CorelDRAW</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" id="btnColorReset">Reset</button>
+              <button class="btn-primary" id="btnColorApply">Terapkan ke CorelDRAW</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <!-- Left: Settings -->
+            <div class="tool-panel" style="flex: 1.2;">
+              <div class="sub-tabs-bar">
+                <button class="sub-tab-btn active" data-colortab="replace">Ganti Warna</button>
+                <button class="sub-tab-btn" data-colortab="extract">Ekstrak Warna</button>
+                <button class="sub-tab-btn" data-colortab="palette">Palette Dokumen</button>
+              </div>
+
+              <div class="form-grid-2" style="margin-top: 6px;">
+                <div class="form-group">
+                  <label class="form-label">Warna Asal (Yang Ingin Diganti):</label>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="color" id="pickerSourceColor" value="#ff0000" style="width: 38px; height: 32px; border: 1px solid var(--border-color); background: transparent; cursor: pointer; border-radius: var(--radius-sm);" />
+                    <input type="text" id="txtSourceColorHex" class="input-text" value="#FF0000" style="flex: 1;" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Warna Tujuan (Baru):</label>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input type="color" id="pickerTargetColor" value="#0000ff" style="width: 38px; height: 32px; border: 1px solid var(--border-color); background: transparent; cursor: pointer; border-radius: var(--radius-sm);" />
+                    <input type="text" id="txtTargetColorHex" class="input-text" value="#0000FF" style="flex: 1;" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="form-label">Cakupan Penggantian:</label>
+                <div style="display: flex; flex-direction: column; gap: 6px; background: var(--bg-app); padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                  <label class="checkbox-native-label">
+                    <input type="checkbox" id="chkReplaceFill" checked />
+                    <span>Ganti warna Isi (Fill) objek</span>
+                  </label>
+                  <label class="checkbox-native-label">
+                    <input type="checkbox" id="chkReplaceOutline" checked />
+                    <span>Ganti warna Garis / Outline</span>
+                  </label>
+                  <label class="checkbox-native-label">
+                    <input type="checkbox" id="chkIncludeGroups" checked />
+                    <span>Termasuk objek di dalam Group & PowerClip</span>
+                  </label>
+                </div>
+              </div>
+
+              <button class="btn-secondary" id="btnExtractActiveColors" style="margin-top: 6px;">🔍 Ambil Warna Otomatis dari Desain CorelDRAW</button>
+            </div>
+
+            <!-- Right: Preview Box & Palette -->
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Visualisasi Perubahan Warna</div>
+              
+              <div class="color-preview-box">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <span style="font-size: 10px; color: var(--text-dim);">ASAL</span>
+                  <div class="color-swatch" id="swatchSource" style="background-color: #ff0000;"></div>
+                  <span id="lblSourceHex" style="font-size: 11px; font-family: monospace;">#FF0000</span>
+                </div>
+                <div style="font-size: 20px; color: var(--text-muted);">➔</div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <span style="font-size: 10px; color: var(--text-dim);">TUJUAN</span>
+                  <div class="color-swatch" id="swatchTarget" style="background-color: #0000ff;"></div>
+                  <span id="lblTargetHex" style="font-size: 11px; font-family: monospace;">#0000FF</span>
+                </div>
+              </div>
+
+              <div style="margin-top: 8px;">
+                <div class="form-label" style="margin-bottom: 6px;">Palette Warna yang Terdeteksi:</div>
+                <div id="paletteSwatchesList" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #E11D48; cursor: pointer; border: 1px solid #ffffff;" title="#E11D48"></div>
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #2563EB; cursor: pointer; border: 1px solid #ffffff;" title="#2563EB"></div>
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #10B981; cursor: pointer; border: 1px solid #ffffff;" title="#10B981"></div>
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #F59E0B; cursor: pointer; border: 1px solid #ffffff;" title="#F59E0B"></div>
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #000000; cursor: pointer; border: 1px solid #ffffff;" title="#000000"></div>
+                  <div style="width: 28px; height: 28px; border-radius: 3px; background: #FFFFFF; cursor: pointer; border: 1px solid #374151;" title="#FFFFFF"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 5: MERGER (VARIABLE DATA & CERTIFICATE)
+           ============================================== -->
+      <div class="view-page" id="view-merger">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Merger Sertifikat & Data Variabel (VDP)</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="btnExecuteMerger">🚀 Gas Proses di CorelDRAW</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <!-- Left: Sumber Data & Mapping -->
+            <div class="tool-panel" style="flex: 1.2;">
+              <div class="sub-tabs-bar">
+                <button class="sub-tab-btn active" id="btnTabMergerExcel">📊 Impor File Excel</button>
+                <button class="sub-tab-btn" id="btnTabMergerManual">✍️ Input Teks Manual</button>
+              </div>
+
+              <!-- Excel Tab View -->
+              <div id="mergerExcelSection" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn-secondary" id="btnPickExcelFile" style="flex: 1;">📂 Pilih File Excel / CSV...</button>
+                  <span id="lblExcelLoadedName" style="font-size: 11px; align-self: center; color: var(--accent-green); font-weight: 600;"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Pemetaan Placeholder Teks di Corel (A1, A2, A3...):</label>
+                  <div id="mergerMappingList" style="display: flex; flex-direction: column; gap: 4px;">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Manual Tab View -->
+              <div id="mergerManualSection" style="display: none; flex-direction: column; gap: 8px; margin-top: 6px;">
+                <div class="form-group">
+                  <label class="form-label">Teks A1 (1 baris = 1 nama / data):</label>
+                  <textarea id="txtManualA1" class="textarea-native" placeholder="Ahmad Dahlan&#10;Budi Santoso&#10;Citra Kirana">Ahmad Dahlan
+Budi Santoso
+Citra Kirana</textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Teks A2 (Juara / Jabatan):</label>
+                  <textarea id="txtManualA2" class="textarea-native" placeholder="Juara 1&#10;Juara 2&#10;Juara 3">Juara 1 Desain
+Juara 2 Desain
+Juara 3 Desain</textarea>
+                </div>
+              </div>
+
+              <!-- Output Mode & Grid Settings -->
+              <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                <div class="form-group">
+                  <label class="form-label">Mode Output Corel:</label>
+                  <select id="selMergerOutputMode" class="select-native">
+                    <option value="page" selected>1 Desain per Halaman (Page 1..N)</option>
+                    <option value="grid">Tata Grid / N-Up (Banyak Desain per Lembar)</option>
+                    <option value="inplace">In-Place (Ganti Objek Aktif Saja)</option>
+                  </select>
+                </div>
+
+                <div id="boxMergerGridSettings" style="display: none; flex-direction: column; gap: 8px; background: var(--bg-app); padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Kolom (Ke Samping):</label>
+                      <input type="number" id="numMergerGridCols" class="input-text" value="2" min="1" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Baris (Ke Bawah):</label>
+                      <input type="number" id="numMergerGridRows" class="input-text" value="5" min="1" />
+                    </div>
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label class="form-label">Jarak X (cm):</label>
+                      <input type="number" id="numMergerSpacingX" class="input-text" value="0.5" step="0.1" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Jarak Y (cm):</label>
+                      <input type="number" id="numMergerSpacingY" class="input-text" value="0.5" step="0.1" />
+                    </div>
+                  </div>
+                </div>
+
+                <label class="checkbox-native-label">
+                  <input type="checkbox" id="chkMergerAutoCurves" checked />
+                  <span>Otomatis Convert ke Kurva (Ctrl+Q) setelah selesai</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Right: Preview Table -->
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">
+                <span>Pratinjau Data Penggabungan</span>
+                <span id="lblMergerSummaryCount" style="font-size: 11px; color: var(--accent-blue); font-weight: 700;">(3 Data Siap)</span>
+              </div>
+              <div class="table-wrapper">
+                <table class="table-native" id="tblMergerPreview">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px;">No</th>
+                      <th>Placeholder A1</th>
+                      <th>Placeholder A2</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyMergerPreview">
+                    <tr><td>1</td><td>Ahmad Dahlan</td><td>Juara 1 Desain</td></tr>
+                    <tr><td>2</td><td>Budi Santoso</td><td>Juara 2 Desain</td></tr>
+                    <tr><td>3</td><td>Citra Kirana</td><td>Juara 3 Desain</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 6: BATCH PROCESSING PIPELINE
+           ============================================== -->
+      <div class="view-page" id="view-batch">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Batch Processing Pipeline</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="btnExecuteBatchPipeline">⚡ Jalankan Pipeline di CorelDRAW</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <!-- Left: Checklist Proses -->
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Daftar Proses yang Tersedia</div>
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                <label class="checkbox-native-label">
+                  <input type="checkbox" class="chk-batch-step" data-step="Convert to Curves (Ctrl+Q)" checked />
+                  <span>Convert Semua Font ke Kurva (Ctrl+Q)</span>
+                </label>
+                <label class="checkbox-native-label">
+                  <input type="checkbox" class="chk-batch-step" data-step="Hapus Guidelines" checked />
+                  <span>Hapus Semua Garis Bantu (Guidelines)</span>
+                </label>
+                <label class="checkbox-native-label">
+                  <input type="checkbox" class="chk-batch-step" data-step="Hapus Layer Kosong" />
+                  <span>Hapus Layer Kosong yang Tidak Terpakai</span>
+                </label>
+                <label class="checkbox-native-label">
+                  <input type="checkbox" class="chk-batch-step" data-step="Ungroup All Objects" />
+                  <span>Ungroup Semua Objek Terseleksi</span>
+                </label>
+                <label class="checkbox-native-label">
+                  <input type="checkbox" class="chk-batch-step" data-step="Export ke PDF" checked />
+                  <span>Export Otomatis ke Dokumen PDF</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Right: Urutan Pipeline -->
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Urutan Eksekusi Pipeline</div>
+              <div id="batchPipelineSequence" style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
+                <div style="background: var(--bg-app); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11.5px; display: flex; justify-content: space-between;">
+                  <span>1. Convert Semua Font ke Kurva (Ctrl+Q)</span>
+                  <span style="color: var(--accent-green); font-weight: 700;">Aktif</span>
+                </div>
+                <div style="background: var(--bg-app); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11.5px; display: flex; justify-content: space-between;">
+                  <span>2. Hapus Semua Garis Bantu (Guidelines)</span>
+                  <span style="color: var(--accent-green); font-weight: 700;">Aktif</span>
+                </div>
+                <div style="background: var(--bg-app); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11.5px; display: flex; justify-content: space-between;">
+                  <span>3. Export Otomatis ke Dokumen PDF</span>
+                  <span style="color: var(--accent-green); font-weight: 700;">Aktif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 7: SPLIT (HALAMAN & OBJEK)
+           ============================================== -->
+      <div class="view-page" id="view-split">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Split (Pisah Halaman atau Objek)</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="btnExecuteSplit">✂️ Eksekusi Split</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Pengaturan Split</div>
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="form-label">Metode Pemisahan:</label>
+                <select id="selSplitMode" class="select-native">
+                  <option value="pages" selected>Pisahkan Setiap Halaman Dokumen menjadi File PDF Terpisah</option>
+                  <option value="shapes">Pisahkan Objek-Objek Terseleksi menjadi Gambar PNG Terpisah</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="form-label">Folder Tujuan Simpan:</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="txtSplitFolder" class="input-text" style="flex: 1;" placeholder="Pilih folder tujuan simpan..." readonly />
+                  <button class="btn-secondary" id="btnBrowseSplitFolder">Pilih Folder...</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 8: UKURAN & LAYOUT
+           ============================================== -->
+      <div class="view-page" id="view-ukuran">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Ukuran & Tata Letak Otomatis</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="btnApplyResizeLayout">📐 Terapkan Ukuran di CorelDRAW</button>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Pengaturan Dimensi Objek Terseleksi</div>
+              <div class="form-grid-2" style="margin-top: 6px;">
+                <div class="form-group">
+                  <label class="form-label">Lebar (cm):</label>
+                  <input type="number" id="numResizeWidth" class="input-text" value="9" step="0.1" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tinggi (cm):</label>
+                  <input type="number" id="numResizeHeight" class="input-text" value="5.5" step="0.1" />
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                <label class="checkbox-native-label">
+                  <input type="checkbox" id="chkCenterToPage" checked />
+                  <span>Ratakan pas di tengah halaman cetak (Center to Page)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 9: UTILITAS COREL
+           ============================================== -->
+      <div class="view-page" id="view-utilitas">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Utilitas Tambahan CorelDRAW</div>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Aksi Cepat Sekali Klik (1-Click Utilities)</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
+                <button class="btn-secondary" id="btnUtilCurves" style="height: 44px; text-align: left; padding: 0 14px;">
+                  <b>🔤 Convert All Texts to Curves (Ctrl+Q)</b>
+                </button>
+                <button class="btn-secondary" id="btnUtilGuidelines" style="height: 44px; text-align: left; padding: 0 14px;">
+                  <b>📏 Hapus Semua Garis Bantu (Guidelines)</b>
+                </button>
+                <button class="btn-secondary" id="btnUtilUngroup" style="height: 44px; text-align: left; padding: 0 14px;">
+                  <b>📦 Ungroup Semua Objek Terseleksi</b>
+                </button>
+                <button class="btn-secondary" id="btnUtilEmptyLayers" style="height: 44px; text-align: left; padding: 0 14px;">
+                  <b>🗑️ Bersihkan Layer Kosong Tidak Terpakai</b>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 10: PENGATURAN
+           ============================================== -->
+      <div class="view-page" id="view-pengaturan">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Pengaturan Sistem & CorelDRAW COM</div>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <div class="tool-panel" style="flex: 1;">
+              <div class="tool-panel-title">Preferensi Aplikasi</div>
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="form-label">Satuan Default Desain:</label>
+                <select class="select-native" id="prefUnit">
+                  <option value="cm" selected>Centimeter (cm)</option>
+                  <option value="mm">Milimeter (mm)</option>
+                  <option value="inch">Inci (inch)</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="form-label">Resolusi Export Default (DPI):</label>
+                <select class="select-native" id="prefDPI">
+                  <option value="300" selected>300 DPI (Standar Cetak)</option>
+                  <option value="600">600 DPI (Resolusi Tinggi)</option>
+                  <option value="150">150 DPI (Draft Cepat)</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-top: 6px;">
+                <label class="checkbox-native-label">
+                  <input type="checkbox" id="prefAlwaysOnTop" />
+                  <span>Jendela Selalu di Atas (Always on Top)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==============================================
+           PAGE 11: TENTANG
+           ============================================== -->
+      <div class="view-page" id="view-tentang">
+        <div class="tool-view-layout">
+          <div class="tool-view-header">
+            <div class="tool-header-left">
+              <button class="btn-back" data-open="beranda">← Beranda</button>
+              <div class="tool-view-title">Tentang Corel Tools Suite</div>
+            </div>
+          </div>
+
+          <div class="tool-view-body">
+            <div class="tool-panel" style="flex: 1; align-items: center; justify-content: center; text-align: center; gap: 12px;">
+              <img src="../public/logo.png" alt="Logo" style="width: 64px; height: 64px; object-fit: contain;" onerror="this.style.display='none'" />
+              <div style="font-size: 18px; font-weight: 800; color: #ffffff;">Corel Tools Suite</div>
+              <div style="font-size: 12px; color: var(--text-muted); max-width: 460px; line-height: 1.5;">
+                Aplikasi desktop profesional untuk otomasi dan akselerasi desain di CorelDRAW. Mendukung CorelDRAW X7 hingga versi terbaru 2024 / 2026.
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 10px;">
+                Versi 1.0.0 &bull; Developed by GFX GRAPHIC &bull; Native Desktop Architecture
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ==========================================
+       3. Bottom Status Bar
+       ========================================== -->
+  <footer class="statusbar">
+    <div class="statusbar-left">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="status-dot-indicator" id="footerCorelDot"></span>
+        <span id="footerCorelStatus">CorelDRAW: Memeriksa...</span>
+      </div>
+      <div id="footerDocInfo" style="color: var(--text-dim);">Dokumen: -</div>
+    </div>
+    <div class="statusbar-right">
+      <span id="footerActionStatus">Siap</span>
+    </div>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div class="toast-notice" id="toastNotice">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMessage">Pesan pemberitahuan</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
