@@ -328,12 +328,13 @@
 
     .mapping-row {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
       background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 3px;
-      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 6px 8px;
     }
 
     .mapping-idx {
@@ -361,6 +362,129 @@
     }
     .btn-delete-row:hover {
       background: #fee2e2;
+    }
+
+    /* Corel Size Controls */
+    .corel-size-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 6px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      flex-wrap: wrap;
+    }
+
+    .size-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .size-input-group {
+      display: inline-flex;
+      align-items: center;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 0 4px;
+      height: 22px;
+    }
+
+    .size-icon {
+      font-size: 11px;
+      font-weight: 800;
+      color: #4f46e5;
+      margin-right: 3px;
+      line-height: 1;
+    }
+
+    .input-size {
+      width: 52px;
+      height: 18px;
+      border: none;
+      background: transparent;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: right;
+      padding: 0 2px;
+      outline: none;
+    }
+
+    .size-unit {
+      font-size: 9px;
+      color: #64748b;
+      margin-left: 2px;
+    }
+
+    .btn-lock {
+      height: 22px;
+      padding: 0 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+    }
+
+    .btn-lock:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-lock.locked {
+      background: #eef2ff;
+      border-color: #818cf8;
+      color: #3730a3;
+      font-weight: 700;
+    }
+
+    .btn-sample-size {
+      height: 22px;
+      padding: 0 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #f8fafc;
+      color: #0f172a;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-sample-size:hover {
+      background: #e0e7ff;
+      border-color: #6366f1;
+      color: #312e81;
+    }
+
+    .btn-clear-size {
+      height: 22px;
+      padding: 0 5px;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 9.5px;
+      cursor: pointer;
+    }
+
+    .btn-clear-size:hover {
+      background: #fee2e2;
+      color: #ef4444;
+      border-color: #fca5a5;
     }
 
     /* Manual Variable Card */
@@ -775,16 +899,16 @@
 
     // Excel Mode Variables mapping
     let excelVariables = [
-      { placeholder: 'A1', column: 'B', label: 'Nama Peserta' },
-      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara' },
-      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat' }
+      { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: '', height: '', lockRatio: true },
+      { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: '', height: '', lockRatio: true },
+      { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true }
     ];
 
     // Manual Mode Variables
     let manualVariables = [
-      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana' },
-      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain' },
-      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026' }
+      { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: '', height: '', lockRatio: true },
+      { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: '', height: '', lockRatio: true },
+      { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true }
     ];
 
     // Elements
@@ -1199,6 +1323,124 @@
       });
     }
 
+    // Helper to create CorelDRAW size bar widget
+    function createSizeBarElement(v) {
+      const bar = document.createElement('div');
+      bar.className = 'corel-size-bar';
+
+      bar.innerHTML = `
+        <span class="size-label">📐 Ukuran Teks:</span>
+        <div class="size-input-group" title="Lebar objek teks di CorelDRAW (cm)">
+          <span class="size-icon">↔</span>
+          <input type="number" step="0.01" min="0" class="input-size txt-width" placeholder="Auto" value="${v.width ?? ''}" />
+          <span class="size-unit">cm</span>
+        </div>
+        <div class="size-input-group" title="Tinggi objek teks di CorelDRAW (cm)">
+          <span class="size-icon">↕</span>
+          <input type="number" step="0.01" min="0" class="input-size txt-height" placeholder="Auto" value="${v.height ?? ''}" />
+          <span class="size-unit">cm</span>
+        </div>
+        <button type="button" class="btn-lock ${v.lockRatio !== false ? 'locked' : ''}" title="${v.lockRatio !== false ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas' : 'Rasio Bebas (Bisa gepeng/distorsi). Klik untuk kunci rasio'}">
+          ${v.lockRatio !== false ? '🔒 Kunci Rasio' : '🔓 Rasio Bebas'}
+        </button>
+        <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
+          🎯 Ambil Seleksi Corel
+        </button>
+        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
+      `;
+
+      const inputW = bar.querySelector('.txt-width');
+      const inputH = bar.querySelector('.txt-height');
+      const btnLock = bar.querySelector('.btn-lock');
+      const btnSample = bar.querySelector('.btn-sample-size');
+      const btnClear = bar.querySelector('.btn-clear-size');
+
+      if (v.lockRatio === undefined) v.lockRatio = true;
+      if (v.width && v.height && !v.aspectRatio) {
+        v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
+      }
+
+      inputW.addEventListener('input', () => {
+        const val = parseFloat(inputW.value);
+        v.width = isNaN(val) || val <= 0 ? '' : val;
+        if (v.lockRatio && v.aspectRatio && v.width) {
+          v.height = parseFloat((v.width / v.aspectRatio).toFixed(3));
+          inputH.value = v.height;
+        } else if (v.width && v.height) {
+          v.aspectRatio = v.width / v.height;
+        }
+      });
+
+      inputH.addEventListener('input', () => {
+        const val = parseFloat(inputH.value);
+        v.height = isNaN(val) || val <= 0 ? '' : val;
+        if (v.lockRatio && v.aspectRatio && v.height) {
+          v.width = parseFloat((v.height * v.aspectRatio).toFixed(3));
+          inputW.value = v.width;
+        } else if (v.width && v.height) {
+          v.aspectRatio = v.width / v.height;
+        }
+      });
+
+      btnLock.addEventListener('click', () => {
+        v.lockRatio = !v.lockRatio;
+        btnLock.className = `btn-lock ${v.lockRatio ? 'locked' : ''}`;
+        btnLock.innerHTML = v.lockRatio ? '🔒 Kunci Rasio' : '🔓 Rasio Bebas';
+        btnLock.title = v.lockRatio
+          ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas'
+          : 'Rasio Bebas (Bisa gepeng/distorsi). Klik untuk kunci rasio';
+        if (v.lockRatio && v.width && v.height) {
+          v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
+        }
+      });
+
+      btnSample.addEventListener('click', async () => {
+        try {
+          btnSample.disabled = true;
+          btnSample.innerText = '⌛ Mengambil...';
+          const getFn = window.electronAPI?.corelGetSelectionInfo || window.corelAPI?.corelGetSelectionInfo;
+          if (!getFn) {
+            alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
+            return;
+          }
+          const selInfo = await getFn();
+          if (selInfo && selInfo.success && selInfo.count > 0 && selInfo.widthCm > 0) {
+            v.width = selInfo.widthCm;
+            v.height = selInfo.heightCm;
+            v.aspectRatio = selInfo.widthCm / selInfo.heightCm;
+            inputW.value = v.width;
+            inputH.value = v.height;
+            inputW.style.backgroundColor = '#dcfce7';
+            inputH.style.backgroundColor = '#dcfce7';
+            setTimeout(() => {
+              inputW.style.backgroundColor = '';
+              inputH.style.backgroundColor = '';
+            }, 800);
+          } else {
+            alert(`Objek teks di CorelDRAW belum dipilih!\n\nSilakan pilih (klik seleksi) objek teks '${v.placeholder}' di lembar kerja CorelDRAW, lalu klik tombol ini lagi.`);
+          }
+        } catch (err) {
+          alert(`Gagal mengambil ukuran dari CorelDRAW: ${err.message}`);
+        } finally {
+          btnSample.disabled = false;
+          btnSample.innerHTML = '🎯 Ambil Seleksi Corel';
+        }
+      });
+
+      if (btnClear) {
+        btnClear.addEventListener('click', () => {
+          v.width = '';
+          v.height = '';
+          v.aspectRatio = null;
+          inputW.value = '';
+          inputH.value = '';
+          btnClear.remove();
+        });
+      }
+
+      return bar;
+    }
+
     // Render Mapping Interface (Excel Mode)
     function renderExcelMappingRows() {
       mappingContainer.innerHTML = '';
@@ -1216,20 +1458,25 @@
         row.className = 'mapping-row';
 
         row.innerHTML = `
-          <span class="mapping-idx">#${index + 1}</span>
-          <div style="display: flex; flex-direction: column; gap: 1px; width: 110px;">
-            <span style="font-size: 8.5px; color: #64748b;">Teks Corel:</span>
-            <input type="text" class="input-text txt-placeholder" value="${v.placeholder}" style="height: 24px; font-weight: 700; color: #312e81;" placeholder="misal A1" />
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="mapping-idx">#${index + 1}</span>
+            <div style="display: flex; flex-direction: column; gap: 1px; width: 110px;">
+              <span style="font-size: 8.5px; color: #64748b; font-weight: 600;">Teks Corel:</span>
+              <input type="text" class="input-text txt-placeholder" value="${v.placeholder}" style="height: 24px; font-weight: 700; color: #312e81;" placeholder="misal A1" />
+            </div>
+            <span class="mapping-arrow">➔</span>
+            <div style="display: flex; flex-direction: column; gap: 1px; flex: 1;">
+              <span style="font-size: 8.5px; color: #64748b; font-weight: 600;">Ambil dari Kolom Excel:</span>
+              <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600;">
+                ${headers.map(h => `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${h.label || `${h.letter}: ${h.name}`}</option>`).join('')}
+              </select>
+            </div>
+            <button type="button" class="btn-delete-row" title="Hapus Variabel Ini">✕</button>
           </div>
-          <span class="mapping-arrow">➔</span>
-          <div style="display: flex; flex-direction: column; gap: 1px; flex: 1;">
-            <span style="font-size: 8.5px; color: #64748b;">Ambil dari Kolom Excel:</span>
-            <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600;">
-              ${headers.map(h => `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${h.label || `${h.letter}: ${h.name}`}</option>`).join('')}
-            </select>
-          </div>
-          <button type="button" class="btn-delete-row" title="Hapus Variabel Ini">✕</button>
         `;
+
+        // Append sizing controls
+        row.appendChild(createSizeBarElement(v));
 
         const txtPh = row.querySelector('.txt-placeholder');
         const selCol = row.querySelector('.sel-column');
@@ -1258,16 +1505,19 @@
       excelVariables.push({
         placeholder: `A${nextIdx}`,
         column: targetCol,
-        label: `Teks ${nextIdx}`
+        label: `Teks ${nextIdx}`,
+        width: '',
+        height: '',
+        lockRatio: true
       });
       renderExcelMappingRows();
     });
 
     btnPresetA1.addEventListener('click', () => {
       excelVariables = [
-        { placeholder: 'A1', column: 'B', label: 'Nama Peserta' },
-        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara' },
-        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat' }
+        { placeholder: 'A1', column: 'B', label: 'Nama Peserta', width: '', height: '', lockRatio: true },
+        { placeholder: 'A2', column: 'C', label: 'Predikat / Juara', width: '', height: '', lockRatio: true },
+        { placeholder: 'A3', column: 'D', label: 'No. Sertifikat', width: '', height: '', lockRatio: true }
       ];
       renderExcelMappingRows();
     });
@@ -1286,21 +1536,26 @@
         const lineCount = lines.length;
 
         card.innerHTML = `
-          <div class="manual-card-header">
-            <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-              <span style="font-weight: 800; color: #4338ca; font-size: 10px;">#${index + 1}</span>
-              <span style="font-size: 9px; color: #64748b;">Teks Corel:</span>
-              <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 75px; height: 22px; font-weight: 800; color: #312e81;" placeholder="misal A1" />
-              <span style="font-size: 9px; color: #64748b; margin-left: 4px;">Label:</span>
-              <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600;" placeholder="Nama / Juara / Nomor" />
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="manual-badge-lines" style="font-size: 9.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 3px; border: 1px solid #a7f3d0;">${lineCount} baris</span>
-              <button type="button" class="btn-delete-row manual-btn-delete" title="Hapus Variabel Ini">✕</button>
+          <div class="manual-card-header" style="flex-direction: column; align-items: stretch; gap: 5px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                <span style="font-weight: 800; color: #4338ca; font-size: 10px;">#${index + 1}</span>
+                <span style="font-size: 9px; color: #64748b; font-weight: 600;">Teks Corel:</span>
+                <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 75px; height: 22px; font-weight: 800; color: #312e81;" placeholder="misal A1" />
+                <span style="font-size: 9px; color: #64748b; font-weight: 600; margin-left: 4px;">Label:</span>
+                <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600;" placeholder="Nama / Juara / Nomor" />
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="manual-badge-lines" style="font-size: 9.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 3px; border: 1px solid #a7f3d0;">${lineCount} baris</span>
+                <button type="button" class="btn-delete-row manual-btn-delete" title="Hapus Variabel Ini">✕</button>
+              </div>
             </div>
           </div>
           <textarea class="manual-textarea" placeholder="Paste atau ketik daftar teks di sini (1 baris = 1 sertifikat)...">${v.text}</textarea>
         `;
+
+        // Append sizing controls to card header
+        card.querySelector('.manual-card-header').appendChild(createSizeBarElement(v));
 
         const txtPh = card.querySelector('.manual-placeholder');
         const txtLbl = card.querySelector('.manual-label');
@@ -1414,16 +1669,19 @@
       manualVariables.push({
         placeholder: `A${nextIdx}`,
         label: `Teks ${nextIdx}`,
-        text: ''
+        text: '',
+        width: '',
+        height: '',
+        lockRatio: true
       });
       renderManualUI();
     });
 
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana' },
-        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain' },
-        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026' }
+        { placeholder: 'A1', label: 'Nama Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana', width: '', height: '', lockRatio: true },
+        { placeholder: 'A2', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain', width: '', height: '', lockRatio: true },
+        { placeholder: 'A3', label: 'No. Sertifikat', text: '001/CERT/2026\n002/CERT/2026\n003/CERT/2026', width: '', height: '', lockRatio: true }
       ];
       renderManualUI();
     });
@@ -1472,7 +1730,14 @@
         }
 
         finalRows = excelData.rows;
-        finalMappings = validMappings;
+        finalMappings = validMappings.map(v => ({
+          placeholder: v.placeholder.trim(),
+          column: v.column,
+          label: v.label || v.placeholder,
+          width: v.width ? parseFloat(v.width) : 0,
+          height: v.height ? parseFloat(v.height) : 0,
+          lockRatio: v.lockRatio !== false
+        }));
       } else {
         // Manual Mode
         const trimmedLines = manualVariables.map(v => {
@@ -1503,7 +1768,10 @@
           .map(v => ({
             placeholder: v.placeholder.trim(),
             column: v.placeholder.trim(),
-            label: v.label.trim()
+            label: v.label.trim(),
+            width: v.width ? parseFloat(v.width) : 0,
+            height: v.height ? parseFloat(v.height) : 0,
+            lockRatio: v.lockRatio !== false
           }));
       }
 

@@ -117,9 +117,9 @@ function createCorelCertMergerWindow() {
     return corelCertMergerWindow;
   }
   corelCertMergerWindow = new BrowserWindow({
-    width: 580,
-    height: 750,
-    minWidth: 480,
+    width: 700,
+    height: 780,
+    minWidth: 550,
     minHeight: 600,
     frame: false,
     resizable: true,
@@ -961,22 +961,78 @@ function Get-RangeItem($r, [int]$idx) {
     return $null
 }
 
-# Helper function: Replace text in shape case-insensitively
-function Replace-ShapeText($shp, $findText, $replaceVal) {
-    if (-not $shp) { return }
+# Helper function: Replace text in shape case-insensitively with Width/Height and LockRatio support
+function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio) {
+    if (-not $shp) { return $false }
+    $replaced = $false
     if ($shp.Type -eq 6) { # cdrTextShape
+        $hasMatch = $false
         try {
-            [void]$shp.Text.Story.Replace($findText, $replaceVal, $false)
-        } catch {
+            $cur = $shp.Text.Story.Text
+            if ($cur -and $cur -match [regex]::Escape($findText)) {
+                $hasMatch = $true
+            }
+        } catch {}
+
+        if ($hasMatch) {
             try {
-                $cur = $shp.Text.Story.Text
-                if ($cur) {
-                    $pattern = [regex]::Escape($findText)
-                    $shp.Text.Story.Text = [regex]::Replace($cur, $pattern, [string]$replaceVal, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-                }
-            } catch {}
+                [void]$shp.Text.Story.Replace($findText, $replaceVal, $false)
+                $replaced = $true
+            } catch {
+                try {
+                    $cur = $shp.Text.Story.Text
+                    if ($cur) {
+                        $pattern = [regex]::Escape($findText)
+                        $shp.Text.Story.Text = [regex]::Replace($cur, $pattern, [string]$replaceVal, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                        $replaced = $true
+                    }
+                } catch {}
+            }
+
+            # Apply font size / dimension scaling if configured
+            if ($replaced) {
+                try {
+                    $targetW = [double]$optWidth
+                    $targetH = [double]$optHeight
+                    $isLocked = [bool]$lockRatio
+
+                    if ($targetW -gt 0 -and $targetH -gt 0) {
+                        if ($isLocked) {
+                            $curW = [double]$shp.SizeWidth
+                            $curH = [double]$shp.SizeHeight
+                            if ($curW -gt 0 -and $curH -gt 0) {
+                                $scaleW = $targetW / $curW
+                                $scaleH = $targetH / $curH
+                                $scale = [math]::Min($scaleW, $scaleH)
+                                $shp.SizeWidth = $curW * $scale
+                                $shp.SizeHeight = $curH * $scale
+                            }
+                        } else {
+                            $shp.SizeWidth = $targetW
+                            $shp.SizeHeight = $targetH
+                        }
+                    } elseif ($targetW -gt 0) {
+                        $curW = [double]$shp.SizeWidth
+                        $curH = [double]$shp.SizeHeight
+                        if ($curW -gt 0) {
+                            $scale = $targetW / $curW
+                            $shp.SizeWidth = $targetW
+                            if ($isLocked) { $shp.SizeHeight = $curH * $scale }
+                        }
+                    } elseif ($targetH -gt 0) {
+                        $curW = [double]$shp.SizeWidth
+                        $curH = [double]$shp.SizeHeight
+                        if ($curH -gt 0) {
+                            $scale = $targetH / $curH
+                            if ($isLocked) { $shp.SizeWidth = $curW * $scale }
+                            $shp.SizeHeight = $targetH
+                        }
+                    }
+                } catch {}
+            }
         }
     }
+    return $replaced
 }
 
 # Helper function: Find all text shapes recursively including groups and PowerClips
@@ -1013,20 +1069,33 @@ function Get-AllTextShapes($container) {
     return $list
 }
 
-# Helper function: Apply variable row data to text shapes
+# Helper function: Apply variable row data to text shapes with width/height/lockRatio
 function Apply-RowReplacement($textList, $rowObj, $mapList) {
     if (-not $textList -or -not $rowObj -or -not $mapList) { return }
     foreach ($m in $mapList) {
         $ph = [string]$m.placeholder
         $col = [string]$m.column
+        if (-not $col -and $m.col) { $col = [string]$m.col }
         if (-not $ph) { continue }
         $val = ""
-        if ($rowObj.PSObject.Properties[$col]) {
+        if ($col -and $rowObj.PSObject.Properties[$col]) {
             $val = [string]($rowObj.$col)
+        } elseif ($ph -and $rowObj.PSObject.Properties[$ph]) {
+            $val = [string]($rowObj.$ph)
         }
         if ($null -eq $val) { $val = "" }
+
+        $w = 0
+        if ($m.width) { $w = [double]$m.width }
+        $h = 0
+        if ($m.height) { $h = [double]$m.height }
+        $lock = $true
+        if ($m.PSObject.Properties['lockRatio'] -and $m.lockRatio -ne $null) {
+            $lock = [bool]$m.lockRatio
+        }
+
         foreach ($t in $textList) {
-            Replace-ShapeText $t $ph $val
+            Replace-ShapeText $t $ph $val $w $h $lock
         }
     }
 }

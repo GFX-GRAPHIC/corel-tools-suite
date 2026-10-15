@@ -681,15 +681,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeExcelWorkbookInfo = null;
 
   let excelMappings = [
-    { placeholder: 'A1', col: 'B' },
-    { placeholder: 'A2', col: 'C' },
-    { placeholder: 'A3', col: 'D' }
+    { placeholder: 'A1', col: 'B', width: '', height: '', lockRatio: true },
+    { placeholder: 'A2', col: 'C', width: '', height: '', lockRatio: true },
+    { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true }
   ];
 
   let manualVariables = [
-    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo' },
-    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri' },
-    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2' }
+    { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: '', height: '', lockRatio: true },
+    { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: '', height: '', lockRatio: true },
+    { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true }
   ];
 
   // Tab switching
@@ -1049,6 +1049,125 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper to create CorelDRAW size bar widget for Main Window
+  function createMergerSizeBarElement(item) {
+    const bar = document.createElement('div');
+    bar.className = 'corel-size-bar';
+
+    bar.innerHTML = `
+      <span class="size-label">📐 Ukuran:</span>
+      <div class="size-input-group" title="Lebar objek teks di CorelDRAW (cm)">
+        <span class="size-icon">↔</span>
+        <input type="number" step="0.01" min="0" class="input-size txt-width" placeholder="Auto" value="${item.width ?? ''}" />
+        <span class="size-unit">cm</span>
+      </div>
+      <div class="size-input-group" title="Tinggi objek teks di CorelDRAW (cm)">
+        <span class="size-icon">↕</span>
+        <input type="number" step="0.01" min="0" class="input-size txt-height" placeholder="Auto" value="${item.height ?? ''}" />
+        <span class="size-unit">cm</span>
+      </div>
+      <button type="button" class="btn-lock ${item.lockRatio !== false ? 'locked' : ''}" title="${item.lockRatio !== false ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas' : 'Rasio Bebas (Bisa distorsi). Klik untuk kunci rasio'}">
+        ${item.lockRatio !== false ? '🔒 Rasio Dikunci' : '🔓 Rasio Bebas'}
+      </button>
+      <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${item.placeholder}) yang sedang dipilih di CorelDRAW">
+        🎯 Ambil Seleksi Corel
+      </button>
+      ${(item.width || item.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
+    `;
+
+    const inputW = bar.querySelector('.txt-width');
+    const inputH = bar.querySelector('.txt-height');
+    const btnLock = bar.querySelector('.btn-lock');
+    const btnSample = bar.querySelector('.btn-sample-size');
+    const btnClear = bar.querySelector('.btn-clear-size');
+
+    if (item.lockRatio === undefined) item.lockRatio = true;
+    if (item.width && item.height && !item.aspectRatio) {
+      item.aspectRatio = parseFloat(item.width) / parseFloat(item.height);
+    }
+
+    inputW.addEventListener('input', () => {
+      const val = parseFloat(inputW.value);
+      item.width = isNaN(val) || val <= 0 ? '' : val;
+      if (item.lockRatio && item.aspectRatio && item.width) {
+        item.height = parseFloat((item.width / item.aspectRatio).toFixed(3));
+        inputH.value = item.height;
+      } else if (item.width && item.height) {
+        item.aspectRatio = item.width / item.height;
+      }
+    });
+
+    inputH.addEventListener('input', () => {
+      const val = parseFloat(inputH.value);
+      item.height = isNaN(val) || val <= 0 ? '' : val;
+      if (item.lockRatio && item.aspectRatio && item.height) {
+        item.width = parseFloat((item.height * item.aspectRatio).toFixed(3));
+        inputW.value = item.width;
+      } else if (item.width && item.height) {
+        item.aspectRatio = item.width / item.height;
+      }
+    });
+
+    btnLock.addEventListener('click', () => {
+      item.lockRatio = !item.lockRatio;
+      btnLock.className = `btn-lock ${item.lockRatio ? 'locked' : ''}`;
+      btnLock.innerHTML = item.lockRatio ? '🔒 Rasio Dikunci' : '🔓 Rasio Bebas';
+      btnLock.title = item.lockRatio
+        ? 'Rasio Terkunci (Proporsional). Klik untuk buka rasio bebas'
+        : 'Rasio Bebas (Bisa distorsi). Klik untuk kunci rasio';
+      if (item.lockRatio && item.width && item.height) {
+        item.aspectRatio = parseFloat(item.width) / parseFloat(item.height);
+      }
+    });
+
+    btnSample.addEventListener('click', async () => {
+      try {
+        btnSample.disabled = true;
+        btnSample.innerText = '⌛ Mengambil...';
+        const getFn = window.corelAPI?.corelGetSelectionInfo || window.electronAPI?.corelGetSelectionInfo;
+        if (!getFn) {
+          alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
+          return;
+        }
+        const selInfo = await getFn();
+        if (selInfo && selInfo.success && selInfo.count > 0 && selInfo.widthCm > 0) {
+          item.width = selInfo.widthCm;
+          item.height = selInfo.heightCm;
+          item.aspectRatio = selInfo.widthCm / selInfo.heightCm;
+          inputW.value = item.width;
+          inputH.value = item.height;
+          inputW.style.backgroundColor = '#1e3a8a';
+          inputH.style.backgroundColor = '#1e3a8a';
+          setTimeout(() => {
+            inputW.style.backgroundColor = '';
+            inputH.style.backgroundColor = '';
+          }, 800);
+          showToast(`Ukuran teks '${item.placeholder}' diset ke ${item.width} × ${item.height} cm`);
+        } else {
+          alert(`Objek teks di CorelDRAW belum dipilih!\n\nSilakan pilih (klik seleksi) objek teks '${item.placeholder}' di lembar kerja CorelDRAW, lalu klik tombol ini lagi.`);
+        }
+      } catch (err) {
+        alert(`Gagal mengambil ukuran dari CorelDRAW: ${err.message}`);
+      } finally {
+        btnSample.disabled = false;
+        btnSample.innerHTML = '🎯 Ambil Seleksi Corel';
+      }
+    });
+
+    if (btnClear) {
+      btnClear.addEventListener('click', () => {
+        item.width = '';
+        item.height = '';
+        item.aspectRatio = null;
+        inputW.value = '';
+        inputH.value = '';
+        btnClear.remove();
+      });
+    }
+
+    return bar;
+  }
+
   function renderMergerMappingList() {
     if (!mergerMappingList) return;
     mergerMappingList.innerHTML = '';
@@ -1064,13 +1183,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('div');
       row.className = 'mapping-row';
       row.innerHTML = `
-        <input type="text" class="input-text mapping-ph" value="${m.placeholder}" style="width: 75px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
-        <span style="color: var(--text-dim); font-size: 13px;">➔</span>
-        <select class="select-native mapping-col" style="flex: 1;">
-          ${headers.map(h => `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>[${h.letter}] ${h.label}</option>`).join('')}
-        </select>
-        <button type="button" class="btn-danger btn-remove-mapping" style="height: 24px; padding: 0 6px; font-size: 10px;" title="Hapus Pemetaan">✕</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="text" class="input-text mapping-ph" value="${m.placeholder}" style="width: 75px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
+          <span style="color: var(--text-dim); font-size: 13px;">➔</span>
+          <select class="select-native mapping-col" style="flex: 1;">
+            ${headers.map(h => `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>[${h.letter}] ${h.label}</option>`).join('')}
+          </select>
+          <button type="button" class="btn-danger btn-remove-mapping" style="height: 24px; padding: 0 6px; font-size: 10px;" title="Hapus Pemetaan">✕</button>
+        </div>
       `;
+
+      // Append Sizing Controls
+      row.appendChild(createMergerSizeBarElement(m));
 
       // Event listeners
       row.querySelector('.mapping-ph').addEventListener('input', (e) => {
@@ -1096,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const nextIdx = excelMappings.length + 1;
       const letters = ['A','B','C','D','E','F','G','H','I','J'];
       const nextCol = letters[nextIdx] || 'A';
-      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol });
+      excelMappings.push({ placeholder: `A${nextIdx}`, col: nextCol, width: '', height: '', lockRatio: true });
       renderMergerMappingList();
       updateMergerPreview();
     });
@@ -1105,9 +1229,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnMergerPresetA1) {
     btnMergerPresetA1.addEventListener('click', () => {
       excelMappings = [
-        { placeholder: 'A1', col: 'B' },
-        { placeholder: 'A2', col: 'C' },
-        { placeholder: 'A3', col: 'D' }
+        { placeholder: 'A1', col: 'B', width: '', height: '', lockRatio: true },
+        { placeholder: 'A2', col: 'C', width: '', height: '', lockRatio: true },
+        { placeholder: 'A3', col: 'D', width: '', height: '', lockRatio: true }
       ];
       renderMergerMappingList();
       updateMergerPreview();
@@ -1125,14 +1249,17 @@ document.addEventListener('DOMContentLoaded', () => {
       card.className = 'variable-card';
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
             <input type="text" class="input-text manual-ph" value="${v.placeholder}" style="width: 65px; height: 24px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
             <input type="text" class="input-text manual-label" value="${v.label}" placeholder="Label / Keterangan..." style="flex: 1; height: 24px; font-size: 11px;" />
           </div>
-          <button type="button" class="btn-danger btn-remove-var" style="height: 22px; padding: 0 6px; font-size: 10px;" title="Hapus Variabel">✕</button>
+          <button type="button" class="btn-danger btn-remove-var" style="height: 22px; padding: 0 6px; font-size: 10px; margin-left: 6px;" title="Hapus Variabel">✕</button>
         </div>
         <textarea class="textarea-native manual-text" style="height: 65px; font-size: 11px; line-height: 1.4;" placeholder="Ketik atau paste data teks di sini... (1 baris = 1 nilai)">${v.text}</textarea>
       `;
+
+      // Append Sizing Controls
+      card.appendChild(createMergerSizeBarElement(v));
 
       card.querySelector('.manual-ph').addEventListener('input', (e) => {
         v.placeholder = e.target.value;
@@ -1161,7 +1288,10 @@ document.addEventListener('DOMContentLoaded', () => {
       manualVariables.push({
         placeholder: `A${nextIdx}`,
         label: `Variabel ${nextIdx}`,
-        text: ''
+        text: '',
+        width: '',
+        height: '',
+        lockRatio: true
       });
       renderManualCards();
       updateMergerPreview();
@@ -1171,9 +1301,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnManualPresetA1) {
     btnManualPresetA1.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo' },
-        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri' },
-        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2' }
+        { placeholder: 'A1', label: 'Nama Lengkap / Peserta', text: 'Ahmad Dahlan\nBudi Santoso\nCitra Kirana\nDewi Lestari\nEko Prasetyo', width: '', height: '', lockRatio: true },
+        { placeholder: 'A2', label: 'Instansi / Perusahaan', text: 'PT Maju Bersama\nUniversitas Indonesia\nSMK Negeri 1\nDinas Pendidikan\nBank Mandiri', width: '', height: '', lockRatio: true },
+        { placeholder: 'A3', label: 'Predikat / Juara', text: 'Juara 1 Desain\nJuara 2 Desain\nJuara 3 Desain\nHarapan 1\nHarapan 2', width: '', height: '', lockRatio: true }
       ];
       renderManualCards();
       updateMergerPreview();
@@ -1271,7 +1401,10 @@ document.addEventListener('DOMContentLoaded', () => {
         finalRows = excelMergerData.rows;
         finalMappings = excelMappings.map(m => ({
           placeholder: m.placeholder.trim(),
-          column: m.col
+          column: m.col,
+          width: m.width ? parseFloat(m.width) : 0,
+          height: m.height ? parseFloat(m.height) : 0,
+          lockRatio: m.lockRatio !== false
         }));
       } else {
         const splitLines = manualVariables.map(v => v.text.split(/\r?\n/).filter(l => l.trim()));
@@ -1289,7 +1422,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         finalMappings = manualVariables.map(v => ({
           placeholder: v.placeholder.trim(),
-          column: v.placeholder.trim()
+          column: v.placeholder.trim(),
+          label: v.label || v.placeholder,
+          width: v.width ? parseFloat(v.width) : 0,
+          height: v.height ? parseFloat(v.height) : 0,
+          lockRatio: v.lockRatio !== false
         }));
       }
 
