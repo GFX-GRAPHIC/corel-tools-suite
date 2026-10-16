@@ -1542,7 +1542,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 8. Tool: Auto-Layout Jersey
+  // 8. Tool: Auto-Layout Jersey Pro
   // ==========================================
   const btnJerseyOpenCompanion = document.getElementById('btnJerseyOpenCompanion');
   const btnExecuteJerseyLayout = document.getElementById('btnExecuteJerseyLayout');
@@ -1552,38 +1552,468 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileJerseyExcelInput = document.getElementById('fileJerseyExcelInput');
   const tbodyJerseyPlayers = document.getElementById('tbodyJerseyPlayers');
   const lblJerseyPlayerCount = document.getElementById('lblJerseyPlayerCount');
+  const btnJerseyAddMapping = document.getElementById('btnJerseyAddMapping');
+  const btnJerseyPreset = document.getElementById('btnJerseyPreset');
+  const btnJerseyOpenChangeCase = document.getElementById('btnJerseyOpenChangeCase');
+  const jerseyMappingsContainer = document.getElementById('jerseyMappingsContainer');
 
-  let jerseyPlayers = [
-    { name: 'ALEXANDER', number: '10', size: 'L' },
-    { name: 'CHRISTIAN', number: '07', size: 'M' },
-    { name: 'DAVID PRATAMA', number: '09', size: 'XL' },
-    { name: 'FERNANDO', number: '11', size: 'L' }
+  // Size Chart Elements
+  const chkJerseyEnableAutoResize = document.getElementById('chkJerseyEnableAutoResize');
+  const btnJerseySampleMaster = document.getElementById('btnJerseySampleMaster');
+  const selJerseyMasterSize = document.getElementById('selJerseyMasterSize');
+  const lblJerseyMasterW = document.getElementById('lblJerseyMasterW');
+  const lblJerseyMasterH = document.getElementById('lblJerseyMasterH');
+  const lblJerseyMasterRatio = document.getElementById('lblJerseyMasterRatio');
+  const tbodyJerseySizeChart = document.getElementById('tbodyJerseySizeChart');
+  const btnJerseyAddSizeRow = document.getElementById('btnJerseyAddSizeRow');
+  const btnJerseyResetSizeChart = document.getElementById('btnJerseyResetSizeChart');
+
+  // Mode Tabs
+  const btnTabJerseyExcel = document.getElementById('btnTabJerseyExcel');
+  const btnTabJerseyManual = document.getElementById('btnTabJerseyManual');
+  const jerseyExcelSection = document.getElementById('jerseyExcelSection');
+  const jerseyManualSection = document.getElementById('jerseyManualSection');
+
+  // Excel Dropzone & Header Controls
+  const jerseyExcelDropzone = document.getElementById('jerseyExcelDropzone');
+  const boxJerseyFileInfo = document.getElementById('boxJerseyFileInfo');
+  const lblJerseyFileName = document.getElementById('lblJerseyFileName');
+  const lblJerseyRowCount = document.getElementById('lblJerseyRowCount');
+  const btnJerseyChangeFile = document.getElementById('btnJerseyChangeFile');
+  const selJerseySheet = document.getElementById('selJerseySheet');
+  const selJerseyHeaderRow = document.getElementById('selJerseyHeaderRow');
+  const boxJerseyTablePreview = document.getElementById('boxJerseyTablePreview');
+  const lblJerseyColCount = document.getElementById('lblJerseyColCount');
+  const tblJerseyExcelHead = document.getElementById('tblJerseyExcelHead');
+  const tblJerseyExcelBody = document.getElementById('tblJerseyExcelBody');
+
+  // Manual Mode Elements
+  const btnJerseyManualPreset = document.getElementById('btnJerseyManualPreset');
+  const btnJerseyManualAddVar = document.getElementById('btnJerseyManualAddVar');
+  const jerseyManualCardsContainer = document.getElementById('jerseyManualCardsContainer');
+  const lblJerseyManualRowCount = document.getElementById('lblJerseyManualRowCount');
+  const tblJerseyManualHead = document.getElementById('tblJerseyManualHead');
+  const tblJerseyManualBody = document.getElementById('tblJerseyManualBody');
+
+  let activeJerseyMode = 'excel'; // 'excel' | 'manual'
+  let rawJerseyExcelData = null;
+
+  // Size Chart State
+  let jerseyMasterWidthCm = 206.41;
+  let jerseyMasterHeightCm = 76.0;
+  let jerseyMasterRatio = 2.716;
+
+  let jerseySizeChart = [
+    { size: 'XS', height: 68.5, width: 186.05, lockRatio: true },
+    { size: 'S', height: 71.0, width: 192.84, lockRatio: true },
+    { size: 'M', height: 73.5, width: 199.63, lockRatio: true },
+    { size: 'L', height: 76.0, width: 206.41, lockRatio: true },
+    { size: 'XL', height: 78.5, width: 213.20, lockRatio: true },
+    { size: 'XXL', height: 81.0, width: 219.99, lockRatio: true },
+    { size: '3XL', height: 83.5, width: 226.78, lockRatio: true }
   ];
 
+  let jerseyExcelHeaders = ['Nama', 'Nomor', 'Ukuran', 'Sponsor', 'Tim'];
+  let jerseyMappings = [
+    { id: 1, column: 'Nama', placeholder: '[NAMA]', align: 'center', textCase: 'upper', maxWidth: 27.0, lockRatio: true },
+    { id: 2, column: 'Nomor', placeholder: '[NOMOR]', align: 'center', textCase: 'none', maxWidth: 16.0, lockRatio: true },
+    { id: 3, column: 'Ukuran', placeholder: '[UKURAN]', align: 'center', textCase: 'upper', maxWidth: 10.0, lockRatio: true },
+    { id: 4, column: 'Sponsor', placeholder: '[SPONSOR]', align: 'center', textCase: 'upper', maxWidth: 22.0, lockRatio: true }
+  ];
+
+  let jerseyPlayers = [
+    { Nama: 'ALEXANDER', Nomor: '10', Ukuran: 'L', Sponsor: 'GFX ESPORTS', name: 'ALEXANDER', number: '10', size: 'L' },
+    { Nama: 'CHRISTIAN', Nomor: '07', Ukuran: 'M', Sponsor: 'GFX ESPORTS', name: 'CHRISTIAN', number: '07', size: 'M' },
+    { Nama: 'DAVID PRATAMA', Nomor: '09', Ukuran: 'XL', Sponsor: 'GFX ESPORTS', name: 'DAVID PRATAMA', number: '09', size: 'XL' },
+    { Nama: 'FERNANDO', Nomor: '11', Ukuran: 'L', Sponsor: 'GFX ESPORTS', name: 'FERNANDO', number: '11', size: 'L' }
+  ];
+
+  let jerseyManualVars = [
+    { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO' },
+    { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11' },
+    { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nL' },
+    { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'GFX ESPORTS\nGFX ESPORTS\nGFX ESPORTS\nGFX ESPORTS' }
+  ];
+
+  // Tab Switching
+  if (btnTabJerseyExcel && btnTabJerseyManual) {
+    btnTabJerseyExcel.addEventListener('click', () => {
+      activeJerseyMode = 'excel';
+      btnTabJerseyExcel.classList.add('active');
+      btnTabJerseyManual.classList.remove('active');
+      if (jerseyExcelSection) jerseyExcelSection.style.display = 'flex';
+      if (jerseyManualSection) jerseyManualSection.style.display = 'none';
+    });
+
+    btnTabJerseyManual.addEventListener('click', () => {
+      activeJerseyMode = 'manual';
+      btnTabJerseyManual.classList.add('active');
+      btnTabJerseyExcel.classList.remove('active');
+      if (jerseyExcelSection) jerseyExcelSection.style.display = 'none';
+      if (jerseyManualSection) jerseyManualSection.style.display = 'flex';
+      renderJerseyManualCards();
+      renderJerseyManualPreview();
+    });
+  }
+
+  // Render Size Chart Table
+  function renderJerseySizeChart() {
+    if (!tbodyJerseySizeChart) return;
+    tbodyJerseySizeChart.innerHTML = '';
+
+    jerseySizeChart.forEach((sc, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight: 800; color: var(--accent-blue);">${sc.size}</td>
+        <td>
+          <input type="number" class="input-text sc-h" data-idx="${idx}" value="${sc.height}" step="0.5" style="width: 60px; height: 22px; text-align: right; font-weight: 700;" />
+        </td>
+        <td>
+          <input type="number" class="input-text sc-w" data-idx="${idx}" value="${sc.width}" step="0.5" style="width: 65px; height: 22px; text-align: right; font-weight: 700;" />
+        </td>
+        <td>
+          <button type="button" class="btn-secondary sc-lock" data-idx="${idx}" style="height: 22px; font-size: 9.5px; padding: 0 4px; ${sc.lockRatio ? 'color: #059669; font-weight: 700;' : 'color: var(--text-dim);'}">
+            ${sc.lockRatio ? '🔒 Terkunci' : '🔓 Bebas'}
+          </button>
+        </td>
+        <td>
+          <button type="button" class="btn-danger sc-del" data-idx="${idx}" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button>
+        </td>
+      `;
+
+      const inpH = tr.querySelector('.sc-h');
+      const inpW = tr.querySelector('.sc-w');
+      const btnLock = tr.querySelector('.sc-lock');
+      const btnDel = tr.querySelector('.sc-del');
+
+      inpH.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        sc.height = val;
+        if (sc.lockRatio && jerseyMasterRatio > 0) {
+          sc.width = parseFloat((val * jerseyMasterRatio).toFixed(2));
+          inpW.value = sc.width;
+        }
+      });
+
+      inpW.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value) || 0;
+        sc.width = val;
+        if (sc.lockRatio && jerseyMasterRatio > 0) {
+          sc.height = parseFloat((val / jerseyMasterRatio).toFixed(2));
+          inpH.value = sc.height;
+        }
+      });
+
+      btnLock.addEventListener('click', () => {
+        sc.lockRatio = !sc.lockRatio;
+        renderJerseySizeChart();
+      });
+
+      btnDel.addEventListener('click', () => {
+        if (jerseySizeChart.length <= 1) {
+          alert('Minimal harus ada 1 ukuran pada size chart.');
+          return;
+        }
+        jerseySizeChart.splice(idx, 1);
+        renderJerseySizeChart();
+      });
+
+      tbodyJerseySizeChart.appendChild(tr);
+    });
+  }
+
+  if (btnJerseyAddSizeRow) {
+    btnJerseyAddSizeRow.addEventListener('click', () => {
+      const szName = prompt('Masukkan nama ukuran baru (contoh: 4XL atau ANAK-10):', '4XL');
+      if (!szName) return;
+      const cleanSz = szName.trim().toUpperCase();
+      if (jerseySizeChart.some(s => s.size === cleanSz)) {
+        alert('Ukuran ini sudah ada di tabel.');
+        return;
+      }
+      const lastH = jerseySizeChart[jerseySizeChart.length - 1]?.height || 76;
+      const newH = lastH + 2.5;
+      const newW = parseFloat((newH * jerseyMasterRatio).toFixed(2));
+      jerseySizeChart.push({ size: cleanSz, height: newH, width: newW, lockRatio: true });
+      renderJerseySizeChart();
+    });
+  }
+
+  if (btnJerseyResetSizeChart) {
+    btnJerseyResetSizeChart.addEventListener('click', () => {
+      jerseySizeChart = [
+        { size: 'XS', height: 68.5, width: 186.05, lockRatio: true },
+        { size: 'S', height: 71.0, width: 192.84, lockRatio: true },
+        { size: 'M', height: 73.5, width: 199.63, lockRatio: true },
+        { size: 'L', height: 76.0, width: 206.41, lockRatio: true },
+        { size: 'XL', height: 78.5, width: 213.20, lockRatio: true },
+        { size: 'XXL', height: 81.0, width: 219.99, lockRatio: true },
+        { size: '3XL', height: 83.5, width: 226.78, lockRatio: true }
+      ];
+      renderJerseySizeChart();
+      showToast('Tabel ukuran direset ke standar sublimasi.', true);
+    });
+  }
+
+  // Sample Master Pattern from CorelDRAW Selection
+  if (btnJerseySampleMaster) {
+    btnJerseySampleMaster.addEventListener('click', async () => {
+      try {
+        btnJerseySampleMaster.disabled = true;
+        btnJerseySampleMaster.innerText = '⌛ Membaca Corel...';
+        const api = window.electronAPI || window.corelAPI;
+        if (!api?.corelGetSelectionInfo) {
+          alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
+          return;
+        }
+        const sel = await api.corelGetSelectionInfo();
+        if (sel && sel.success && sel.count > 0 && sel.widthCm > 0 && sel.heightCm > 0) {
+          jerseyMasterWidthCm = parseFloat(sel.widthCm);
+          jerseyMasterHeightCm = parseFloat(sel.heightCm);
+          jerseyMasterRatio = jerseyMasterWidthCm / jerseyMasterHeightCm;
+
+          if (lblJerseyMasterW) lblJerseyMasterW.innerText = jerseyMasterWidthCm.toFixed(2);
+          if (lblJerseyMasterH) lblJerseyMasterH.innerText = jerseyMasterHeightCm.toFixed(2);
+          if (lblJerseyMasterRatio) lblJerseyMasterRatio.innerText = jerseyMasterRatio.toFixed(3);
+
+          jerseySizeChart.forEach(sc => {
+            if (sc.lockRatio && sc.height > 0) {
+              sc.width = parseFloat((sc.height * jerseyMasterRatio).toFixed(2));
+            }
+          });
+          renderJerseySizeChart();
+          showToast(`Ukuran master terdeteksi: ${jerseyMasterWidthCm.toFixed(2)} × ${jerseyMasterHeightCm.toFixed(2)} cm (Rasio: ${jerseyMasterRatio.toFixed(3)})`, true);
+        } else {
+          alert('Pilih 1 objek grup master pola jersey di CorelDRAW terlebih dahulu!');
+        }
+      } catch (err) {
+        alert(`Error membaca CorelDRAW: ${err.message}`);
+      } finally {
+        btnJerseySampleMaster.disabled = false;
+        btnJerseySampleMaster.innerText = '🎯 Baca Ukuran Pola dari Corel';
+      }
+    });
+  }
+
+  // Render Jersey Variable Mappings
+  function renderJerseyMappings() {
+    if (!jerseyMappingsContainer) return;
+    jerseyMappingsContainer.innerHTML = '';
+
+    jerseyMappings.forEach((m, idx) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 7px 9px; display: flex; flex-direction: column; gap: 5px;';
+
+      let colOptions = '';
+      jerseyExcelHeaders.forEach(h => {
+        const isSel = (h.toLowerCase() === (m.column || '').toLowerCase());
+        colOptions += `<option value="${h}" ${isSel ? 'selected' : ''}>${h}</option>`;
+      });
+      if (!jerseyExcelHeaders.some(h => h.toLowerCase() === (m.column || '').toLowerCase()) && m.column) {
+        colOptions += `<option value="${m.column}" selected>${m.column}</option>`;
+      }
+
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: var(--text-main);">
+          <span>Variabel #${idx + 1} (${m.column})</span>
+          ${jerseyMappings.length > 1 ? `<button type="button" class="btn-danger btn-del-jmap" data-id="${m.id}" style="height: 18px; font-size: 9px; padding: 0 4px;">✕</button>` : ''}
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 10px;">Kolom Excel:</label>
+            <select class="select-native jmap-col" data-id="${m.id}" style="height: 22px; font-size: 10.5px;">
+              ${colOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 10px;">Placeholder Corel:</label>
+            <input type="text" class="input-text jmap-ph" data-id="${m.id}" value="${m.placeholder || ''}" placeholder="[NAMA]" style="height: 22px; font-size: 10.5px;" />
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 10px;">Perataan (Align):</label>
+            <select class="select-native jmap-align" data-id="${m.id}" style="height: 22px; font-size: 10.5px;">
+              <option value="center" ${m.align === 'center' ? 'selected' : ''}>Tengah (Center)</option>
+              <option value="left" ${m.align === 'left' ? 'selected' : ''}>Kiri (Left)</option>
+              <option value="right" ${m.align === 'right' ? 'selected' : ''}>Kanan (Right)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 10px;">Ubah Huruf (Case):</label>
+            <select class="select-native jmap-case" data-id="${m.id}" style="height: 22px; font-size: 10.5px;">
+              <option value="upper" ${m.textCase === 'upper' ? 'selected' : ''}>UPPERCASE (BESAR)</option>
+              <option value="title" ${m.textCase === 'title' ? 'selected' : ''}>Title Case (Kapital Awal)</option>
+              <option value="sentence" ${m.textCase === 'sentence' ? 'selected' : ''}>Sentence case (Awal)</option>
+              <option value="lower" ${m.textCase === 'lower' ? 'selected' : ''}>lowercase (kecil)</option>
+              <option value="none" ${m.textCase === 'none' ? 'selected' : ''}>Sesuai Excel (As-Is)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid-2" style="align-items: center;">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 10px;">Maks Lebar (cm):</label>
+            <input type="number" class="input-text jmap-maxw" data-id="${m.id}" value="${m.maxWidth || 27.0}" step="0.5" min="2" max="100" style="height: 22px; font-size: 10.5px;" />
+          </div>
+          <div class="form-group" style="padding-top: 14px;">
+            <label class="checkbox-native-label" style="font-size: 10px;">
+              <input type="checkbox" class="jmap-lock" data-id="${m.id}" ${m.lockRatio ? 'checked' : ''} />
+              <span>Kunci Proporsi (Anti Gepeng)</span>
+            </label>
+          </div>
+        </div>
+      `;
+
+      jerseyMappingsContainer.appendChild(card);
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-col').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) {
+          item.column = e.target.value;
+          if (!item.placeholder || item.placeholder.startsWith('[')) {
+            item.placeholder = `[${e.target.value.toUpperCase()}]`;
+          }
+          renderJerseyMappings();
+        }
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-ph').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) item.placeholder = e.target.value;
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-align').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) item.align = e.target.value;
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-case').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) item.textCase = e.target.value;
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-maxw').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) item.maxWidth = parseFloat(e.target.value) || 27.0;
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.jmap-lock').forEach(chk => {
+      chk.addEventListener('change', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        const item = jerseyMappings.find(m => m.id === id);
+        if (item) item.lockRatio = e.target.checked;
+      });
+    });
+
+    jerseyMappingsContainer.querySelectorAll('.btn-del-jmap').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = parseInt(e.target.dataset.id, 10);
+        jerseyMappings = jerseyMappings.filter(m => m.id !== id);
+        renderJerseyMappings();
+      });
+    });
+  }
+
+  if (btnJerseyAddMapping) {
+    btnJerseyAddMapping.addEventListener('click', () => {
+      const nextId = (jerseyMappings.reduce((max, m) => Math.max(max, m.id || 0), 0)) + 1;
+      const usedCols = jerseyMappings.map(m => m.column.toLowerCase());
+      let candidateCol = jerseyExcelHeaders.find(h => !usedCols.includes(h.toLowerCase()));
+      if (!candidateCol) {
+        if (!usedCols.includes('sponsor')) candidateCol = 'Sponsor';
+        else if (!usedCols.includes('tim')) candidateCol = 'Tim';
+        else candidateCol = `Variabel_${nextId}`;
+      }
+
+      jerseyMappings.push({
+        id: nextId,
+        column: candidateCol,
+        placeholder: `[${candidateCol.toUpperCase()}]`,
+        align: 'center',
+        textCase: 'upper',
+        maxWidth: 22.0,
+        lockRatio: true
+      });
+      renderJerseyMappings();
+    });
+  }
+
+  if (btnJerseyPreset) {
+    btnJerseyPreset.addEventListener('click', () => {
+      jerseyMappings = [
+        { id: 1, column: 'Nama', placeholder: '[NAMA]', align: 'center', textCase: 'upper', maxWidth: 27.0, lockRatio: true },
+        { id: 2, column: 'Nomor', placeholder: '[NOMOR]', align: 'center', textCase: 'none', maxWidth: 16.0, lockRatio: true },
+        { id: 3, column: 'Ukuran', placeholder: '[UKURAN]', align: 'center', textCase: 'upper', maxWidth: 10.0, lockRatio: true },
+        { id: 4, column: 'Sponsor', placeholder: '[SPONSOR]', align: 'center', textCase: 'upper', maxWidth: 22.0, lockRatio: true }
+      ];
+      renderJerseyMappings();
+      showToast('Preset jersey berhasil diterapkan.', true);
+    });
+  }
+
+  if (btnJerseyOpenChangeCase) {
+    btnJerseyOpenChangeCase.addEventListener('click', () => {
+      const m = document.getElementById('changeCaseModal');
+      if (m) m.classList.add('show');
+    });
+  }
+
+  // Render Player Table (Excel Mode)
   function renderJerseyPlayerTable() {
     if (!tbodyJerseyPlayers) return;
     tbodyJerseyPlayers.innerHTML = '';
     jerseyPlayers.forEach((p, idx) => {
       const tr = document.createElement('tr');
+      const pName = p.Nama || p.name || 'PEMAIN';
+      const pNum = p.Nomor || p.number || '00';
+      const pSize = (p.Ukuran || p.size || 'L').toUpperCase();
+
       tr.innerHTML = `
         <td>${idx + 1}</td>
-        <td><input type="text" class="input-text p-name" value="${p.name}" style="height: 22px; font-size: 11px;" /></td>
-        <td><input type="text" class="input-text p-num" value="${p.number}" style="height: 22px; font-size: 11px;" /></td>
+        <td><input type="text" class="input-text p-name" value="${pName}" style="height: 22px; font-size: 11px;" /></td>
+        <td><input type="text" class="input-text p-num" value="${pNum}" style="height: 22px; font-size: 11px;" /></td>
         <td>
           <select class="select-native p-size" style="height: 22px; font-size: 11px;">
-            <option value="S" ${p.size === 'S' ? 'selected' : ''}>S</option>
-            <option value="M" ${p.size === 'M' ? 'selected' : ''}>M</option>
-            <option value="L" ${p.size === 'L' ? 'selected' : ''}>L</option>
-            <option value="XL" ${p.size === 'XL' ? 'selected' : ''}>XL</option>
-            <option value="XXL" ${p.size === 'XXL' ? 'selected' : ''}>XXL</option>
+            <option value="XS" ${pSize === 'XS' ? 'selected' : ''}>XS</option>
+            <option value="S" ${pSize === 'S' ? 'selected' : ''}>S</option>
+            <option value="M" ${pSize === 'M' ? 'selected' : ''}>M</option>
+            <option value="L" ${pSize === 'L' ? 'selected' : ''}>L</option>
+            <option value="XL" ${pSize === 'XL' ? 'selected' : ''}>XL</option>
+            <option value="XXL" ${pSize === 'XXL' ? 'selected' : ''}>XXL</option>
+            <option value="3XL" ${pSize === '3XL' ? 'selected' : ''}>3XL</option>
           </select>
         </td>
         <td><button type="button" class="btn-danger p-del" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button></td>
       `;
 
-      tr.querySelector('.p-name').addEventListener('input', (e) => { p.name = e.target.value; });
-      tr.querySelector('.p-num').addEventListener('input', (e) => { p.number = e.target.value; });
-      tr.querySelector('.p-size').addEventListener('change', (e) => { p.size = e.target.value; });
+      tr.querySelector('.p-name').addEventListener('input', (e) => {
+        p.name = e.target.value;
+        p.Nama = e.target.value;
+      });
+      tr.querySelector('.p-num').addEventListener('input', (e) => {
+        p.number = e.target.value;
+        p.Nomor = e.target.value;
+      });
+      tr.querySelector('.p-size').addEventListener('change', (e) => {
+        p.size = e.target.value;
+        p.Ukuran = e.target.value;
+      });
       tr.querySelector('.p-del').addEventListener('click', () => {
         jerseyPlayers.splice(idx, 1);
         renderJerseyPlayerTable();
@@ -1599,7 +2029,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnJerseyAddPlayer) {
     btnJerseyAddPlayer.addEventListener('click', () => {
-      jerseyPlayers.push({ name: `PEMAIN ${jerseyPlayers.length + 1}`, number: `${jerseyPlayers.length + 1}`, size: 'L' });
+      const idx = jerseyPlayers.length + 1;
+      jerseyPlayers.push({ Nama: `PEMAIN ${idx}`, Nomor: `${idx}`, Ukuran: 'L', Sponsor: 'GFX ESPORTS', name: `PEMAIN ${idx}`, number: `${idx}`, size: 'L' });
       renderJerseyPlayerTable();
     });
   }
@@ -1611,37 +2042,356 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Excel Importer & Dropzone
+  if (jerseyExcelDropzone && fileJerseyExcelInput) {
+    jerseyExcelDropzone.addEventListener('click', () => fileJerseyExcelInput.click());
+    jerseyExcelDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      jerseyExcelDropzone.style.borderColor = 'var(--accent-blue)';
+    });
+    jerseyExcelDropzone.addEventListener('dragleave', () => {
+      jerseyExcelDropzone.style.borderColor = 'var(--border-color)';
+    });
+    jerseyExcelDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      jerseyExcelDropzone.style.borderColor = 'var(--border-color)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleJerseyExcelFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileJerseyExcelInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleJerseyExcelFile(e.target.files[0]);
+      }
+    });
+  }
+
   if (btnJerseyImportExcel) {
     btnJerseyImportExcel.addEventListener('click', async () => {
       if (window.corelAPI?.selectExcelFile) {
         const res = await window.corelAPI.selectExcelFile();
         if (res.success && res.filePath) {
-          const parsed = await window.corelAPI.parseExcelFile(res.filePath);
-          if (parsed.success && parsed.rows) {
-            jerseyPlayers = parsed.rows.map(r => ({
-              name: String(r.A || r.B || r.nama || r.Nama || 'PEMAIN').toUpperCase(),
-              number: String(r.C || r.no || r.Nomor || '-'),
-              size: String(r.D || r.ukuran || r.Size || 'L').toUpperCase()
-            }));
-            renderJerseyPlayerTable();
-            showToast(`Berhasil mengimpor ${jerseyPlayers.length} pemain dari Excel!`);
-          }
+          await loadJerseyExcelPath(res.filePath);
         }
+      } else if (fileJerseyExcelInput) {
+        fileJerseyExcelInput.click();
       }
     });
   }
 
+  if (btnJerseyChangeFile && fileJerseyExcelInput) {
+    btnJerseyChangeFile.addEventListener('click', () => fileJerseyExcelInput.click());
+  }
+
+  async function handleJerseyExcelFile(file) {
+    if (!file) return;
+    if (file.path) {
+      await loadJerseyExcelPath(file.path);
+    } else {
+      showToast(`Memuat ${file.name}...`, true);
+    }
+  }
+
+  async function loadJerseyExcelPath(filePath) {
+    if (!window.corelAPI?.parseExcelFile) return;
+    try {
+      const parsed = await window.corelAPI.parseExcelFile(filePath);
+      if (parsed.success) {
+        rawJerseyExcelData = parsed;
+        if (boxJerseyFileInfo) boxJerseyFileInfo.style.display = 'flex';
+        if (lblJerseyFileName) lblJerseyFileName.innerText = pathBasename(filePath);
+
+        // Populate sheets
+        if (selJerseySheet && parsed.sheets && parsed.sheets.length > 0) {
+          selJerseySheet.innerHTML = parsed.sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        // Populate Header Row options (Baris 1 .. 10)
+        if (selJerseyHeaderRow) {
+          let opts = '';
+          for (let r = 1; r <= 10; r++) {
+            opts += `<option value="${r}">Baris ${r}</option>`;
+          }
+          selJerseyHeaderRow.innerHTML = opts;
+          selJerseyHeaderRow.value = '1';
+        }
+
+        processJerseySheetData();
+        showToast('File Excel berhasil dimuat!', true);
+      } else {
+        alert(`Gagal membaca Excel: ${parsed.message}`);
+      }
+    } catch (err) {
+      alert(`Error membaca file Excel: ${err.message}`);
+    }
+  }
+
+  function pathBasename(p) {
+    if (!p) return 'data.xlsx';
+    const parts = p.split(/[\\/]/);
+    return parts[parts.length - 1];
+  }
+
+  function processJerseySheetData() {
+    if (!rawJerseyExcelData || !rawJerseyExcelData.rows) return;
+    const headerRowIdx = parseInt(selJerseyHeaderRow?.value || '1', 10);
+    const rows = rawJerseyExcelData.rows;
+
+    const headerSet = new Set();
+    rows.forEach(r => {
+      Object.keys(r).forEach(k => {
+        if (k && !k.startsWith('__EMPTY')) headerSet.add(k);
+      });
+    });
+
+    if (headerSet.size > 0) {
+      jerseyExcelHeaders = Array.from(headerSet);
+    }
+
+    jerseyPlayers = rows.slice(headerRowIdx - 1).map(r => {
+      const name = String(r.Nama || r.nama || r.Name || r.name || r.A || 'PEMAIN').trim();
+      const num = String(r.Nomor || r.nomor || r.No || r.no || r.B || '-').trim();
+      const sz = String(r.Ukuran || r.ukuran || r.Size || r.size || r.C || 'L').trim().toUpperCase();
+      const sp = String(r.Sponsor || r.sponsor || r.D || 'GFX ESPORTS').trim();
+      return {
+        ...r,
+        Nama: name,
+        Nomor: num,
+        Ukuran: sz,
+        Sponsor: sp,
+        name: name,
+        number: num,
+        size: sz
+      };
+    }).filter(p => p.Nama && p.Nama !== 'PEMAIN');
+
+    if (lblJerseyRowCount) lblJerseyRowCount.innerText = `(${jerseyPlayers.length} Baris Data)`;
+    if (boxJerseyTablePreview) boxJerseyTablePreview.style.display = 'flex';
+    if (lblJerseyColCount) lblJerseyColCount.innerText = `${jerseyExcelHeaders.length} Kolom Terdeteksi`;
+
+    renderJerseyExcelPreviewTable(rows.slice(headerRowIdx - 1, headerRowIdx + 4));
+    renderJerseyMappings();
+    renderJerseyPlayerTable();
+  }
+
+  if (selJerseySheet) {
+    selJerseySheet.addEventListener('change', () => processJerseySheetData());
+  }
+  if (selJerseyHeaderRow) {
+    selJerseyHeaderRow.addEventListener('change', () => processJerseySheetData());
+  }
+
+  function renderJerseyExcelPreviewTable(previewRows) {
+    if (!tblJerseyExcelHead || !tblJerseyExcelBody) return;
+    tblJerseyExcelHead.innerHTML = '';
+    tblJerseyExcelBody.innerHTML = '';
+    if (!previewRows || previewRows.length === 0) return;
+
+    const cols = jerseyExcelHeaders.slice(0, 6);
+    const trHead = document.createElement('tr');
+    trHead.innerHTML = `<th style="width: 30px;">#</th>` + cols.map(c => `<th>${c}</th>`).join('');
+    tblJerseyExcelHead.appendChild(trHead);
+
+    previewRows.forEach((r, idx) => {
+      const tr = document.createElement('tr');
+      let tdHtml = `<td>${idx + 1}</td>`;
+      cols.forEach(c => {
+        tdHtml += `<td>${r[c] !== undefined ? String(r[c]) : ''}</td>`;
+      });
+      tr.innerHTML = tdHtml;
+      tblJerseyExcelBody.appendChild(tr);
+    });
+  }
+
+  // ==========================================
+  // Manual Mode Logic
+  // ==========================================
+  function renderJerseyManualCards() {
+    if (!jerseyManualCardsContainer) return;
+    jerseyManualCardsContainer.innerHTML = '';
+
+    jerseyManualVars.forEach((v, index) => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 6px;';
+
+      const lines = (v.text || '').split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+            <span style="font-weight: 800; color: var(--accent-blue); font-size: 11px;">#${index + 1}</span>
+            <input type="text" class="input-text m-ph" value="${v.placeholder}" style="width: 90px; height: 22px; font-weight: 800; color: var(--accent-blue);" placeholder="[NAMA]" />
+            <input type="text" class="input-text m-lbl" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600;" placeholder="Label Variabel" />
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="m-lines-badge" style="font-size: 10px; font-weight: 700; color: #059669; background: rgba(5,150,105,0.1); padding: 1px 6px; border-radius: 3px; border: 1px solid #059669;">${lines.length} baris</span>
+            ${jerseyManualVars.length > 1 ? `<button type="button" class="btn-danger m-del" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button>` : ''}
+          </div>
+        </div>
+        <textarea class="m-ta" style="width: 100%; height: 60px; font-family: monospace; font-size: 11px; padding: 5px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-app); color: var(--text-main); resize: vertical;" placeholder="Paste atau ketik daftar baris di sini...">${v.text}</textarea>
+      `;
+
+      const inPh = card.querySelector('.m-ph');
+      const inLbl = card.querySelector('.m-lbl');
+      const inTa = card.querySelector('.m-ta');
+      const badge = card.querySelector('.m-lines-badge');
+      const btnDel = card.querySelector('.m-del');
+
+      inPh.addEventListener('input', () => {
+        v.placeholder = inPh.value.trim();
+        renderJerseyManualPreview();
+      });
+      inLbl.addEventListener('input', () => {
+        v.label = inLbl.value.trim();
+        renderJerseyManualPreview();
+      });
+      inTa.addEventListener('input', () => {
+        v.text = inTa.value;
+        const cLines = v.text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+        badge.innerText = `${cLines.length} baris`;
+        renderJerseyManualPreview();
+      });
+      if (btnDel) {
+        btnDel.addEventListener('click', () => {
+          jerseyManualVars.splice(index, 1);
+          renderJerseyManualCards();
+          renderJerseyManualPreview();
+        });
+      }
+
+      jerseyManualCardsContainer.appendChild(card);
+    });
+  }
+
+  function renderJerseyManualPreview() {
+    if (!tblJerseyManualHead || !tblJerseyManualBody) return;
+    const varLines = jerseyManualVars.map(v => {
+      const arr = (v.text || '').split(/\r?\n/).map(l => l.trim());
+      while (arr.length > 0 && arr[arr.length - 1] === '') arr.pop();
+      return arr;
+    });
+
+    const maxLines = Math.max(...varLines.map(arr => arr.length), 0);
+    if (lblJerseyManualRowCount) lblJerseyManualRowCount.innerText = `(${maxLines} Pola Jersey)`;
+
+    tblJerseyManualHead.innerHTML = '';
+    tblJerseyManualBody.innerHTML = '';
+
+    const trHead = document.createElement('tr');
+    trHead.innerHTML = `<th style="width: 35px;">No</th>` + jerseyManualVars.map(v => `<th>${v.label || v.placeholder}</th>`).join('');
+    tblJerseyManualHead.appendChild(trHead);
+
+    const previewLimit = Math.min(maxLines, 8);
+    for (let i = 0; i < previewLimit; i++) {
+      const tr = document.createElement('tr');
+      let tdHtml = `<td>${i + 1}</td>`;
+      jerseyManualVars.forEach((v, vIdx) => {
+        const val = varLines[vIdx][i] || '';
+        tdHtml += `<td>${val}</td>`;
+      });
+      tr.innerHTML = tdHtml;
+      tblJerseyManualBody.appendChild(tr);
+    }
+  }
+
+  if (btnJerseyManualAddVar) {
+    btnJerseyManualAddVar.addEventListener('click', () => {
+      const idx = jerseyManualVars.length + 1;
+      jerseyManualVars.push({
+        placeholder: `[VARIABEL_${idx}]`,
+        label: `Variabel ${idx}`,
+        text: ''
+      });
+      renderJerseyManualCards();
+      renderJerseyManualPreview();
+    });
+  }
+
+  if (btnJerseyManualPreset) {
+    btnJerseyManualPreset.addEventListener('click', () => {
+      jerseyManualVars = [
+        { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO' },
+        { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11' },
+        { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nL' },
+        { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'GFX ESPORTS\nGFX ESPORTS\nGFX ESPORTS\nGFX ESPORTS' }
+      ];
+      renderJerseyManualCards();
+      renderJerseyManualPreview();
+      showToast('Preset jersey manual berhasil dimuat.', true);
+    });
+  }
+
+  // Execution: Tata Pola di CorelDRAW
   if (btnExecuteJerseyLayout) {
     btnExecuteJerseyLayout.addEventListener('click', async () => {
-      if (jerseyPlayers.length === 0) {
-        alert('Daftar pemain masih kosong.');
-        return;
+      let finalPlayers = [];
+      let finalMappings = [];
+
+      if (activeJerseyMode === 'manual') {
+        const varLines = jerseyManualVars.map(v => {
+          const arr = (v.text || '').split(/\r?\n/).map(l => l.trim());
+          while (arr.length > 0 && arr[arr.length - 1] === '') arr.pop();
+          return arr;
+        });
+        const totalRows = Math.max(...varLines.map(arr => arr.length), 0);
+        if (totalRows === 0) {
+          alert('Data teks manual masih kosong. Silakan paste nama/nomor pemain terlebih dahulu.');
+          return;
+        }
+
+        finalMappings = jerseyManualVars.map((v, vIdx) => {
+          const colKey = `Col_${vIdx + 1}`;
+          return {
+            id: vIdx + 1,
+            column: colKey,
+            placeholder: v.placeholder,
+            align: 'center',
+            textCase: 'none',
+            maxWidth: 27.0,
+            lockRatio: true
+          };
+        });
+
+        for (let r = 0; r < totalRows; r++) {
+          const rowObj = {};
+          jerseyManualVars.forEach((v, vIdx) => {
+            const val = varLines[vIdx][r] || '';
+            rowObj[`Col_${vIdx + 1}`] = val;
+            const phLow = v.placeholder.toLowerCase();
+            if (phLow.includes('nama') || phLow.includes('name')) rowObj.Nama = val;
+            if (phLow.includes('nomor') || phLow.includes('number') || phLow.includes('no')) rowObj.Nomor = val;
+            if (phLow.includes('ukuran') || phLow.includes('size')) rowObj.Ukuran = val;
+          });
+          finalPlayers.push(rowObj);
+        }
+      } else {
+        if (jerseyPlayers.length === 0) {
+          alert('Daftar pemain masih kosong. Silakan tambah pemain atau impor Excel.');
+          return;
+        }
+        finalPlayers = jerseyPlayers;
+        finalMappings = jerseyMappings;
       }
+
       const targetSize = document.getElementById('selJerseyTargetSize')?.value || 'ALL';
       const spacingCm = parseFloat(document.getElementById('numJerseySpacing')?.value) || 1.0;
       const limitCopy = parseInt(document.getElementById('numJerseyLimit')?.value, 10) || 4;
       const direction = document.getElementById('selJerseyDirection')?.value || 'vertical';
-      const maxNameWidthCm = parseFloat(document.getElementById('numJerseyMaxNameWidth')?.value) || 27.0;
+      const groupBySize = document.getElementById('selJerseyGrouping')?.value === 'group_size';
+      const enableAutoResize = !!chkJerseyEnableAutoResize?.checked;
+      const masterSize = selJerseyMasterSize?.value || 'L';
+      const autoCurves = !!document.getElementById('chkJerseyAutoCurves')?.checked;
+
+      // Build sizeChart object
+      const sizeChartObj = {};
+      jerseySizeChart.forEach(sc => {
+        sizeChartObj[sc.size] = {
+          height: sc.height,
+          width: sc.width,
+          lockRatio: sc.lockRatio
+        };
+      });
 
       btnExecuteJerseyLayout.disabled = true;
       btnExecuteJerseyLayout.innerText = 'Menata di CorelDRAW...';
@@ -1650,18 +2400,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.corelAPI?.executeLayout) {
           const res = await window.corelAPI.executeLayout({
             targetSize,
-            players: jerseyPlayers,
+            players: finalPlayers,
+            mappings: finalMappings,
+            sizeChart: sizeChartObj,
+            enableAutoResize,
+            masterSize,
             spacingCm,
             limitCopy,
             direction,
-            maxNameWidthCm
+            groupBySize,
+            autoCurves
           });
 
           if (res.success) {
             showToast(`Sukses: ${res.message || 'Pola jersey selesai ditata!'}`, true);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
-            alert(`Gagal menata jersey:\n\n${res.message}`);
+            const errMsg = res.message || 'Terjadi kesalahan.';
+            if (errMsg.includes('ghost') || errMsg.includes('tidak sedang berjalan') || errMsg.includes('belum merespon')) {
+              const doLaunch = confirm(`${errMsg}\n\nApakah Anda ingin membuka aplikasi CorelDRAW sekarang?`);
+              if (doLaunch && window.corelAPI?.launchCorelApp) {
+                const lRes = await window.corelAPI.launchCorelApp();
+                showToast(lRes?.message || 'Membuka CorelDRAW...', true);
+              }
+            } else {
+              alert(`Gagal menata jersey:\n\n${errMsg}`);
+            }
           }
         }
       } catch (err) {
@@ -1673,16 +2437,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Open Floating Companion Window
   if (btnJerseyOpenCompanion) {
     btnJerseyOpenCompanion.addEventListener('click', () => {
       if (window.corelAPI?.corelOpenCompanionTool) {
+        const sizeChartObj = {};
+        jerseySizeChart.forEach(sc => {
+          sizeChartObj[sc.size] = { height: sc.height, width: sc.width, lockRatio: sc.lockRatio };
+        });
+
         window.corelAPI.corelOpenCompanionTool({
           teamName: document.getElementById('txtJerseyTeamName')?.value || 'GFX ESPORTS',
-          players: jerseyPlayers
+          players: jerseyPlayers,
+          mappings: jerseyMappings,
+          sizeChart: sizeChartObj,
+          enableAutoResize: !!chkJerseyEnableAutoResize?.checked,
+          masterSize: selJerseyMasterSize?.value || 'L'
         });
       }
     });
   }
+
+  renderJerseySizeChart();
+  renderJerseyMappings();
+  renderJerseyPlayerTable();
 
   // ==========================================
   // 9. Tool: AI Jersey Tracer

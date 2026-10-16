@@ -28,6 +28,10 @@ const api = {
   openDocument: (filePath) => ipcRenderer.invoke('corel:open-document', filePath),
   corelGetSelectionInfo: () => ipcRenderer.invoke('corel:get-selection-info'),
   corelGetActiveOrderData: () => ipcRenderer.invoke('corel:get-active-order-data'),
+  cleanGhostProcesses: () => ipcRenderer.invoke('corel:clean-ghost-processes'),
+  corelCleanGhostProcesses: () => ipcRenderer.invoke('corel:clean-ghost-processes'),
+  launchCorelApp: () => ipcRenderer.invoke('corel:launch-app'),
+  corelLaunchApp: () => ipcRenderer.invoke('corel:launch-app'),
 
   // Companion Windows
   corelOpenCompanionTool: (data) => ipcRenderer.invoke('corel:open-companion-tool', data),

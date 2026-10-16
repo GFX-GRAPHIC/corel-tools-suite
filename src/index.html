@@ -937,71 +937,218 @@
                     </select>
                   </div>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Batas Maksimal Lebar Nama (cm):</label>
-                  <input type="number" id="numJerseyMaxNameWidth" class="input-text" value="27.0" step="1.0" min="5" />
-                  <span style="font-size: 10px; color: var(--text-dim);">Nama panjang akan otomatis diperkecil agar tidak melebihi lebar ini.</span>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label">Urutan Penataan Pola:</label>
+                    <select id="selJerseyGrouping" class="select-native">
+                      <option value="asis" selected>Sesuai Urutan Data Excel / Manual</option>
+                      <option value="group_size">Kelompokkan per Ukuran (S, M, L, XL...)</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="padding-top: 18px;">
+                    <label class="checkbox-native-label">
+                      <input type="checkbox" id="chkJerseyAutoCurves" checked />
+                      <span><b>Convert ke Kurva (Ctrl+Q)</b></span>
+                    </label>
+                  </div>
                 </div>
+
+                <!-- Bagian: Dimensi Pola Jersey (Auto-Resize per Size) -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label class="form-label" style="font-weight: 700; color: var(--accent-blue); margin-bottom: 0;">Dimensi Pola Jersey (Auto-Resize per Size):</label>
+                    <button type="button" class="btn-secondary" id="btnJerseySampleMaster" style="height: 22px; font-size: 10px; padding: 0 8px; font-weight: 700; color: var(--accent-blue);" title="Baca ukuran pola dari objek CorelDRAW yang dipilih">🎯 Baca Ukuran Pola dari Corel</button>
+                  </div>
+                  <label class="checkbox-native-label" style="font-size: 10.5px;">
+                    <input type="checkbox" id="chkJerseyEnableAutoResize" checked />
+                    <span style="font-weight: 700; color: var(--accent-blue);">Aktifkan Auto-Resize Pola per Ukuran (S, M, L, XL...)</span>
+                  </label>
+                  <div style="font-size: 10px; color: var(--text-dim); line-height: 1.35;">
+                    Ubah tinggi pola jersey lalu gembok rasio. Sistem akan otomatis mengubah ukuran pola sesuai size di Excel/Manual saat mengganti nama &amp; nomor!
+                  </div>
+
+                  <!-- Master Pattern Info Bar -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-app); border: 1px dashed var(--border-color); padding: 5px 8px; border-radius: var(--radius-sm); font-size: 10px; flex-wrap: wrap; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span style="font-weight: 700; color: var(--accent-blue);">Master Corel:</span>
+                      <select id="selJerseyMasterSize" class="select-native" style="height: 20px; font-size: 10px; font-weight: 700;">
+                        <option value="XS">XS</option>
+                        <option value="S">S</option>
+                        <option value="M">M</option>
+                        <option value="L" selected>L (Master)</option>
+                        <option value="XL">XL</option>
+                        <option value="XXL">XXL</option>
+                        <option value="3XL">3XL</option>
+                      </select>
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 10px;">
+                      Lebar: <b id="lblJerseyMasterW" style="color: var(--text-main);">206.41</b> cm &bull; Tinggi: <b id="lblJerseyMasterH" style="color: var(--text-main);">76.00</b> cm &bull; Rasio: <b id="lblJerseyMasterRatio" style="color: var(--text-main);">2.716</b>
+                    </div>
+                  </div>
+
+                  <!-- Size Chart Table -->
+                  <div class="table-wrapper" style="max-height: 160px; margin-top: 2px;">
+                    <table class="table-native" id="tblJerseySizeChart">
+                      <thead>
+                        <tr>
+                          <th style="width: 50px;">Size</th>
+                          <th>Tinggi (↕ cm)</th>
+                          <th>Lebar (↔ cm)</th>
+                          <th style="width: 85px;">Gembok</th>
+                          <th style="width: 35px;">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbodyJerseySizeChart">
+                        <!-- Populated by JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                    <button type="button" class="btn-secondary" id="btnJerseyAddSizeRow" style="height: 20px; font-size: 9.5px; padding: 0 6px;">+ Tambah Ukuran Size</button>
+                    <button type="button" class="btn-secondary" id="btnJerseyResetSizeChart" style="height: 20px; font-size: 9.5px; padding: 0 6px;">↺ Reset Standar Sublimasi</button>
+                  </div>
+                </div>
+
+                <!-- Pemetaan Variabel & Format Font Dinamis -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label class="form-label" style="font-weight: 700; color: var(--accent-blue); margin-bottom: 0;">Variabel &amp; Format Font Dinamis:</label>
+                    <div style="display: flex; gap: 4px;">
+                      <button type="button" class="btn-secondary" id="btnJerseyOpenChangeCase" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: var(--accent-blue);" title="Buka dialog Change Case">🔠 Change Case...</button>
+                      <button type="button" class="btn-secondary" id="btnJerseyPreset" style="height: 20px; font-size: 9px; padding: 0 6px;">Preset Jersey</button>
+                      <button type="button" class="btn-secondary" id="btnJerseyAddMapping" style="height: 20px; font-size: 9.5px; padding: 0 6px; font-weight: 700; color: var(--accent-blue);">+ Tambah</button>
+                    </div>
+                  </div>
+                  <div style="font-size: 10px; color: var(--text-dim);">
+                    Pilih perataan teks (Center/Kiri/Kanan), Ubah Huruf (Case), dan batas maksimum lebar. Kunci proporsi otomatis mencegah font melar atau gepeng.
+                  </div>
+                  <div id="jerseyMappingsContainer" style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Dynamically populated variable cards -->
+                  </div>
+                </div>
+
                 <div style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px; font-size: 10.5px; color: var(--text-muted); line-height: 1.4;">
                   💡 <b>Cara Kerja di CorelDRAW:</b><br>
-                  1. Buat grup master pola baju (depan, belakang, atau nomor punggung).<br>
+                  1. Buat grup master pola baju dengan teks placeholder (misal: <code>[NAMA]</code>, <code>[NOMOR]</code>, <code>[SPONSOR]</code>).<br>
                   2. Seleksi / blok grup master tersebut di CorelDRAW.<br>
                   3. Klik tombol <b>"Tata Pola di CorelDRAW"</b> di atas.
                 </div>
               </div>
             </div>
 
-            <!-- Right: Tabel Pemain -->
+            <!-- Right: Sumber Data (Excel / Manual) & Tabel Pemain -->
             <div class="tool-panel" style="flex: 1.4; overflow-y: auto;">
-              <div class="tool-panel-title">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span>Daftar Pemain</span>
-                  <span id="lblJerseyPlayerCount" style="font-size: 10.5px; color: var(--accent-blue); font-weight: 700;">(0 Pemain)</span>
+              <div class="sub-tabs-bar">
+                <button type="button" class="sub-tab-btn active" id="btnTabJerseyExcel">📊 Impor File Excel / CSV</button>
+                <button type="button" class="sub-tab-btn" id="btnTabJerseyManual">✍️ Input Teks Manual (Bebas)</button>
+              </div>
+
+              <!-- ================= EXCEL MODE ================= -->
+              <div id="jerseyExcelSection" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <div class="dropzone-box" id="jerseyExcelDropzone">
+                  <div style="font-size: 20px;">📂</div>
+                  <div class="dropzone-title">Klik di Sini untuk Memilih File Excel / CSV</div>
+                  <div class="dropzone-desc">Atau seret (drag & drop) file .xlsx, .xls, .csv ke kotak ini</div>
                 </div>
-                <div style="display: flex; gap: 4px;">
-                  <button type="button" class="btn-secondary" id="btnJerseyAddPlayer" style="height: 22px; font-size: 10px; padding: 0 6px;">+ Tambah</button>
-                  <button type="button" class="btn-secondary" id="btnJerseyImportExcel" style="height: 22px; font-size: 10px; padding: 0 6px;">📂 Impor Excel</button>
-                  <button type="button" class="btn-danger" id="btnJerseyClearPlayers" style="height: 22px; font-size: 10px; padding: 0 6px;">Hapus</button>
+                <input type="file" id="fileJerseyExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
+
+                <div id="boxJerseyFileInfo" class="file-info-box" style="display: none;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <span style="font-weight: 700; color: var(--accent-blue);" id="lblJerseyFileName">data_jersey.xlsx</span>
+                      <span style="color: var(--text-muted); font-size: 11px;" id="lblJerseyRowCount">(0 Baris Data)</span>
+                    </div>
+                    <button type="button" class="btn-secondary" id="btnJerseyChangeFile" style="height: 22px; font-size: 10px; padding: 0 6px;">Ganti File</button>
+                  </div>
+                  <div class="form-grid-2" style="border-top: 1px dashed var(--border-color); padding-top: 6px; margin-top: 2px;">
+                    <div class="form-group">
+                      <label class="form-label">Pilih Sheet:</label>
+                      <select id="selJerseySheet" class="select-native" style="height: 24px; font-size: 11px;"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Baris Judul Kolom:</label>
+                      <select id="selJerseyHeaderRow" class="select-native" style="height: 24px; font-size: 11px; font-weight: 700; color: var(--accent-blue);"></select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 5-Row Excel Preview Accordion -->
+                <div id="boxJerseyTablePreview" style="display: none; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: var(--text-muted);">
+                    <span>Pratinjau Data Excel (5 Baris Pertama):</span>
+                    <span id="lblJerseyColCount" style="color: var(--accent-green); font-weight: 600;"></span>
+                  </div>
+                  <div class="table-wrapper" style="max-height: 120px;">
+                    <table class="table-native" id="tblJerseyExcelPreview">
+                      <thead id="tblJerseyExcelHead"></thead>
+                      <tbody id="tblJerseyExcelBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Daftar Pemain Table -->
+                <div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span class="form-label" style="font-weight: 700; color: #ffffff; margin-bottom: 0;">Daftar Pemain:</span>
+                      <span id="lblJerseyPlayerCount" style="font-size: 10.5px; color: var(--accent-blue); font-weight: 700;">(0 Pemain)</span>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                      <button type="button" class="btn-secondary" id="btnJerseyAddPlayer" style="height: 22px; font-size: 10px; padding: 0 6px;">+ Tambah</button>
+                      <button type="button" class="btn-danger" id="btnJerseyClearPlayers" style="height: 22px; font-size: 10px; padding: 0 6px;">Hapus</button>
+                    </div>
+                  </div>
+                  <div class="table-wrapper">
+                    <table class="table-native" id="tblJerseyPlayers">
+                      <thead>
+                        <tr>
+                          <th style="width: 35px;">No</th>
+                          <th>Nama Pemain</th>
+                          <th style="width: 80px;">Nomor</th>
+                          <th style="width: 80px;">Ukuran</th>
+                          <th style="width: 45px;">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbodyJerseyPlayers">
+                        <!-- Populated by JS -->
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-              <input type="file" id="fileJerseyExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
-              <div class="table-wrapper">
-                <table class="table-native" id="tblJerseyPlayers">
-                  <thead>
-                    <tr>
-                      <th style="width: 35px;">No</th>
-                      <th>Nama Pemain</th>
-                      <th style="width: 80px;">Nomor</th>
-                      <th style="width: 80px;">Ukuran</th>
-                      <th style="width: 45px;">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tbodyJerseyPlayers">
-                    <tr>
-                      <td>1</td>
-                      <td><input type="text" class="input-text jersey-input-name" value="ALEXANDER" style="height: 22px; font-size: 11px;" /></td>
-                      <td><input type="text" class="input-text jersey-input-num" value="10" style="height: 22px; font-size: 11px;" /></td>
-                      <td>
-                        <select class="select-native jersey-input-size" style="height: 22px; font-size: 11px;">
-                          <option value="S">S</option><option value="M">M</option><option value="L" selected>L</option><option value="XL">XL</option><option value="XXL">XXL</option>
-                        </select>
-                      </td>
-                      <td><button type="button" class="btn-danger btn-remove-player" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button></td>
-                    </tr>
-                    <tr>
-                      <td>2</td>
-                      <td><input type="text" class="input-text jersey-input-name" value="CHRISTIAN" style="height: 22px; font-size: 11px;" /></td>
-                      <td><input type="text" class="input-text jersey-input-num" value="07" style="height: 22px; font-size: 11px;" /></td>
-                      <td>
-                        <select class="select-native jersey-input-size" style="height: 22px; font-size: 11px;">
-                          <option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
-                        </select>
-                      </td>
-                      <td><button type="button" class="btn-danger btn-remove-player" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button></td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <!-- ================= MANUAL MODE ================= -->
+              <div id="jerseyManualSection" style="display: none; flex-direction: column; gap: 8px; margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span class="form-label" style="font-weight: 700; color: #ffffff;">Input / Paste Teks Bebas per Variabel:</span>
+                  <div style="display: flex; gap: 4px;">
+                    <button type="button" id="btnJerseyManualPreset" class="btn-secondary" style="height: 22px; font-size: 10px; padding: 0 6px;">Preset Jersey</button>
+                    <button type="button" id="btnJerseyManualAddVar" class="btn-secondary" style="height: 22px; font-size: 10px; padding: 0 8px; color: var(--accent-blue); font-weight: 700;">+ Tambah Variabel</button>
+                  </div>
+                </div>
+                <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.35;">
+                  Ketik atau <b>Paste</b> daftar nama/nomor/ukuran di bawah ini. <b>1 Baris = 1 Pola Jersey</b>. Teks Corel (misal: <code>[NAMA]</code>) akan diganti per baris!
+                </div>
+                <div id="jerseyManualCardsContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Dynamically populated variable textareas -->
+                </div>
+
+                <!-- Live Preview Table for Manual Mode -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="form-label" style="font-weight: 700; color: #ffffff; margin-bottom: 0;">Pratinjau Data yang Akan Dicetak:</span>
+                    <span id="lblJerseyManualRowCount" style="color: var(--accent-blue); font-weight: 700; font-size: 10.5px;">(0 Pola)</span>
+                  </div>
+                  <div class="table-wrapper" style="max-height: 140px;">
+                    <table class="table-native" id="tblJerseyManualPreview">
+                      <thead id="tblJerseyManualHead"></thead>
+                      <tbody id="tblJerseyManualBody"></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </div>

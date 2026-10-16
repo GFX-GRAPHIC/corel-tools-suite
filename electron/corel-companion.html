@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Corel Tools Suite — Auto-Layout Jersey</title>
+  <title>GFX IT PRINTING - Auto-Layout Jersey & Variable Data Pro</title>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       user-select: none;
-      font-family: "Segoe UI", -apple-system, system-ui, BlinkMacSystemFont, Roboto, sans-serif;
+      font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Tahoma, Geneva, Verdana, sans-serif;
     }
 
     body {
@@ -55,8 +55,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 9.5px;
-      font-weight: 700;
+      font-size: 10px;
     }
 
     .titlebar-controls {
@@ -85,12 +84,17 @@
       color: #0f172a;
     }
 
+    .titlebar-btn.active {
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+
     .titlebar-btn.close:hover {
       background-color: #ef4444;
       color: #ffffff;
     }
 
-    /* Header Blue Banner - Solid Native Royal Blue */
+    /* Header Banner - Solid Native Royal Blue */
     .app-header {
       background-color: #1d4ed8;
       color: #ffffff;
@@ -102,527 +106,2308 @@
       border-bottom: 1px solid #1e40af;
     }
 
-    .app-header-title {
-      font-size: 13px;
+    .app-title {
+      font-size: 12.5px;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: -0.2px;
       color: #ffffff;
     }
 
-    .app-header-sub {
+    .badge-vdp {
+      background-color: #ffffff;
+      color: #1d4ed8;
+      font-size: 9px;
+      font-weight: 900;
+      padding: 1px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.3px;
+    }
+
+    .app-subtitle {
       font-size: 10px;
       color: #dbeafe;
       font-weight: 500;
     }
 
-    /* Form Container */
-    .form-container {
+    /* Source Tabs */
+    .tabs-bar {
+      display: flex;
+      background-color: #ffffff;
+      padding: 5px 8px;
+      gap: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
       flex: 1;
-      padding: 10px 12px;
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+      color: #0f172a;
+      background-color: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .tab-btn.active {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #93c5fd;
+      font-weight: 800;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+    }
+
+    /* Scrollable Container */
+    .main-content {
+      flex: 1;
+      padding: 9px 10px;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      background-color: #f8fafc;
-      overflow-y: auto;
+      background: #f8fafc;
     }
 
-    .field-group {
+    /* Section Group Box */
+    .section-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 6px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+      color: #0f172a;
     }
 
-    .field-label {
+    .section-title {
       font-size: 11px;
-      font-weight: 600;
-      color: #334155;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 5px;
     }
 
-    .input-row {
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #2563eb;
+      color: #ffffff;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 9.5px;
+      font-weight: 800;
+      margin-right: 5px;
+    }
+
+    /* Dropzone Excel */
+    .dropzone {
+      border: 2px dashed #93c5fd;
+      background-color: #f8fafc;
+      border-radius: 5px;
+      padding: 12px 10px;
+      text-align: center;
+      cursor: pointer;
       display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: all 0.2s;
+    }
+
+    .dropzone:hover {
+      border-color: #2563eb;
+      background-color: #eff6ff;
+    }
+
+    .dropzone.active {
+      border-color: #059669;
+      background-color: #ecfdf5;
+    }
+
+    .dropzone-title {
+      font-weight: 700;
+      font-size: 11px;
+      color: #1d4ed8;
+    }
+
+    .dropzone-desc {
+      font-size: 9.5px;
+      color: #64748b;
+    }
+
+    .file-info-badge {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #0f172a;
+    }
+
+    /* Form Controls */
+    .form-row {
+      display: flex;
+      align-items: center;
       gap: 6px;
     }
 
-    input[type="text"], input[type="number"], select {
-      width: 100%;
-      height: 26px;
-      padding: 0 7px;
-      background-color: #ffffff;
+    .input-text {
+      height: 25px;
       border: 1px solid #cbd5e1;
       border-radius: 3px;
+      padding: 0 7px;
+      font-size: 11px;
       color: #0f172a;
-      font-size: 11.5px;
+      background: #ffffff;
       outline: none;
-      transition: border-color 0.15s;
     }
-
-    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    .input-text:focus {
       border-color: #2563eb;
       box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
-    input[readonly] {
-      background-color: #f1f5f9;
-      color: #1d4ed8;
-      font-weight: 600;
-    }
-
-    .btn-browse {
-      width: 70px;
-      height: 26px;
-      background-color: #f8fafc;
+    select {
+      height: 25px;
       border: 1px solid #cbd5e1;
-      color: #1e293b;
-      font-size: 11px;
-      font-weight: 600;
       border-radius: 3px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background-color 0.15s;
+      padding: 0 6px;
+      font-size: 10.5px;
+      color: #0f172a;
+      background: #ffffff;
+      outline: none;
+    }
+    select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
-    .btn-browse:hover {
-      background-color: #f1f5f9;
+    .btn-secondary {
+      height: 24px;
+      padding: 0 8px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      color: #1e293b;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover {
+      background: #f1f5f9;
       border-color: #94a3b8;
       color: #0f172a;
     }
 
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    /* Mapping Rows */
+    .mapping-list {
+      display: flex;
+      flex-direction: column;
       gap: 6px;
+    }
+
+    .mapping-row {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 7px 9px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .mapping-idx {
+      font-weight: 800;
+      font-size: 11px;
+      color: #1d4ed8;
+      width: 18px;
+      text-align: center;
+    }
+
+    .mapping-arrow {
+      color: #2563eb;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .btn-delete-row {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    .btn-delete-row:hover {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    /* Corel Size Controls */
+    .corel-size-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      flex-wrap: wrap;
+    }
+
+    .size-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .size-input-group {
+      display: inline-flex;
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 0 4px;
+      height: 22px;
+    }
+
+    .size-icon {
+      font-size: 11px;
+      font-weight: 800;
+      color: #2563eb;
+      margin-right: 3px;
+      line-height: 1;
+    }
+
+    .input-size {
+      width: 48px;
+      height: 18px;
+      border: none;
+      background: transparent;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: right;
+      padding: 0 2px;
+      outline: none;
+    }
+
+    .size-unit {
+      font-size: 9px;
+      color: #64748b;
+      margin-left: 2px;
+    }
+
+    .btn-lock {
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+    }
+
+    .btn-lock.locked {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+      font-weight: 700;
+    }
+
+    .btn-lock:hover {
+      opacity: 0.9;
+    }
+
+    .sel-fit-mode, .sel-align, .sel-text-case {
+      height: 22px;
+      padding: 0 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 10px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sel-fit-mode:hover, .sel-align:hover, .sel-text-case:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .sel-fit-mode:focus, .sel-align:focus, .sel-text-case:focus {
+      border-color: #2563eb;
+    }
+
+    /* Change Case Modal - CorelDRAW Native Light Style */
+    .change-case-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .change-case-modal-overlay.open {
+      display: flex;
+    }
+    .change-case-dialog {
+      width: 290px;
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      overflow: hidden;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .change-case-dialog-header {
+      background: #f8fafc;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .change-case-dialog-header .btn-close-modal {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .change-case-dialog-header .btn-close-modal:hover {
+      color: #0f172a;
+    }
+    .change-case-dialog-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 11px;
+      background: #ffffff;
+    }
+    .change-case-radio-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .change-case-radio-item input[type="radio"] {
+      cursor: pointer;
+      accent-color: #2563eb;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+    }
+    .change-case-dialog-footer {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .change-case-dialog-footer .btn-modal-action {
+      height: 26px;
+      min-width: 65px;
+      padding: 0 12px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      color: #1e293b;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .change-case-dialog-footer .btn-modal-action:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .change-case-dialog-footer .btn-modal-primary {
+      background: #2563eb;
+      border-color: #1d4ed8;
+      color: #ffffff;
+    }
+    .change-case-dialog-footer .btn-modal-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-sample-size {
+      height: 22px;
+      padding: 0 7px;
+      border: 1px solid #bfdbfe;
+      border-radius: 3px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 9.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-sample-size:hover {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-clear-size {
+      height: 22px;
+      padding: 0 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 9.5px;
+      cursor: pointer;
+    }
+
+    .btn-clear-size:hover {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fca5a5;
+    }
+
+    /* Manual Variable Card */
+    .manual-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .manual-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .manual-textarea {
+      width: 100%;
+      height: 56px;
+      min-height: 44px;
+      max-height: 120px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 5px 7px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 10.5px;
+      color: #0f172a;
+      background: #ffffff;
+      resize: vertical;
+      line-height: 1.4;
+      white-space: pre;
+    }
+    .manual-textarea:focus {
+      border-color: #2563eb;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+
+    /* Table Preview */
+    .table-container {
+      max-height: 130px;
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 5px 7px;
+      font-weight: 700;
+      border-bottom: 1px solid #cbd5e1;
+      border-right: 1px solid #cbd5e1;
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 4px 7px;
+      border-bottom: 1px solid #f1f5f9;
+      border-right: 1px solid #f1f5f9;
+      color: #0f172a;
+      white-space: nowrap;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    /* Size Chart Table & Controls */
+    .sizechart-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10.5px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .sizechart-table th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      padding: 4px 6px;
+      border-bottom: 1px solid #cbd5e1;
+      text-align: center;
+    }
+
+    .sizechart-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    .input-size-chart {
+      width: 65px;
+      height: 22px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      text-align: right;
+      padding: 0 4px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Checkbox Label */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      color: #0f172a;
+      cursor: pointer;
+    }
+
+    .checkbox-label input {
+      accent-color: #2563eb;
     }
 
     /* Action Buttons */
     .action-group {
       display: flex;
       gap: 6px;
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
-    .btn-primary {
+    .btn-gas {
       flex: 1;
-      height: 32px;
-      background-color: #f8fafc;
-      border: 1px solid #cbd5e1;
-      color: #1e293b;
-      font-size: 11px;
-      font-weight: 600;
-      border-radius: 3px;
+      height: 38px;
+      background: #2563eb;
+      color: #ffffff;
+      border: 1px solid #1d4ed8;
+      border-radius: 4px;
+      font-size: 12.5px;
+      font-weight: 800;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background-color 0.15s;
-    }
-
-    .btn-primary:hover {
-      background-color: #f1f5f9;
-      border-color: #94a3b8;
-      color: #0f172a;
-    }
-
-    .btn-primary.btn-gas {
-      background-color: #2563eb;
-      color: #ffffff;
-      border-color: #1d4ed8;
-      font-weight: 800;
-      font-size: 12.5px;
-      height: 36px;
+      gap: 6px;
       box-shadow: 0 1px 3px rgba(37, 99, 235, 0.2);
+      transition: all 0.15s;
     }
-
-    .btn-primary.btn-gas:hover {
-      background-color: #1d4ed8;
+    .btn-gas:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
     }
-
-    .btn-primary:disabled {
-      background-color: #94a3b8;
+    .btn-gas:disabled {
+      background: #94a3b8;
       border-color: #cbd5e1;
       color: #f8fafc;
       cursor: not-allowed;
+      transform: none;
       box-shadow: none;
     }
 
-    /* Info Box & Status Bar */
-    .info-box {
-      background-color: #eff6ff;
-      border: 1px dashed #93c5fd;
-      border-radius: 6px;
-      padding: 8px 10px;
-      font-size: 10.5px;
-      color: #1e40af;
-      line-height: 1.45;
-    }
-
-    .info-box strong {
-      color: #1d4ed8;
-    }
-
-    .status-bar {
+    /* Status Bar */
+    .statusbar {
+      height: 26px;
       background-color: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 6px 9px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-top: auto;
-      flex-shrink: 0;
-    }
-
-    .status-line {
-      font-size: 11px;
-      color: #334155;
-      font-weight: 600;
+      border-top: 1px solid #e2e8f0;
+      padding: 0 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-    }
-
-    .status-corel {
       font-size: 10px;
-      color: #1d4ed8;
-      font-weight: 700;
-      font-family: Consolas, Monaco, monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      color: #475569;
+      flex-shrink: 0;
+      font-weight: 500;
     }
 
-    .footer-author {
-      font-size: 9.5px;
-      color: #64748b;
-      text-align: center;
-      padding-top: 2px;
-      flex-shrink: 0;
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      display: inline-block;
+      margin-right: 5px;
     }
   </style>
 </head>
 <body>
-  <!-- Titlebar -->
+
+  <!-- 1. Native Windows Titlebar -->
   <div class="titlebar">
     <div class="titlebar-left">
-      <div class="titlebar-icon">#</div>
-      <span>Corel Tools Suite — Auto-Layout Jersey</span>
+      <div class="titlebar-icon">👕</div>
+      <span>Corel Tools Suite - Auto-Layout Jersey Pro</span>
     </div>
     <div class="titlebar-controls">
-      <button class="titlebar-btn" id="btnMinimize">_</button>
-      <button class="titlebar-btn close" id="btnClose">✕</button>
+      <button class="titlebar-btn" id="btnPin" title="Pin Selalu di Depan">📌</button>
+      <button class="titlebar-btn" id="btnMinimize" title="Minimize">─</button>
+      <button class="titlebar-btn close" id="btnClose" title="Tutup">✕</button>
     </div>
   </div>
 
-  <!-- Header Banner -->
+  <!-- 2. Header Banner -->
   <div class="app-header">
-    <div class="app-header-title">AUTO-LAYOUT JERSEY</div>
-    <div class="app-header-sub">automatic jersey naming & layout generator</div>
+    <div class="app-title">
+      <span>AUTO-LAYOUT JERSEY &amp; VARIABLE DATA PRO</span>
+      <span class="badge-vdp">SUBLIMATION GRADE</span>
+    </div>
+    <div class="app-subtitle">Otomasi Tata Letak Pola Jersey, Nama, Nomor, Sponsor &amp; Auto-Resize per Size</div>
   </div>
 
-  <!-- Form Container -->
-  <div class="form-container">
-    <!-- Data Ukuran -->
-    <div class="field-group">
-      <label class="field-label">Data ukuran (Excel / List Pemain)</label>
-      <div class="input-row">
-        <input type="text" id="txtDataUkuran" readonly value="Belum ada data (Klik Browse atau buka dari POS)" />
-        <button type="button" class="btn-browse" id="btnBrowse">Browse</button>
+  <!-- 3. Source Mode Tabs -->
+  <div class="tabs-bar">
+    <button type="button" class="tab-btn active" id="tabBtnExcel">
+      <span>📊 Impor File Excel / CSV</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabBtnManual">
+      <span>✍️ Input Manual (Paste Teks Bebas)</span>
+    </button>
+  </div>
+
+  <!-- 4. Scrollable Content -->
+  <div class="main-content">
+
+    <!-- ================= MODE 1: EXCEL ================= -->
+    <div id="viewExcelMode" style="display: flex; flex-direction: column; gap: 8px;">
+
+      <!-- Langkah 1: Upload / Pilih Excel -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">1</span>
+            <span>PILIH FILE EXCEL (.xlsx, .xls, .csv)</span>
+          </div>
+          <span id="lblFileLoaded" style="color: #059669; font-weight: 700; font-size: 9.5px; display: none;">✓ Excel Terhubung!</span>
+        </div>
+
+        <div class="dropzone" id="excelDropzone">
+          <div style="font-size: 20px;">📂</div>
+          <div class="dropzone-title">Klik di Sini untuk Memilih File Excel / CSV</div>
+          <div class="dropzone-desc">Atau seret (drag &amp; drop) file Excel langsung ke kotak ini</div>
+        </div>
+        <input type="file" id="fileExcelInput" accept=".xlsx, .xls, .csv" style="display: none;" />
+
+        <!-- File Active Info -->
+        <div id="boxFileInfo" class="file-info-badge" style="display: none; flex-direction: column; gap: 5px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div>
+              <span style="font-weight: 700; color: #1d4ed8;" id="lblFileName">data_jersey.xlsx</span>
+              <span style="color: #64748b;" id="lblRowCount">(0 Baris Data)</span>
+            </div>
+            <button type="button" id="btnChangeFile" class="btn-secondary" style="height: 22px; font-size: 9.5px;">Ganti File</button>
+          </div>
+          <div class="form-row" style="flex-wrap: wrap; gap: 8px; border-top: 1px dashed #cbd5e1; padding-top: 4px; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: #475569; font-size: 9.5px; font-weight: 600;">Sheet:</span>
+              <select id="selSheet" style="height: 22px; font-size: 10px;"></select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: #475569; font-size: 9.5px; font-weight: 600;">Baris Judul Kolom:</span>
+              <select id="selHeaderRow" style="height: 22px; font-size: 10px; font-weight: 700; color: #1d4ed8;"></select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="color: #475569; font-size: 9.5px; font-weight: 600;">Filter Ukuran:</span>
+              <select id="selTargetSize" style="height: 22px; font-size: 10px; font-weight: 700; color: #059669;">
+                <option value="ALL">Semua Ukuran (ALL)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Table Accordion -->
+        <div id="boxTablePreview" style="display: none; flex-direction: column; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b;">
+            <span>Pratinjau Data Excel (5 Baris Pertama):</span>
+            <span id="lblColCount"></span>
+          </div>
+          <div class="table-container">
+            <table id="tblPreview">
+              <thead id="tblHead"></thead>
+              <tbody id="tblBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" />
+
+      <!-- Langkah 2: Pemetaan Variabel Teks -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">2</span>
+            <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi huruf CorelDRAW)">🔠 Change Case...</button>
+            <button type="button" id="btnPresetJersey" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset Standar Jersey">Preset Jersey</button>
+            <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #1d4ed8;">+ Tambah Teks</button>
+          </div>
+        </div>
+
+        <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">
+          Tentukan teks placeholder di pola CorelDRAW (misal: <code>[NAMA]</code> atau <code>NAMA</code>), pasangkan dengan kolom Excel, dan atur ukuran &amp; perataan:
+        </div>
+
+        <!-- Mapping Rows Container -->
+        <div class="mapping-list" id="mappingContainer">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
     </div>
 
-    <!-- Target Ukuran -->
-    <div class="field-group">
-      <label class="field-label">Target ukuran</label>
-      <select id="selTargetUkuran">
-        <option value="ALL">Semua Ukuran</option>
-      </select>
-    </div>
+    <!-- ================= MODE 2: MANUAL TEXT INPUT ================= -->
+    <div id="viewManualMode" style="display: none; flex-direction: column; gap: 8px;">
 
-    <!-- Jarak & Limit Copy -->
-    <div class="grid-2">
-      <div class="field-group">
-        <label class="field-label">Jarak (cm)</label>
-        <input type="number" id="numJarak" value="1.0" step="0.5" min="0" />
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">1</span>
+            <span>INPUT / PASTE DATA TEKS BEBAS PER VARIABEL</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case">🔠 Change Case...</button>
+            <button type="button" id="btnManualPresetJersey" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset Standar Jersey">Preset Jersey</button>
+            <button type="button" id="btnAddManualVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #1d4ed8;">+ Tambah Variabel</button>
+          </div>
+        </div>
+
+        <div style="font-size: 9.5px; color: #64748b; line-height: 1.35;">
+          Ketik atau <b>Paste</b> daftar nama/nomor/ukuran di bawah ini. <b>1 Baris = 1 Pola Jersey</b>. Teks Corel (misal: <code>[NAMA]</code>) akan otomatis diganti per baris!
+        </div>
+
+        <!-- Manual Variable Cards List -->
+        <div id="manualCardsContainer" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated -->
+        </div>
       </div>
 
-      <div class="field-group">
-        <label class="field-label">Limit Copy</label>
-        <input type="number" id="numLimitCopy" value="4" min="1" max="100" />
+      <!-- Live Preview Table for Manual Mode -->
+      <div class="section-box">
+        <div class="section-title">
+          <div>
+            <span class="step-badge">2</span>
+            <span>PRATINJAU DATA TEKS YANG AKAN DICETAK</span>
+          </div>
+          <span id="lblManualRowCount" style="color: #1d4ed8; font-weight: 800; font-size: 10px;">(0 Pola)</span>
+        </div>
+
+        <div class="table-container" style="max-height: 140px;">
+          <table id="tblManualPreview">
+            <thead id="tblManualHead"></thead>
+            <tbody id="tblManualBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= LANGKAH 3: UKURAN & DIMENSI POLA JERSEY (AUTO-RESIZE) ================= -->
+    <div class="section-box">
+      <div class="section-title">
+        <div>
+          <span class="step-badge">3</span>
+          <span>DIMENSI POLA JERSEY (AUTO-RESIZE PER SIZE)</span>
+        </div>
+        <button type="button" id="btnSampleMasterShape" class="btn-secondary" style="height: 22px; font-size: 9.5px; font-weight: 700; color: #1d4ed8;" title="Baca dimensi lebar & tinggi pola yang sedang diseleksi di CorelDRAW">🎯 Baca Ukuran Pola dari Corel</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label class="checkbox-label" style="font-weight: 700;">
+          <input type="checkbox" id="chkEnableAutoResize" checked />
+          <span style="color: #1d4ed8;">Aktifkan Auto-Resize Pola (Otomatis ubah dimensi pola per ukuran S, M, L, XL, dll)</span>
+        </label>
+        <div style="font-size: 9.5px; color: #64748b;">
+          Biasanya ukuran diubah cukup tingginya saja lalu mengembok rasio. Sistem akan otomatis menyesuaikan ukuran pola jersey saat mengganti nama &amp; nomor!
+        </div>
+      </div>
+
+      <!-- Master Pattern Info Bar -->
+      <div id="boxMasterPatternInfo" style="display: flex; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px dashed #93c5fd; padding: 5px 8px; border-radius: 4px; font-size: 10px; flex-wrap: wrap; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <span style="font-weight: 700; color: #1e40af;">Ukuran Master di CorelDRAW:</span>
+          <select id="selMasterSize" style="height: 22px; font-size: 10px; font-weight: 800; color: #1d4ed8;">
+            <option value="XS">XS</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L" selected>L (Master Standar)</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+            <option value="3XL">3XL</option>
+          </select>
+        </div>
+        <div style="font-weight: 600; color: #1e40af;">
+          Lebar Master: <b id="lblMasterW">206.41</b> cm &bull; Tinggi: <b id="lblMasterH">76.00</b> cm &bull; Rasio: <b id="lblMasterRatio">2.716</b>
+        </div>
+      </div>
+
+      <!-- Size Chart Dimensions Table -->
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+        <table class="sizechart-table" id="tblSizeChart">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Size</th>
+              <th>Tinggi (↕ cm)</th>
+              <th>Lebar (↔ cm)</th>
+              <th>Gembok Rasio</th>
+              <th style="width: 35px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodySizeChart">
+            <!-- Dynamically populated size chart rows -->
+          </tbody>
+        </table>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3px;">
+          <button type="button" class="btn-secondary" id="btnAddSizeRow" style="height: 22px; font-size: 9.5px;">+ Tambah Ukuran Size</button>
+          <button type="button" class="btn-secondary" id="btnResetSizeChart" style="height: 22px; font-size: 9.5px;">↺ Reset Standar Sublimasi</button>
+        </div>
       </div>
     </div>
 
-    <!-- Arah Susunan & Maks Lebar Nama -->
-    <div class="grid-2">
-      <div class="field-group">
-        <label class="field-label">Arah Susunan</label>
-        <select id="selDirection">
-          <option value="vertical" selected>Vertikal (Ke Bawah)</option>
-          <option value="horizontal">Horizontal (Ke Samping)</option>
-        </select>
+    <!-- ================= LANGKAH 4: METODE OUTPUT & TATA LETAK ================= -->
+    <div class="section-box">
+      <div class="section-title">
+        <div>
+          <span class="step-badge">4</span>
+          <span>TATA LETAK &amp; DUPLIKASI POLA</span>
+        </div>
       </div>
 
-      <div class="field-group">
-        <label class="field-label">Maks. Lebar Nama (cm)</label>
-        <input type="number" id="numMaxNameWidth" value="27.0" step="0.5" min="10" max="60" />
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Antar Pola (cm):</label>
+          <input type="number" id="numSpacing" value="1.0" step="0.5" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label style="font-size: 10px; font-weight: 700; color: #334155;">Limit Pola per Baris/Kolom:</label>
+          <input type="number" id="numLimitCopy" value="4" min="1" max="50" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label style="font-size: 10px; font-weight: 700; color: #334155;">Arah Susunan Duplikasi:</label>
+          <select id="selDirection" style="height: 24px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 3px;">
+            <option value="vertical" selected>⬇️ Vertikal (Kebawah, lalu Geser Kanan)</option>
+            <option value="horizontal">➡️ Horizontal (Kesamping, lalu Geser Bawah)</option>
+          </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label style="font-size: 10px; font-weight: 700; color: #334155;">Urutan Penataan Pola:</label>
+          <select id="selGrouping" style="height: 24px; font-size: 10px; border: 1px solid #cbd5e1; border-radius: 3px;">
+            <option value="asis" selected>Sesuai Urutan Data Excel / Manual</option>
+            <option value="group_size">Kelompokkan per Ukuran (S, M, L, XL...)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="chkAutoCurves" checked />
+          <span><b>Convert ke Kurva (Ctrl+Q)</b> setelah selesai (font aman tidak bergeser saat dicetak)</span>
+        </label>
       </div>
     </div>
 
-    <!-- Info Box -->
-    <div class="info-box">
-      <strong>Cara Pakai:</strong><br/>
-      1. Siapkan 1 pola master di CorelDRAW lengkap dengan teks nama & nomor dummy.<br/>
-      2. Seleksi seluruh grup pola master tersebut di CorelDRAW.<br/>
-      3. Klik tombol <strong>Gas!</strong> di bawah.
-    </div>
-
-    <!-- Action Buttons -->
+    <!-- Tombol Eksekusi -->
     <div class="action-group">
-      <button type="button" class="btn-primary btn-gas" id="btnGas">Gas!</button>
-      <button type="button" class="btn-primary" id="btnCancel1">Cancel</button>
+      <button type="button" class="btn-gas" id="btnExecute">
+        <span>🚀 Gas! Tata Pola Jersey di CorelDRAW</span>
+      </button>
     </div>
 
-    <!-- Status Bar -->
-    <div class="status-bar">
-      <div class="status-line">
-        <span id="lblStatus">Stat: Siap</span>
-        <span id="lblRefresh" style="color: #1e40af; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
-      </div>
-      <div class="status-corel" id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</div>
-    </div>
-
-    <div class="footer-author">by: GFX IT PRINTING</div>
   </div>
 
-  <!-- SheetJS for Excel Reading -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- 5. Status Bar -->
+  <div class="statusbar">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span class="status-dot" id="corelDot"></span>
+      <span id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</span>
+      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
+      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
+    </div>
+    <div id="lblActionStatus">Stat: Siap</div>
+  </div>
+
+  <!-- Modal: CorelDRAW Native-Style Change Case Dialog -->
+  <div class="change-case-modal-overlay" id="changeCaseModal">
+    <div class="change-case-dialog">
+      <div class="change-case-dialog-header">
+        <span>Change Case (Format Huruf)</span>
+        <button type="button" class="btn-close-modal" id="btnCloseChangeCaseModal">✕</button>
+      </div>
+      <div class="change-case-dialog-body">
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="sentence" />
+          <span><u>S</u>entence case (Kapital awal kalimat saja)</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="lower" />
+          <span><u>l</u>owercase (huruf kecil semua)</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="upper" checked />
+          <span><u>U</u>PPERCASE (HURUF BESAR SEMUA)</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="title" />
+          <span><u>T</u>itle Case (Kapital Setiap Awal Kata)</span>
+        </label>
+        <label class="change-case-radio-item">
+          <input type="radio" name="radChangeCase" value="toggle" />
+          <span>t<u>O</u>GGLE cASE (Balik Huruf Besar Kecil)</span>
+        </label>
+
+        <div style="border-top: 1px solid #cbd5e1; margin-top: 4px; padding-top: 8px;">
+          <div style="font-size: 10px; color: #475569; margin-bottom: 5px; font-weight: 700;">Terapkan ke:</div>
+          <label class="change-case-radio-item" style="font-size: 10px;">
+            <input type="radio" name="radCaseTarget" value="corel_selection" checked />
+            <span>🎯 Seleksi Teks Aktif di CorelDRAW</span>
+          </label>
+          <label class="change-case-radio-item" style="font-size: 10px; margin-top: 2px;">
+            <input type="radio" name="radCaseTarget" value="all_variables" />
+            <span>👕 Semua Variabel Jersey ([NAMA], [NOMOR], dll)</span>
+          </label>
+        </div>
+      </div>
+      <div class="change-case-dialog-footer">
+        <button type="button" class="btn-modal-action" id="btnHelpChangeCase" title="Bantuan" style="min-width: 28px; width: 28px; padding: 0;">?</button>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-modal-action btn-modal-primary" id="btnOkChangeCase">OK</button>
+          <button type="button" class="btn-modal-action" id="btnCancelChangeCase">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local SheetJS Library with CDN Fallback -->
+  <script src="./xlsx.full.min.js"></script>
+  <script>
+    if (typeof XLSX === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
 
   <script>
+    // State
+    let isPinned = true;
+    let activeSourceMode = 'excel'; // 'excel' or 'manual'
+    let excelData = null;
+
+    // Master pattern dimensions baseline (from CorelDRAW Image 2: W 206.412 cm, H 76.0 cm)
+    let masterWidthCm = 206.412;
+    let masterHeightCm = 76.0;
+    let masterRatio = masterWidthCm / masterHeightCm; // 2.7159
+
+    // Sublimation Standard Size Chart Grading
+    let sizeChart = [
+      { size: 'XS', height: 68.0, width: 184.68, lockRatio: true },
+      { size: 'S',  height: 71.0, width: 192.83, lockRatio: true },
+      { size: 'M',  height: 73.5, width: 199.62, lockRatio: true },
+      { size: 'L',  height: 76.0, width: 206.41, lockRatio: true },
+      { size: 'XL', height: 78.5, width: 213.20, lockRatio: true },
+      { size: 'XXL',height: 81.0, width: 220.00, lockRatio: true },
+      { size: '3XL',height: 83.5, width: 226.79, lockRatio: true }
+    ];
+
+    // Excel Mode Variables
+    let excelVariables = [
+      { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+      { placeholder: '[UKURAN]', column: 'D', label: 'Ukuran (Size)', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+    ];
+
+    // Manual Mode Variables
+    let manualVariables = [
+      { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+      { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nS', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+    ];
+
+    // Elements
+    const btnPin = document.getElementById('btnPin');
     const btnMinimize = document.getElementById('btnMinimize');
     const btnClose = document.getElementById('btnClose');
-    const btnBrowse = document.getElementById('btnBrowse');
-    const fileInput = document.getElementById('fileInput');
-    const txtDataUkuran = document.getElementById('txtDataUkuran');
-    const selTargetUkuran = document.getElementById('selTargetUkuran');
-    const numJarak = document.getElementById('numJarak');
+
+    const tabBtnExcel = document.getElementById('tabBtnExcel');
+    const tabBtnManual = document.getElementById('tabBtnManual');
+    const viewExcelMode = document.getElementById('viewExcelMode');
+    const viewManualMode = document.getElementById('viewManualMode');
+
+    // Excel Elements
+    const excelDropzone = document.getElementById('excelDropzone');
+    const fileExcelInput = document.getElementById('fileExcelInput');
+    const boxFileInfo = document.getElementById('boxFileInfo');
+    const lblFileName = document.getElementById('lblFileName');
+    const lblRowCount = document.getElementById('lblRowCount');
+    const selSheet = document.getElementById('selSheet');
+    const selHeaderRow = document.getElementById('selHeaderRow');
+    const selTargetSize = document.getElementById('selTargetSize');
+    const btnChangeFile = document.getElementById('btnChangeFile');
+    const lblFileLoaded = document.getElementById('lblFileLoaded');
+
+    const boxTablePreview = document.getElementById('boxTablePreview');
+    const tblHead = document.getElementById('tblHead');
+    const tblBody = document.getElementById('tblBody');
+    const lblColCount = document.getElementById('lblColCount');
+
+    const mappingContainer = document.getElementById('mappingContainer');
+    const btnAddVar = document.getElementById('btnAddVar');
+    const btnPresetJersey = document.getElementById('btnPresetJersey');
+
+    // Manual Elements
+    const manualCardsContainer = document.getElementById('manualCardsContainer');
+    const btnAddManualVar = document.getElementById('btnAddManualVar');
+    const btnManualPresetJersey = document.getElementById('btnManualPresetJersey');
+    const tblManualHead = document.getElementById('tblManualHead');
+    const tblManualBody = document.getElementById('tblManualBody');
+    const lblManualRowCount = document.getElementById('lblManualRowCount');
+
+    // Size Chart Elements
+    const chkEnableAutoResize = document.getElementById('chkEnableAutoResize');
+    const btnSampleMasterShape = document.getElementById('btnSampleMasterShape');
+    const selMasterSize = document.getElementById('selMasterSize');
+    const lblMasterW = document.getElementById('lblMasterW');
+    const lblMasterH = document.getElementById('lblMasterH');
+    const lblMasterRatio = document.getElementById('lblMasterRatio');
+    const tbodySizeChart = document.getElementById('tbodySizeChart');
+    const btnAddSizeRow = document.getElementById('btnAddSizeRow');
+    const btnResetSizeChart = document.getElementById('btnResetSizeChart');
+
+    // Layout Settings
+    const numSpacing = document.getElementById('numSpacing');
     const numLimitCopy = document.getElementById('numLimitCopy');
     const selDirection = document.getElementById('selDirection');
-    const numMaxNameWidth = document.getElementById('numMaxNameWidth');
-    const btnGas = document.getElementById('btnGas');
-    const btnCancel1 = document.getElementById('btnCancel1');
-    const lblStatus = document.getElementById('lblStatus');
-    const lblRefresh = document.getElementById('lblRefresh');
+    const selGrouping = document.getElementById('selGrouping');
+    const chkAutoCurves = document.getElementById('chkAutoCurves');
+    const btnExecute = document.getElementById('btnExecute');
+
+    const corelDot = document.getElementById('corelDot');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
+    const lblActionStatus = document.getElementById('lblActionStatus');
 
-    let currentOrderData = null;
-    let loadedPlayers = [];
-
-    // Titlebar Controls
+    // Titlebar Actions
     btnMinimize.addEventListener('click', () => {
-      if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
+      const api = window.electronAPI || window.corelAPI;
+      if (api?.minimizeWindow) api.minimizeWindow();
     });
-    btnClose.addEventListener('click', () => {
-      window.close();
+    btnClose.addEventListener('click', () => window.close());
+    btnPin.addEventListener('click', async () => {
+      const api = window.electronAPI || window.corelAPI;
+      if (api?.tracerToggleAlwaysOnTop || api?.toggleAlwaysOnTop) {
+        const fn = api.tracerToggleAlwaysOnTop || api.toggleAlwaysOnTop;
+        const res = await fn();
+        isPinned = res?.isAlwaysOnTop !== false;
+        btnPin.classList.toggle('active', isPinned);
+      }
     });
-    btnCancel1.addEventListener('click', () => {
-      window.close();
-    });
+
+    const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
+    const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
     // Check Corel Connection
     async function checkCorel() {
       try {
-        if (window.electronAPI?.corelCheckStatus) {
-          const res = await window.electronAPI.corelCheckStatus();
-          if (res.connected) {
-            lblCorelStatus.innerText = `CorelDRAW: Connected — Version ${res.version || '2021'}`;
+        const api = window.electronAPI || window.corelAPI;
+        if (api?.checkStatus || api?.corelCheckStatus) {
+          const fn = api.checkStatus || api.corelCheckStatus;
+          const res = await fn();
+          if (res?.connected) {
+            corelDot.style.background = '#15803d';
+            lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || '2021'})`;
             lblCorelStatus.style.color = '#15803d';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
           } else {
-            lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
+            corelDot.style.background = '#dc2626';
+            lblCorelStatus.innerText = `CorelDRAW: Terputus (${res?.error || 'Buka CorelDRAW'})`;
             lblCorelStatus.style.color = '#dc2626';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-flex';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-flex';
           }
         } else {
-          lblCorelStatus.innerText = 'CorelDRAW: Web Mode (Simulator)';
+          lblCorelStatus.innerText = 'CorelDRAW: Simulator Mode';
         }
       } catch (err) {
-        lblCorelStatus.innerText = 'CorelDRAW: Disconnected';
+        corelDot.style.background = '#dc2626';
+        lblCorelStatus.innerText = 'CorelDRAW: Terputus';
         lblCorelStatus.style.color = '#dc2626';
       }
     }
 
-    lblRefresh.addEventListener('click', () => {
-      lblStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
-      checkCorel();
-      setTimeout(() => { lblStatus.innerText = 'Stat: Siap'; }, 1000);
-    });
-
-    // Load active session from POS if opened from desktop app
-    async function loadActiveSession() {
-      try {
-        if (window.electronAPI?.corelGetActiveOrderData) {
-          const data = await window.electronAPI.corelGetActiveOrderData();
-          if (data && data.players && data.players.length > 0) {
-            currentOrderData = data;
-            loadedPlayers = data.players;
-            txtDataUkuran.value = `Order POS: ${data.orderNo || 'Jersey'} (${loadedPlayers.length} Pemain)`;
-            populateSizeDropdown(loadedPlayers);
-            lblStatus.innerText = `Stat: ${loadedPlayers.length} data pemain dimuat dari POS`;
-          }
+    if (btnQuickCleanCorel) {
+      btnQuickCleanCorel.addEventListener('click', async () => {
+        const api = window.electronAPI || window.corelAPI;
+        if (api?.corelCleanGhostProcesses || api?.cleanGhostProcesses) {
+          const fn = api.corelCleanGhostProcesses || api.cleanGhostProcesses;
+          const res = await fn();
+          alert(res?.message || 'Proses latar belakang telah dibersihkan.');
+          checkCorel();
         }
-      } catch (err) {
-        console.warn('Gagal memuat sesi POS:', err);
-      }
-    }
-
-    // Populate Size Dropdown
-    function populateSizeDropdown(players) {
-      selTargetUkuran.innerHTML = '<option value="ALL">Semua Ukuran (ALL)</option>';
-      const sizes = [...new Set(players.map(p => (p.size || 'L').trim().toUpperCase()))].filter(Boolean);
-      sizes.sort();
-      sizes.forEach(sz => {
-        const count = players.filter(p => (p.size || 'L').trim().toUpperCase() === sz).length;
-        const opt = document.createElement('option');
-        opt.value = sz;
-        opt.innerText = `Ukuran ${sz} (${count} pcs)`;
-        selTargetUkuran.appendChild(opt);
       });
     }
 
-    // Browse Excel
-    btnBrowse.addEventListener('click', () => {
-      fileInput.click();
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      txtDataUkuran.value = file.name;
-      lblStatus.innerText = 'Stat: Membaca file Excel...';
-
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const data = new Uint8Array(evt.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
-
-          if (!rows || rows.length <= 1) {
-            alert('File Excel kosong atau format tidak sesuai.');
-            lblStatus.innerText = 'Stat: File kosong';
-            return;
-          }
-
-          let nameCol = -1, noCol = -1, sizeCol = -1;
-          const header = rows[0].map(h => String(h).trim().toUpperCase());
-
-          header.forEach((h, idx) => {
-            if (h.includes('NAMA') || h.includes('NAME') || h.includes('PEMAIN')) nameCol = idx;
-            if (h.includes('NO') || h.includes('NOMOR') || h.includes('PUNGGUNG') || h.includes('NUMBER')) noCol = idx;
-            if (h.includes('SIZE') || h.includes('UKURAN')) sizeCol = idx;
-          });
-
-          if (nameCol === -1) nameCol = 1;
-          if (noCol === -1) noCol = 2;
-          if (sizeCol === -1) sizeCol = 3;
-
-          const parsedPlayers = [];
-          for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const name = String(row[nameCol] || '').trim();
-            const number = String(row[noCol] || '').trim();
-            const size = String(row[sizeCol] || 'L').trim().toUpperCase() || 'L';
-
-            if (name || number) {
-              parsedPlayers.push({
-                name: name || 'PEMAIN',
-                number: number || '00',
-                size: size
-              });
-            }
-          }
-
-          if (parsedPlayers.length === 0) {
-            alert('Tidak ditemukan data pemain di Excel.');
-            lblStatus.innerText = 'Stat: 0 Pemain';
-            return;
-          }
-
-          loadedPlayers = parsedPlayers;
-          populateSizeDropdown(loadedPlayers);
-          txtDataUkuran.value = `${file.name} (${loadedPlayers.length} Pemain)`;
-          lblStatus.innerText = `Stat: Berhasil memuat ${loadedPlayers.length} data pemain`;
-        } catch (err) {
-          alert(`Gagal membaca Excel: ${err.message}`);
-          lblStatus.innerText = 'Stat: Gagal membaca file';
+    if (btnQuickLaunchCorel) {
+      btnQuickLaunchCorel.addEventListener('click', async () => {
+        const api = window.electronAPI || window.corelAPI;
+        if (api?.corelLaunchApp || api?.launchCorelApp) {
+          const fn = api.corelLaunchApp || api.launchCorelApp;
+          const res = await fn();
+          alert(res?.message || 'Membuka CorelDRAW...');
+          setTimeout(checkCorel, 3000);
         }
-      };
-      reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // Tab Switching
+    tabBtnExcel.addEventListener('click', () => {
+      activeSourceMode = 'excel';
+      tabBtnExcel.classList.add('active');
+      tabBtnManual.classList.remove('active');
+      viewExcelMode.style.display = 'flex';
+      viewManualMode.style.display = 'none';
     });
 
-    // Execute Auto-Layout (Gas!)
-    btnGas.addEventListener('click', async () => {
-      if (loadedPlayers.length === 0) {
-        alert('Silakan pilih file Excel / data ukuran pemain terlebih dahulu.');
-        return;
+    tabBtnManual.addEventListener('click', () => {
+      activeSourceMode = 'manual';
+      tabBtnManual.classList.add('active');
+      tabBtnExcel.classList.remove('active');
+      viewManualMode.style.display = 'flex';
+      viewExcelMode.style.display = 'none';
+      renderManualUI();
+    });
+
+    // File Picker Trigger
+    async function triggerFilePicker() {
+      const api = window.electronAPI || window.corelAPI;
+      if (api?.dialogSelectExcelFile || api?.selectExcelFile) {
+        const fn = api.dialogSelectExcelFile || api.selectExcelFile;
+        const res = await fn();
+        if (res && res.filePath) {
+          handleSelectedFile(res.filePath);
+          return;
+        }
+        if (res && res.canceled) return;
       }
+      fileExcelInput.click();
+    }
 
-      const targetSize = selTargetUkuran.value;
-      const spacing = parseFloat(numJarak.value) || 1.0;
-      const limit = parseInt(numLimitCopy.value, 10) || 4;
-      const dir = selDirection.value;
-      const maxNameWidth = parseFloat(numMaxNameWidth.value) || 27.0;
+    excelDropzone.addEventListener('click', triggerFilePicker);
+    btnChangeFile.addEventListener('click', triggerFilePicker);
 
-      let filteredPlayers = loadedPlayers;
-      if (targetSize !== 'ALL') {
-        filteredPlayers = loadedPlayers.filter(p => (p.size || 'L').trim().toUpperCase() === targetSize);
-      }
+    excelDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      excelDropzone.classList.add('active');
+    });
+    excelDropzone.addEventListener('dragleave', () => excelDropzone.classList.remove('active'));
+    excelDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      excelDropzone.classList.remove('active');
+      const file = e.dataTransfer?.files?.[0];
+      if (file) handleSelectedFile(file);
+    });
 
-      if (filteredPlayers.length === 0) {
-        alert(`Tidak ada pemain dengan ukuran ${targetSize}.`);
-        return;
-      }
+    fileExcelInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) handleSelectedFile(file);
+    });
 
-      btnGas.disabled = true;
-      btnGas.innerText = 'Menata di CorelDRAW...';
-      lblStatus.innerText = `Stat: Menata ${filteredPlayers.length} pola jersey...`;
-
+    // Parse Excel File via IPC or Base64
+    async function handleSelectedFile(filePathOrFile) {
+      lblActionStatus.innerText = 'Stat: Membaca file Excel...';
       try {
-        if (window.electronAPI?.corelExecuteLayout) {
-          const res = await window.electronAPI.corelExecuteLayout({
-            targetSize,
-            players: filteredPlayers,
-            spacingCm: spacing,
-            limitCopy: limit,
-            direction: dir,
-            maxNameWidthCm: maxNameWidth,
+        let payload = null;
+
+        if (filePathOrFile && typeof filePathOrFile === 'object') {
+          const file = filePathOrFile;
+          let nativePath = '';
+          const api = window.electronAPI || window.corelAPI;
+          if (api?.getPathForFile) {
+            try { nativePath = api.getPathForFile(file); } catch {}
+          }
+          if (!nativePath && file.path) nativePath = file.path;
+
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const res = reader.result;
+              const b64 = typeof res === 'string' ? (res.split(',')[1] || res) : '';
+              resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
           });
 
-          if (res.success) {
-            lblStatus.innerText = `Stat: Selesai (${res.count || filteredPlayers.length} pola)!`;
-            alert(`Berhasil menata ${res.count || filteredPlayers.length} pola jersey di CorelDRAW!`);
+          payload = {
+            base64,
+            fileName: file.name || 'data_jersey.xlsx',
+            filePath: nativePath || file.name || ''
+          };
+        } else if (typeof filePathOrFile === 'string') {
+          payload = filePathOrFile;
+        }
+
+        const api = window.electronAPI || window.corelAPI;
+        if (api?.corelParseExcelFile || api?.parseExcelFile) {
+          const parseFn = api.corelParseExcelFile || api.parseExcelFile;
+          const res = await parseFn(payload);
+          if (res?.success) {
+            excelData = res;
+            populateExcelUI(res);
+            lblActionStatus.innerText = `Stat: ${res.totalRows} baris data Excel siap!`;
+            return;
           } else {
-            lblStatus.innerText = 'Stat: Gagal';
-            alert(`Gagal menata di CorelDRAW:\n${res.message}`);
+            alert(`Gagal membaca Excel: ${res?.message || 'Format tidak didukung'}`);
           }
+        } else {
+          alert('API pembaca Excel hanya aktif di aplikasi desktop.');
         }
       } catch (err) {
-        lblStatus.innerText = 'Stat: Error';
+        alert(`Error membaca file: ${err.message}`);
+      } finally {
+        lblActionStatus.innerText = 'Stat: Siap';
+      }
+    }
+
+    // Auto Map Headers to Jersey Variables
+    function autoMapVariablesFromHeaders(headers) {
+      if (!headers || headers.length === 0) return;
+
+      const nameCol = headers.find(h => /nama|pemain|player|name/i.test(h.name));
+      const noCol = headers.find(h => /nomor|no\.|punggung|number/i.test(h.name));
+      const sizeCol = headers.find(h => /ukuran|size/i.test(h.name));
+      const sponsorCol = headers.find(h => /sponsor|tim|team|club/i.test(h.name));
+
+      excelVariables.forEach(v => {
+        const p = (v.placeholder || '').toUpperCase();
+        if (p.includes('NAMA') && nameCol) v.column = nameCol.letter;
+        else if ((p.includes('NOMOR') || p.includes('NO')) && noCol) v.column = noCol.letter;
+        else if ((p.includes('UKURAN') || p.includes('SIZE')) && sizeCol) v.column = sizeCol.letter;
+        else if ((p.includes('SPONSOR') || p.includes('TIM')) && sponsorCol) v.column = sponsorCol.letter;
+      });
+
+      // Populate Size Filter dropdown
+      selTargetSize.innerHTML = '<option value="ALL">Semua Ukuran (ALL)</option>';
+      if (sizeCol && excelData?.rows) {
+        const sizeSet = new Set();
+        excelData.rows.forEach(r => {
+          const s = r[sizeCol.letter];
+          if (s && s.trim()) sizeSet.add(s.trim().toUpperCase());
+        });
+        Array.from(sizeSet).sort().forEach(sz => {
+          const count = excelData.rows.filter(r => (r[sizeCol.letter] || '').trim().toUpperCase() === sz).length;
+          const opt = document.createElement('option');
+          opt.value = sz;
+          opt.innerText = `Ukuran ${sz} (${count} pcs)`;
+          selTargetSize.appendChild(opt);
+        });
+      }
+    }
+
+    function recomputeSheetHeaders(sheetName, headerRowIdx) {
+      if (!excelData || !excelData.sheetsData) return;
+      const sheet = excelData.sheetsData[sheetName];
+      if (!sheet || !sheet.rawData || sheet.rawData.length === 0) return;
+
+      const rawData = sheet.rawData;
+      const headerRow = rawData[headerRowIdx] || [];
+      const maxCols = Math.max(headerRow.length, ...rawData.map(r => (Array.isArray(r) ? r.length : 0)));
+
+      function indexToLetter(idx) {
+        let letter = '';
+        let temp = idx;
+        while (temp >= 0) {
+          letter = String.fromCharCode((temp % 26) + 65) + letter;
+          temp = Math.floor(temp / 26) - 1;
+        }
+        return letter;
+      }
+
+      const rows = [];
+      for (let rIdx = headerRowIdx + 1; rIdx < rawData.length; rIdx++) {
+        const rowValues = rawData[rIdx];
+        if (!rowValues) continue;
+        const hasData = rowValues.some(val => val !== undefined && val !== null && String(val).trim() !== '');
+        if (!hasData) continue;
+
+        const rowObj = {};
+        for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+          const letter = indexToLetter(colIdx);
+          const cellVal = rowValues[colIdx];
+          rowObj[letter] = cellVal !== undefined && cellVal !== null ? String(cellVal).trim() : '';
+        }
+        rows.push(rowObj);
+      }
+
+      const headers = [];
+      for (let colIdx = 0; colIdx < maxCols; colIdx++) {
+        const letter = indexToLetter(colIdx);
+        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+        const name = rawName || `Kolom ${letter}`;
+
+        let sample = '';
+        for (const r of rows) {
+          if (r[letter] && r[letter].trim() !== '') {
+            sample = r[letter].trim();
+            if (sample.length > 25) sample = sample.substring(0, 22) + '...';
+            break;
+          }
+        }
+
+        const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
+        headers.push({ letter, name, sample, label });
+      }
+
+      sheet.headers = headers;
+      sheet.rows = rows;
+      sheet.totalRows = rows.length;
+      sheet.headerRowIdx = headerRowIdx;
+
+      excelData.headers = headers;
+      excelData.rows = rows;
+      excelData.totalRows = rows.length;
+      excelData.headerRowIdx = headerRowIdx;
+
+      lblRowCount.innerText = `(${rows.length} Baris Data)`;
+      lblColCount.innerText = `${headers.length} Kolom`;
+
+      renderPreviewTable(headers, rows);
+      autoMapVariablesFromHeaders(headers);
+      renderExcelMappingRows();
+    }
+
+    function populateExcelUI(data) {
+      excelDropzone.style.display = 'none';
+      boxFileInfo.style.display = 'flex';
+      boxTablePreview.style.display = 'flex';
+      lblFileLoaded.style.display = 'inline';
+
+      lblFileName.innerText = data.filePath.split(/[/\\]/).pop();
+      lblRowCount.innerText = `(${data.totalRows} Baris Data)`;
+      lblColCount.innerText = `${data.headers.length} Kolom`;
+
+      // Sheets dropdown
+      selSheet.innerHTML = '';
+      (data.sheetNames || []).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.innerText = s;
+        if (s === data.activeSheet) opt.selected = true;
+        selSheet.appendChild(opt);
+      });
+
+      // Header row selector
+      populateHeaderRowSelector(data.headerRowIdx, data.rawData?.length || 10);
+
+      renderPreviewTable(data.headers, data.rows);
+      autoMapVariablesFromHeaders(data.headers);
+      renderExcelMappingRows();
+    }
+
+    function populateHeaderRowSelector(activeIdx, totalRowsCount) {
+      selHeaderRow.innerHTML = '';
+      const limit = Math.min(10, Math.max(5, totalRowsCount));
+      for (let i = 0; i < limit; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.innerText = i === activeIdx ? `Baris ${i + 1} (Otomatis)` : `Baris ${i + 1}`;
+        if (i === activeIdx) opt.selected = true;
+        selHeaderRow.appendChild(opt);
+      }
+    }
+
+    selHeaderRow.addEventListener('change', () => {
+      const idx = parseInt(selHeaderRow.value, 10);
+      recomputeSheetHeaders(selSheet.value, idx);
+    });
+
+    selSheet.addEventListener('change', () => {
+      if (!excelData || !excelData.sheetsData) return;
+      const sheetName = selSheet.value;
+      const sheet = excelData.sheetsData[sheetName];
+      if (sheet) {
+        excelData.activeSheet = sheetName;
+        excelData.headers = sheet.headers;
+        excelData.rows = sheet.rows;
+        excelData.totalRows = sheet.totalRows;
+        excelData.headerRowIdx = sheet.headerRowIdx || 0;
+        lblRowCount.innerText = `(${sheet.totalRows} Baris Data)`;
+        lblColCount.innerText = `${sheet.headers.length} Kolom`;
+
+        populateHeaderRowSelector(sheet.headerRowIdx || 0, sheet.rawData?.length || 10);
+        renderPreviewTable(sheet.headers, sheet.rows);
+        autoMapVariablesFromHeaders(sheet.headers);
+        renderExcelMappingRows();
+      }
+    });
+
+    function renderPreviewTable(headers, rows) {
+      tblHead.innerHTML = '';
+      tblBody.innerHTML = '';
+
+      const trHead = document.createElement('tr');
+      headers.forEach(h => {
+        const th = document.createElement('th');
+        th.innerText = `${h.letter}: ${h.name}`;
+        trHead.appendChild(th);
+      });
+      tblHead.appendChild(trHead);
+
+      const previewRows = (rows || []).slice(0, 5);
+      previewRows.forEach((r) => {
+        const tr = document.createElement('tr');
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          td.innerText = r[h.letter] || '';
+          tr.appendChild(td);
+        });
+        tblBody.appendChild(tr);
+      });
+    }
+
+    // Helper: Create Size Bar element (copied from cert merger, customized for Jersey)
+    function createSizeBarElement(v) {
+      const bar = document.createElement('div');
+      bar.className = 'corel-size-bar';
+
+      if (v.lockRatio === undefined) v.lockRatio = true;
+      if (!v.fitMode) v.fitMode = 'max';
+      if (!v.align) v.align = 'center';
+      if (!v.textCase) v.textCase = 'none';
+
+      bar.innerHTML = `
+        <span class="size-label">📐 Ukuran:</span>
+        <select class="sel-fit-mode" title="Metode Ukuran: Auto-Fit (Batas Maks) hanya mengecilkan nama panjang agar tidak melebihi batas; Paksa Persis memaksakan ukuran font persis sama.">
+          <option value="max" ${v.fitMode === 'max' ? 'selected' : ''}>🛡️ Auto-Fit (Batas Maks)</option>
+          <option value="exact" ${v.fitMode === 'exact' ? 'selected' : ''}>📏 Paksa Persis</option>
+        </select>
+        <div class="size-input-group" title="Maksimal Lebar teks di CorelDRAW (cm)">
+          <span class="size-icon">↔</span>
+          <input type="number" step="0.5" min="0" class="input-size txt-width" placeholder="Auto" value="${v.width ?? ''}" />
+          <span class="size-unit">cm</span>
+        </div>
+        <div class="size-input-group" title="Maksimal Tinggi teks di CorelDRAW (cm)">
+          <span class="size-icon">↕</span>
+          <input type="number" step="0.5" min="0" class="input-size txt-height" placeholder="Auto" value="${v.height ?? ''}" />
+          <span class="size-unit">cm</span>
+        </div>
+        <button type="button" class="btn-lock ${v.lockRatio !== false ? 'locked' : ''}" title="${v.lockRatio !== false ? 'Status: Gembok Terkunci (Proporsional). Lebar & tinggi diskalakan seimbang agar teks tidak gepeng. Klik untuk membuka gembok.' : 'Status: Gembok Terbuka (Bebas). Lebar & tinggi diubah terpisah (bisa gepeng/distorsi). Klik untuk mengunci gembok.'}">
+          ${v.lockRatio !== false ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka'}
+        </button>
+        <select class="sel-align" title="Perataan & Posisi Teks di CorelDRAW">
+          <option value="center" ${v.align === 'center' ? 'selected' : ''}>🎯 Rata Tengah</option>
+          <option value="left" ${v.align === 'left' ? 'selected' : ''}>⬅️ Rata Kiri</option>
+          <option value="right" ${v.align === 'right' ? 'selected' : ''}>➡️ Rata Kanan</option>
+          <option value="none" ${v.align === 'none' ? 'selected' : ''}>↔️ Posisi Asli</option>
+        </select>
+        <select class="sel-text-case" title="Change Case (Format Huruf): Atur huruf menjadi UPPERCASE, Title Case, dsb.">
+          <option value="none" ${v.textCase === 'none' || !v.textCase ? 'selected' : ''}>🔠 Asli</option>
+          <option value="upper" ${v.textCase === 'upper' ? 'selected' : ''}>AA UPPERCASE</option>
+          <option value="title" ${v.textCase === 'title' ? 'selected' : ''}>Aa Title Case</option>
+          <option value="sentence" ${v.textCase === 'sentence' ? 'selected' : ''}>A. Sentence case</option>
+          <option value="lower" ${v.textCase === 'lower' ? 'selected' : ''}>aa lowercase</option>
+          <option value="toggle" ${v.textCase === 'toggle' ? 'selected' : ''}>aA tOGGLE</option>
+        </select>
+        <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
+          🎯 Ambil Seleksi Corel
+        </button>
+        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
+      `;
+
+      const selFitMode = bar.querySelector('.sel-fit-mode');
+      const inputW = bar.querySelector('.txt-width');
+      const inputH = bar.querySelector('.txt-height');
+      const btnLock = bar.querySelector('.btn-lock');
+      const selAlign = bar.querySelector('.sel-align');
+      const selTextCase = bar.querySelector('.sel-text-case');
+      const btnSample = bar.querySelector('.btn-sample-size');
+      const btnClear = bar.querySelector('.btn-clear-size');
+
+      if (v.width && v.height && !v.aspectRatio) {
+        v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
+      }
+
+      selFitMode.addEventListener('change', () => { v.fitMode = selFitMode.value; });
+      selAlign.addEventListener('change', () => { v.align = selAlign.value; });
+      selTextCase.addEventListener('change', () => { v.textCase = selTextCase.value; });
+
+      inputW.addEventListener('input', () => {
+        const val = parseFloat(inputW.value);
+        v.width = isNaN(val) || val <= 0 ? '' : val;
+        if (v.lockRatio && v.aspectRatio && v.width) {
+          v.height = parseFloat((v.width / v.aspectRatio).toFixed(2));
+          inputH.value = v.height;
+        } else if (v.width && v.height) {
+          v.aspectRatio = v.width / v.height;
+        }
+      });
+
+      inputH.addEventListener('input', () => {
+        const val = parseFloat(inputH.value);
+        v.height = isNaN(val) || val <= 0 ? '' : val;
+        if (v.lockRatio && v.aspectRatio && v.height) {
+          v.width = parseFloat((v.height * v.aspectRatio).toFixed(2));
+          inputW.value = v.width;
+        } else if (v.width && v.height) {
+          v.aspectRatio = v.width / v.height;
+        }
+      });
+
+      btnLock.addEventListener('click', () => {
+        v.lockRatio = !v.lockRatio;
+        btnLock.className = `btn-lock ${v.lockRatio ? 'locked' : ''}`;
+        btnLock.innerHTML = v.lockRatio ? '🔒 Gembok: Terkunci' : '🔓 Gembok: Terbuka';
+        if (v.lockRatio && v.width && v.height) {
+          v.aspectRatio = parseFloat(v.width) / parseFloat(v.height);
+        }
+      });
+
+      btnSample.addEventListener('click', async () => {
+        try {
+          btnSample.disabled = true;
+          btnSample.innerText = '⌛ Mengambil...';
+          const api = window.electronAPI || window.corelAPI;
+          const getFn = api?.corelGetSelectionInfo;
+          if (!getFn) {
+            alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
+            return;
+          }
+          const selInfo = await getFn();
+          if (selInfo && selInfo.success && selInfo.count > 0 && selInfo.widthCm > 0) {
+            v.width = selInfo.widthCm;
+            v.height = selInfo.heightCm;
+            v.aspectRatio = selInfo.widthCm / selInfo.heightCm;
+            v.lockRatio = true;
+            btnLock.className = 'btn-lock locked';
+            btnLock.innerHTML = '🔒 Gembok: Terkunci';
+            inputW.value = v.width;
+            inputH.value = v.height;
+            inputW.style.backgroundColor = '#dcfce7';
+            inputH.style.backgroundColor = '#dcfce7';
+            setTimeout(() => {
+              inputW.style.backgroundColor = '';
+              inputH.style.backgroundColor = '';
+            }, 800);
+          } else {
+            alert(`Objek teks di CorelDRAW belum dipilih!\n\nSilakan pilih (klik seleksi) objek teks '${v.placeholder}' di lembar kerja CorelDRAW, lalu klik tombol ini lagi.`);
+          }
+        } catch (err) {
+          alert(`Gagal mengambil ukuran dari CorelDRAW: ${err.message}`);
+        } finally {
+          btnSample.disabled = false;
+          btnSample.innerHTML = '🎯 Ambil Seleksi Corel';
+        }
+      });
+
+      if (btnClear) {
+        btnClear.addEventListener('click', () => {
+          v.width = '';
+          v.height = '';
+          v.aspectRatio = null;
+          inputW.value = '';
+          inputH.value = '';
+          btnClear.remove();
+        });
+      }
+
+      return bar;
+    }
+
+    // Render Mapping Interface (Excel Mode)
+    function renderExcelMappingRows() {
+      mappingContainer.innerHTML = '';
+
+      const headers = excelData?.headers || [
+        { letter: 'A', name: 'Kolom A', label: 'A: Kolom A' },
+        { letter: 'B', name: 'Nama Pemain', label: 'B: Nama Pemain' },
+        { letter: 'C', name: 'Nomor Punggung', label: 'C: Nomor Punggung' },
+        { letter: 'D', name: 'Ukuran Size', label: 'D: Ukuran Size' },
+        { letter: 'E', name: 'Sponsor', label: 'E: Sponsor' }
+      ];
+
+      excelVariables.forEach((v, index) => {
+        const row = document.createElement('div');
+        row.className = 'mapping-row';
+
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="mapping-idx">#${index + 1}</span>
+            <div style="display: flex; flex-direction: column; gap: 1px; width: 120px;">
+              <span style="font-size: 8.5px; color: #475569; font-weight: 700;">Teks Corel:</span>
+              <input type="text" class="input-text txt-placeholder" value="${v.placeholder}" style="height: 24px; font-weight: 800; color: #1d4ed8;" placeholder="misal [NAMA]" />
+            </div>
+            <span class="mapping-arrow">➔</span>
+            <div style="display: flex; flex-direction: column; gap: 1px; flex: 1;">
+              <span style="font-size: 8.5px; color: #475569; font-weight: 700;">Ambil dari Kolom Excel:</span>
+              <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600; color: #0f172a;">
+                ${headers.map(h => `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${h.label || `${h.letter}: ${h.name}`}</option>`).join('')}
+              </select>
+            </div>
+            <button type="button" class="btn-delete-row" title="Hapus Variabel Ini">✕</button>
+          </div>
+        `;
+
+        row.appendChild(createSizeBarElement(v));
+
+        const txtPh = row.querySelector('.txt-placeholder');
+        const selCol = row.querySelector('.sel-column');
+        const btnDel = row.querySelector('.btn-delete-row');
+
+        txtPh.addEventListener('input', () => { v.placeholder = txtPh.value.trim(); });
+        selCol.addEventListener('change', () => { v.column = selCol.value; });
+        btnDel.addEventListener('click', () => {
+          if (excelVariables.length <= 1) {
+            alert('Minimal harus ada 1 variabel teks untuk diproses.');
+            return;
+          }
+          excelVariables.splice(index, 1);
+          renderExcelMappingRows();
+        });
+
+        mappingContainer.appendChild(row);
+      });
+    }
+
+    btnAddVar.addEventListener('click', () => {
+      const nextIdx = excelVariables.length + 1;
+      const defaultCols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+      const targetCol = defaultCols[nextIdx - 1] || 'A';
+      excelVariables.push({
+        placeholder: `[VARIABEL_${nextIdx}]`,
+        column: targetCol,
+        label: `Teks ${nextIdx}`,
+        width: 22,
+        height: '',
+        lockRatio: true,
+        fitMode: 'max',
+        align: 'center',
+        textCase: 'upper'
+      });
+      renderExcelMappingRows();
+    });
+
+    btnPresetJersey.addEventListener('click', () => {
+      excelVariables = [
+        { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+        { placeholder: '[UKURAN]', column: 'D', label: 'Ukuran (Size)', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+      ];
+      renderExcelMappingRows();
+    });
+
+    // ==========================================
+    // MANUAL MODE FUNCTIONS
+    // ==========================================
+    function renderManualUI() {
+      manualCardsContainer.innerHTML = '';
+
+      manualVariables.forEach((v, index) => {
+        const card = document.createElement('div');
+        card.className = 'manual-card';
+
+        const lines = (v.text || '').split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+        const lineCount = lines.length;
+
+        card.innerHTML = `
+          <div class="manual-card-header" style="flex-direction: column; align-items: stretch; gap: 5px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                <span style="font-weight: 800; color: #1d4ed8; font-size: 10px;">#${index + 1}</span>
+                <span style="font-size: 9px; color: #475569; font-weight: 700;">Teks Corel:</span>
+                <input type="text" class="input-text manual-placeholder" value="${v.placeholder}" style="width: 85px; height: 22px; font-weight: 800; color: #1d4ed8;" placeholder="misal [NAMA]" />
+                <span style="font-size: 9px; color: #475569; font-weight: 700; margin-left: 4px;">Label:</span>
+                <input type="text" class="input-text manual-label" value="${v.label}" style="flex: 1; height: 22px; font-weight: 600; color: #0f172a;" placeholder="Nama / Nomor / Size" />
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="manual-badge-lines" style="font-size: 9.5px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 3px; border: 1px solid #a7f3d0;">${lineCount} baris</span>
+                <button type="button" class="btn-delete-row manual-btn-delete" title="Hapus Variabel Ini">✕</button>
+              </div>
+            </div>
+          </div>
+          <textarea class="manual-textarea" placeholder="Paste atau ketik daftar teks di sini (1 baris = 1 pola jersey)...">${v.text}</textarea>
+        `;
+
+        card.querySelector('.manual-card-header').appendChild(createSizeBarElement(v));
+
+        const txtPh = card.querySelector('.manual-placeholder');
+        const txtLbl = card.querySelector('.manual-label');
+        const txtArea = card.querySelector('.manual-textarea');
+        const btnDel = card.querySelector('.manual-btn-delete');
+        const badgeLines = card.querySelector('.manual-badge-lines');
+
+        txtPh.addEventListener('input', () => {
+          v.placeholder = txtPh.value.trim();
+          updateManualPreviewTable();
+        });
+
+        txtLbl.addEventListener('input', () => {
+          v.label = txtLbl.value.trim();
+          updateManualPreviewTable();
+        });
+
+        txtArea.addEventListener('input', () => {
+          v.text = txtArea.value;
+          const currLines = v.text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+          badgeLines.innerText = `${currLines.length} baris`;
+          updateManualPreviewTable();
+        });
+
+        btnDel.addEventListener('click', () => {
+          if (manualVariables.length <= 1) {
+            alert('Minimal harus ada 1 variabel teks.');
+            return;
+          }
+          manualVariables.splice(index, 1);
+          renderManualUI();
+        });
+
+        manualCardsContainer.appendChild(card);
+      });
+
+      updateManualPreviewTable();
+    }
+
+    function updateManualPreviewTable() {
+      const varLines = manualVariables.map(v => {
+        const arr = (v.text || '').split(/\r?\n/).map(l => l.trim());
+        while (arr.length > 0 && arr[arr.length - 1] === '') arr.pop();
+        return arr;
+      });
+
+      const maxLines = Math.max(...varLines.map(arr => arr.length), 0);
+      lblManualRowCount.innerText = `(${maxLines} Pola Jersey)`;
+
+      tblManualHead.innerHTML = '';
+      tblManualBody.innerHTML = '';
+
+      const trHead = document.createElement('tr');
+      const thNo = document.createElement('th');
+      thNo.innerText = '#';
+      thNo.style.width = '30px';
+      trHead.appendChild(thNo);
+
+      manualVariables.forEach(v => {
+        const th = document.createElement('th');
+        th.innerText = `${v.placeholder} (${v.label || 'Teks'})`;
+        trHead.appendChild(th);
+      });
+      tblManualHead.appendChild(trHead);
+
+      const previewLimit = Math.min(maxLines, 5);
+      for (let i = 0; i < previewLimit; i++) {
+        const tr = document.createElement('tr');
+        const tdNo = document.createElement('td');
+        tdNo.innerText = i + 1;
+        tdNo.style.textAlign = 'center';
+        tr.appendChild(tdNo);
+
+        for (let j = 0; j < manualVariables.length; j++) {
+          const td = document.createElement('td');
+          td.innerText = varLines[j][i] || '';
+          tr.appendChild(td);
+        }
+        tblManualBody.appendChild(tr);
+      }
+    }
+
+    btnAddManualVar.addEventListener('click', () => {
+      const nextIdx = manualVariables.length + 1;
+      manualVariables.push({
+        placeholder: `[VARIABEL_${nextIdx}]`,
+        label: `Teks ${nextIdx}`,
+        text: '',
+        width: 20,
+        height: '',
+        lockRatio: true,
+        fitMode: 'max',
+        align: 'center',
+        textCase: 'upper'
+      });
+      renderManualUI();
+    });
+
+    btnManualPresetJersey.addEventListener('click', () => {
+      manualVariables = [
+        { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+        { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nS', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+      ];
+      renderManualUI();
+    });
+
+    // ==========================================
+    // SIZE CHART AUTO-RESIZE FUNCTIONS
+    // ==========================================
+    function renderSizeChartUI() {
+      tbodySizeChart.innerHTML = '';
+      sizeChart.forEach((item, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b style="color: #1d4ed8; font-size: 11px;">${item.size}</b></td>
+          <td>
+            <div style="display: inline-flex; align-items: center; gap: 2px;">
+              <input type="number" step="0.5" class="input-size-chart txt-sc-height" data-idx="${idx}" value="${item.height}" />
+              <span style="font-size: 9px; color: #64748b;">cm</span>
+            </div>
+          </td>
+          <td>
+            <div style="display: inline-flex; align-items: center; gap: 2px;">
+              <input type="number" step="0.5" class="input-size-chart txt-sc-width" data-idx="${idx}" value="${item.width}" />
+              <span style="font-size: 9px; color: #64748b;">cm</span>
+            </div>
+          </td>
+          <td>
+            <button type="button" class="btn-lock ${item.lockRatio !== false ? 'locked' : ''} btn-sc-lock" data-idx="${idx}">
+              ${item.lockRatio !== false ? '🔒 Terkunci' : '🔓 Bebas'}
+            </button>
+          </td>
+          <td>
+            ${sizeChart.length > 1 ? `<button type="button" class="btn-delete-row btn-sc-del" data-idx="${idx}">✕</button>` : ''}
+          </td>
+        `;
+
+        const inH = tr.querySelector('.txt-sc-height');
+        const inW = tr.querySelector('.txt-sc-width');
+        const bLock = tr.querySelector('.btn-sc-lock');
+        const bDel = tr.querySelector('.btn-sc-del');
+
+        inH.addEventListener('input', () => {
+          const val = parseFloat(inH.value);
+          item.height = isNaN(val) ? 0 : val;
+          if (item.lockRatio && masterRatio > 0 && item.height > 0) {
+            item.width = parseFloat((item.height * masterRatio).toFixed(2));
+            inW.value = item.width;
+          }
+        });
+
+        inW.addEventListener('input', () => {
+          const val = parseFloat(inW.value);
+          item.width = isNaN(val) ? 0 : val;
+          if (item.lockRatio && masterRatio > 0 && item.width > 0) {
+            item.height = parseFloat((item.width / masterRatio).toFixed(2));
+            inH.value = item.height;
+          }
+        });
+
+        bLock.addEventListener('click', () => {
+          item.lockRatio = !item.lockRatio;
+          bLock.className = `btn-lock ${item.lockRatio ? 'locked' : ''} btn-sc-lock`;
+          bLock.innerHTML = item.lockRatio ? '🔒 Terkunci' : '🔓 Bebas';
+          if (item.lockRatio && masterRatio > 0 && item.height > 0) {
+            item.width = parseFloat((item.height * masterRatio).toFixed(2));
+            inW.value = item.width;
+          }
+        });
+
+        if (bDel) {
+          bDel.addEventListener('click', () => {
+            sizeChart.splice(idx, 1);
+            renderSizeChartUI();
+          });
+        }
+
+        tbodySizeChart.appendChild(tr);
+      });
+    }
+
+    // Sample Master Pattern from CorelDRAW Selection
+    btnSampleMasterShape.addEventListener('click', async () => {
+      try {
+        btnSampleMasterShape.disabled = true;
+        btnSampleMasterShape.innerText = '⌛ Membaca Corel...';
+        const api = window.electronAPI || window.corelAPI;
+        if (!api?.corelGetSelectionInfo) {
+          alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
+          return;
+        }
+        const sel = await api.corelGetSelectionInfo();
+        if (sel && sel.success && sel.count > 0 && sel.widthCm > 0 && sel.heightCm > 0) {
+          masterWidthCm = parseFloat(sel.widthCm);
+          masterHeightCm = parseFloat(sel.heightCm);
+          masterRatio = masterWidthCm / masterHeightCm;
+
+          lblMasterW.innerText = masterWidthCm.toFixed(2);
+          lblMasterH.innerText = masterHeightCm.toFixed(2);
+          lblMasterRatio.innerText = masterRatio.toFixed(3);
+
+          // Update size chart widths proportionally based on new master ratio
+          sizeChart.forEach(sc => {
+            if (sc.lockRatio && sc.height > 0) {
+              sc.width = parseFloat((sc.height * masterRatio).toFixed(2));
+            }
+          });
+          renderSizeChartUI();
+
+          alert(
+            `🎯 Berhasil membaca pola master dari CorelDRAW!\n\n` +
+            `• Lebar Master: ${masterWidthCm.toFixed(2)} cm\n` +
+            `• Tinggi Master: ${masterHeightCm.toFixed(2)} cm\n` +
+            `• Rasio Gembok: ${masterRatio.toFixed(3)}\n\n` +
+            `Seluruh lebar pada tabel ukuran otomatis disesuaikan secara proporsional!`
+          );
+        } else {
+          alert('Belum ada objek pola yang dipilih di CorelDRAW!\n\nSilakan seleksi 1 grup master pola baju di CorelDRAW lalu klik tombol ini lagi.');
+        }
+      } catch (err) {
+        alert(`Error membaca CorelDRAW: ${err.message}`);
+      } finally {
+        btnSampleMasterShape.disabled = false;
+        btnSampleMasterShape.innerText = '🎯 Baca Ukuran Pola dari Corel';
+      }
+    });
+
+    btnAddSizeRow.addEventListener('click', () => {
+      const szName = prompt('Masukkan nama ukuran baru (misal: 4XL atau ANAK-6):', '4XL');
+      if (!szName) return;
+      const cleanSz = szName.trim().toUpperCase();
+      if (sizeChart.some(s => s.size === cleanSz)) {
+        alert('Ukuran ini sudah ada di tabel.');
+        return;
+      }
+      const lastH = sizeChart[sizeChart.length - 1]?.height || 76;
+      const newH = lastH + 2.5;
+      const newW = parseFloat((newH * masterRatio).toFixed(2));
+      sizeChart.push({ size: cleanSz, height: newH, width: newW, lockRatio: true });
+      renderSizeChartUI();
+    });
+
+    btnResetSizeChart.addEventListener('click', () => {
+      sizeChart = [
+        { size: 'XS', height: 68.0, width: parseFloat((68.0 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: 'S',  height: 71.0, width: parseFloat((71.0 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: 'M',  height: 73.5, width: parseFloat((73.5 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: 'L',  height: 76.0, width: parseFloat((76.0 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: 'XL', height: 78.5, width: parseFloat((78.5 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: 'XXL',height: 81.0, width: parseFloat((81.0 * masterRatio).toFixed(2)), lockRatio: true },
+        { size: '3XL',height: 83.5, width: parseFloat((83.5 * masterRatio).toFixed(2)), lockRatio: true }
+      ];
+      renderSizeChartUI();
+    });
+
+    // ==========================================
+    // CHANGE CASE MODAL LOGIC
+    // ==========================================
+    const changeCaseModal = document.getElementById('changeCaseModal');
+    const btnOpenChangeCase = document.getElementById('btnOpenChangeCase');
+    const btnManualOpenChangeCase = document.getElementById('btnManualOpenChangeCase');
+    const btnCloseChangeCaseModal = document.getElementById('btnCloseChangeCaseModal');
+    const btnCancelChangeCase = document.getElementById('btnCancelChangeCase');
+    const btnOkChangeCase = document.getElementById('btnOkChangeCase');
+    const btnHelpChangeCase = document.getElementById('btnHelpChangeCase');
+
+    function openChangeCaseModal() { if (changeCaseModal) changeCaseModal.classList.add('open'); }
+    function closeChangeCaseModal() { if (changeCaseModal) changeCaseModal.classList.remove('open'); }
+
+    if (btnOpenChangeCase) btnOpenChangeCase.addEventListener('click', openChangeCaseModal);
+    if (btnManualOpenChangeCase) btnManualOpenChangeCase.addEventListener('click', openChangeCaseModal);
+    if (btnCloseChangeCaseModal) btnCloseChangeCaseModal.addEventListener('click', closeChangeCaseModal);
+    if (btnCancelChangeCase) btnCancelChangeCase.addEventListener('click', closeChangeCaseModal);
+
+    function applyTextCase(text, caseType) {
+      if (!text) return '';
+      switch (caseType) {
+        case 'upper': return text.toUpperCase();
+        case 'lower': return text.toLowerCase();
+        case 'title': return text.toLowerCase().replace(/(^|\s|\-|\/)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+        case 'sentence': return text.toLowerCase().replace(/(^\s*|[.!?]\s*)([a-z])/g, (_, b, c) => b + c.toUpperCase());
+        case 'toggle': return text.split('').map(c => c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase()).join('');
+        default: return text;
+      }
+    }
+
+    if (btnHelpChangeCase) {
+      btnHelpChangeCase.addEventListener('click', () => {
+        alert(
+          "Fitur Change Case (Format Huruf):\n\n" +
+          "• UPPERCASE: Huruf besar semua (standar nama punggung jersey).\n" +
+          "• Title Case: Huruf besar di setiap awal kata.\n" +
+          "• Sentence case: Huruf besar hanya di awal kata pertama.\n" +
+          "• lowercase: Huruf kecil semua.\n" +
+          "• tOGGLE cASE: Membalik kapital dan kecil."
+        );
+      });
+    }
+
+    if (btnOkChangeCase) {
+      btnOkChangeCase.addEventListener('click', async () => {
+        const radCase = document.querySelector('input[name="radChangeCase"]:checked')?.value || 'upper';
+        const radTarget = document.querySelector('input[name="radCaseTarget"]:checked')?.value || 'corel_selection';
+        closeChangeCaseModal();
+
+        if (radTarget === 'corel_selection') {
+          const api = window.electronAPI || window.corelAPI;
+          const fn = api?.changeCase || api?.corelChangeCase;
+          if (!fn) {
+            alert('Fitur CorelDRAW hanya aktif di aplikasi desktop.');
+            return;
+          }
+          try {
+            lblActionStatus.innerText = `Stat: Mengubah huruf (${radCase})...`;
+            const res = await fn(radCase);
+            if (res && res.success) {
+              lblActionStatus.innerText = 'Stat: Siap';
+              alert(`🎉 Sukses!\n\n${res.message}`);
+            } else {
+              lblActionStatus.innerText = 'Stat: Siap';
+              alert(`Gagal mengubah teks di CorelDRAW:\n\n${res?.message || 'Pastikan teks terseleksi di CorelDRAW.'}`);
+            }
+          } catch (err) {
+            lblActionStatus.innerText = 'Stat: Error';
+            alert(`Error: ${err.message}`);
+          }
+        } else {
+          excelVariables.forEach(v => { v.textCase = radCase; });
+          manualVariables.forEach(v => {
+            v.textCase = radCase;
+            v.text = applyTextCase(v.text, radCase);
+          });
+          renderExcelMappingRows();
+          renderManualUI();
+          alert(`Berhasil mengatur format huruf semua variabel ke: ${radCase.toUpperCase()}!`);
+        }
+      });
+    }
+
+    // ==========================================
+    // EXECUTE AUTO-LAYOUT (GAS!)
+    // ==========================================
+    btnExecute.addEventListener('click', async () => {
+      let finalRows = [];
+      let mappingsToUse = [];
+
+      if (activeSourceMode === 'excel') {
+        if (!excelData || !excelData.rows || excelData.rows.length === 0) {
+          alert('Silakan pilih file Excel terlebih dahulu pada Tab Impor Excel.');
+          return;
+        }
+
+        // Map excel data based on variables
+        finalRows = excelData.rows.map(r => {
+          const rowObj = {};
+          excelVariables.forEach(v => {
+            const rawVal = r[v.column] !== undefined ? r[v.column] : '';
+            rowObj[v.placeholder] = rawVal;
+            // Also store aliases
+            const pUpper = v.placeholder.toUpperCase();
+            if (pUpper.includes('NAMA')) { rowObj.Nama = rawVal; rowObj.name = rawVal; }
+            if (pUpper.includes('NOMOR') || pUpper.includes('NO')) { rowObj.Nomor = rawVal; rowObj.number = rawVal; }
+            if (pUpper.includes('UKURAN') || pUpper.includes('SIZE')) { rowObj.Ukuran = rawVal; rowObj.size = rawVal; }
+            if (pUpper.includes('SPONSOR')) { rowObj.Sponsor = rawVal; }
+          });
+          return rowObj;
+        });
+        mappingsToUse = excelVariables;
+      } else {
+        // Manual Mode
+        const varLines = manualVariables.map(v => {
+          const arr = (v.text || '').split(/\r?\n/).map(l => l.trim());
+          while (arr.length > 0 && arr[arr.length - 1] === '') arr.pop();
+          return arr;
+        });
+
+        const maxLines = Math.max(...varLines.map(arr => arr.length), 0);
+        if (maxLines === 0) {
+          alert('Silakan masukkan data teks pada Tab Input Manual terlebih dahulu.');
+          return;
+        }
+
+        for (let i = 0; i < maxLines; i++) {
+          const rowObj = {};
+          manualVariables.forEach((v, j) => {
+            const val = varLines[j][i] || '';
+            rowObj[v.placeholder] = val;
+            const pUpper = v.placeholder.toUpperCase();
+            if (pUpper.includes('NAMA')) { rowObj.Nama = val; rowObj.name = val; }
+            if (pUpper.includes('NOMOR') || pUpper.includes('NO')) { rowObj.Nomor = val; rowObj.number = val; }
+            if (pUpper.includes('UKURAN') || pUpper.includes('SIZE')) { rowObj.Ukuran = val; rowObj.size = val; }
+            if (pUpper.includes('SPONSOR')) { rowObj.Sponsor = val; }
+          });
+          finalRows.push(rowObj);
+        }
+        mappingsToUse = manualVariables;
+      }
+
+      // Filter by Target Size if selected
+      const targetSz = selTargetSize.value || 'ALL';
+      if (targetSz !== 'ALL') {
+        finalRows = finalRows.filter(r => {
+          const s = (r.Ukuran || r.size || r['[UKURAN]'] || '').trim().toUpperCase();
+          return s === targetSz;
+        });
+        if (finalRows.length === 0) {
+          alert(`Tidak ada data pemain dengan ukuran '${targetSz}'.`);
+          return;
+        }
+      }
+
+      // Construct Size Chart Map
+      const sizeChartMap = {};
+      sizeChart.forEach(sc => {
+        sizeChartMap[sc.size] = {
+          height: sc.height,
+          width: sc.width,
+          lockRatio: sc.lockRatio !== false
+        };
+      });
+
+      const spacingVal = parseFloat(numSpacing.value) || 1.0;
+      const limitVal = parseInt(numLimitCopy.value, 10) || 4;
+      const dirVal = selDirection.value || 'vertical';
+      const isGroupSize = selGrouping.value === 'group_size';
+      const enableResize = chkEnableAutoResize.checked;
+
+      btnExecute.disabled = true;
+      btnExecute.innerText = '🚀 Sedang Menata di CorelDRAW...';
+      lblActionStatus.innerText = `Stat: Menata ${finalRows.length} pola jersey...`;
+
+      try {
+        const api = window.electronAPI || window.corelAPI;
+        const layoutFn = api?.executeLayout || api?.corelExecuteLayout;
+        if (!layoutFn) {
+          alert('API CorelDRAW tidak ditemukan. Buka aplikasi di Electron.');
+          return;
+        }
+
+        const res = await layoutFn({
+          targetSize: targetSz,
+          players: finalRows,
+          mappings: mappingsToUse,
+          sizeChart: sizeChartMap,
+          enableAutoResize: enableResize,
+          masterSize: selMasterSize.value || 'L',
+          spacingCm: spacingVal,
+          limitCopy: limitVal,
+          direction: dirVal,
+          maxNameWidthCm: mappingsToUse[0]?.width || 27.0,
+          groupBySize: isGroupSize
+        });
+
+        if (res && res.success) {
+          lblActionStatus.innerText = `Stat: Selesai (${res.count || finalRows.length} pola)!`;
+          alert(`🎉 Berhasil menata ${res.count || finalRows.length} pola jersey di CorelDRAW!\n\n${res.message}`);
+        } else {
+          lblActionStatus.innerText = 'Stat: Gagal';
+          alert(`Gagal menata pola di CorelDRAW:\n\n${res?.message || 'Pastikan grup master pola jersey sudah diseleksi di CorelDRAW.'}`);
+        }
+      } catch (err) {
+        lblActionStatus.innerText = 'Stat: Error';
         alert(`Error: ${err.message}`);
       } finally {
-        btnGas.disabled = false;
-        btnGas.innerText = 'Gas!';
+        btnExecute.disabled = false;
+        btnExecute.innerText = '🚀 Gas! Tata Pola Jersey di CorelDRAW';
       }
     });
 
     window.addEventListener('DOMContentLoaded', () => {
-      loadActiveSession();
       checkCorel();
+      renderExcelMappingRows();
+      renderManualUI();
+      renderSizeChartUI();
       setInterval(checkCorel, 8000);
     });
-    window.addEventListener('focus', () => {
-      checkCorel();
-    });
+
+    window.addEventListener('focus', () => checkCorel());
   </script>
 </body>
 </html>
-

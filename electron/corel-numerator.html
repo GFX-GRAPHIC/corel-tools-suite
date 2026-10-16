@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Corel Tools Suite — Numerator Machine</title>
+  <title>Corel Tools Suite - Numerator Machine</title>
   <style>
     * {
       box-sizing: border-box;
@@ -343,7 +343,7 @@
   <div class="titlebar">
     <div class="titlebar-left">
       <div class="titlebar-icon">#</div>
-      <span>Corel Tools Suite — Numerator Machine</span>
+      <span>Corel Tools Suite - Numerator Machine</span>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="btnMinimize">_</button>
@@ -605,7 +605,7 @@
         if (window.electronAPI?.corelCheckStatus) {
           const res = await window.electronAPI.corelCheckStatus();
           if (res.connected) {
-            lblCorelStatus.innerText = `CorelDRAW: Connected — Version ${res.version || '2021'}`;
+            lblCorelStatus.innerText = `CorelDRAW: Connected - Version ${res.version || '2021'}`;
             lblCorelStatus.style.color = '#059669';
           } else {
             lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
