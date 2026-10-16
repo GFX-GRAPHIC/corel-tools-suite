@@ -587,9 +587,9 @@ const COREL_FIND_APP_PS = `
             $progCandidates = @()
             if ($curVer) { $progCandidates += $curVer }
             $progCandidates += @('CorelDRAW.Application.23', 'CorelDRAW.Application', 'CorelDRAW.Application.24', 'CorelDRAW.Application.22', 'CorelDRAW.Application.25', 'CorelDRAW.Application.21', 'CorelDRAW.Application.20')
-            foreach ($pId in $progCandidates) {
+            foreach ($progId in $progCandidates) {
                 try {
-                    $c = New-Object -ComObject $pId -ErrorAction Stop
+                    $c = New-Object -ComObject $progId -ErrorAction Stop
                     if ($c) {
                         $corel = $c
                         break
