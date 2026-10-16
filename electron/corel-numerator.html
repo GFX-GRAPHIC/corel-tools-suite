@@ -489,7 +489,11 @@
     <div class="status-bar">
       <div class="status-line">
         <span id="lblStatus">Stat: Siap (Seleksi master di Corel)</span>
-        <span id="lblRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <button type="button" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
+          <button type="button" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #1d4ed8; font-weight: 600;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
+          <span id="lblRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
+        </div>
       </div>
       <div class="status-corel" id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</div>
     </div>
@@ -505,6 +509,8 @@
     const lblStatus = document.getElementById('lblStatus');
     const lblRefresh = document.getElementById('lblRefresh');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
+    const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
+    const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
     const numStart = document.getElementById('numStart');
     const numEnd = document.getElementById('numEnd');
@@ -607,9 +613,13 @@
           if (res.connected) {
             lblCorelStatus.innerText = `CorelDRAW: Connected - Version ${res.version || '2021'}`;
             lblCorelStatus.style.color = '#059669';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
           } else {
             lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
             lblCorelStatus.style.color = '#dc2626';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
           }
         } else {
           lblCorelStatus.innerText = 'CorelDRAW: Web Mode (Simulator)';
@@ -617,7 +627,45 @@
       } catch (err) {
         lblCorelStatus.innerText = 'CorelDRAW: Disconnected';
         lblCorelStatus.style.color = '#dc2626';
+        if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+        if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
       }
+    }
+
+    if (btnQuickCleanCorel) {
+      btnQuickCleanCorel.addEventListener('click', async () => {
+        lblStatus.innerText = 'Stat: Membersihkan proses background Corel...';
+        btnQuickCleanCorel.disabled = true;
+        try {
+          if (window.electronAPI?.cleanGhostProcesses) {
+            const res = await window.electronAPI.cleanGhostProcesses();
+            lblStatus.innerText = `Stat: ${res.message || 'Selesai membersihkan'}`;
+            await checkCorel();
+          }
+        } catch (e) {
+          lblStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickCleanCorel.disabled = false;
+        }
+      });
+    }
+
+    if (btnQuickLaunchCorel) {
+      btnQuickLaunchCorel.addEventListener('click', async () => {
+        lblStatus.innerText = 'Stat: Membuka aplikasi CorelDRAW...';
+        btnQuickLaunchCorel.disabled = true;
+        try {
+          if (window.electronAPI?.launchCorelApp) {
+            const res = await window.electronAPI.launchCorelApp();
+            lblStatus.innerText = `Stat: ${res.message || 'CorelDRAW diluncurkan'}`;
+            setTimeout(checkCorel, 4000);
+          }
+        } catch (e) {
+          lblStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickLaunchCorel.disabled = false;
+        }
+      });
     }
 
     lblRefresh.addEventListener('click', () => {

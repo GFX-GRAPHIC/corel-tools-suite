@@ -515,9 +515,22 @@ function runPowerShellScript(psContent, timeout = 300000) {
   });
 }
 
-// Shared multi-strategy CorelDRAW COM Connection PowerShell snippet for all automation handlers
-const COREL_CONNECT_PS = `
+// Shared multi-strategy CorelDRAW Application Finder PowerShell snippet
+const COREL_FIND_APP_PS = `
+    # 0. Proactively sweep and terminate any ghost/headless Corel processes
+    $allProcs = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue
+    if ($allProcs) {
+        $ghostProcs = $allProcs | Where-Object { $_.MainWindowHandle -eq 0 }
+        if ($ghostProcs) {
+            foreach ($gp in $ghostProcs) {
+                try { Stop-Process -Id $gp.Id -Force } catch {}
+            }
+            Start-Sleep -Milliseconds 100
+        }
+    }
+
     $corel = $null
+    # 1. Marshal::GetActiveObject across versions 26 down to 14
     for ($v = 26; $v -ge 14; $v--) {
         try {
             $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
@@ -538,6 +551,7 @@ const COREL_CONNECT_PS = `
         } catch {}
     }
 
+    # 1b. Try CurVer and version-independent ProgID
     if (-not $corel) {
         $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
         if ($curVer) {
@@ -548,21 +562,61 @@ const COREL_CONNECT_PS = `
         try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
     }
 
+    # 2. If GetActiveObject didn't find it in ROT, but CorelDRAW IS RUNNING with a visible window:
+    $realProcs = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }
+    if (-not $corel -and $realProcs) {
+        # Strategy A: Check window title for open .cdr file and bind to file moniker
+        foreach ($rp in $realProcs) {
+            $winTitle = $rp.MainWindowTitle
+            if ($winTitle -match '([a-zA-Z]:\\\\[^\\*\\"''\\r\\n]+\\.cdr)') {
+                $cdrPath = $matches[1].Trim()
+                if (Test-Path $cdrPath) {
+                    try {
+                        $boundDoc = [System.Runtime.InteropServices.Marshal]::BindToMoniker($cdrPath)
+                        if ($boundDoc) {
+                            try { $corel = $boundDoc.Application } catch { $corel = $boundDoc }
+                            if ($corel) { break }
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        # Strategy B: Connect via COM Class Factory (attaches to running REGCLS_MULTIPLEUSE instance)
+        if (-not $corel) {
+            $progCandidates = @()
+            if ($curVer) { $progCandidates += $curVer }
+            $progCandidates += @('CorelDRAW.Application.23', 'CorelDRAW.Application', 'CorelDRAW.Application.24', 'CorelDRAW.Application.22', 'CorelDRAW.Application.25', 'CorelDRAW.Application.21', 'CorelDRAW.Application.20')
+            foreach ($pId in $progCandidates) {
+                try {
+                    $c = New-Object -ComObject $pId -ErrorAction Stop
+                    if ($c) {
+                        $corel = $c
+                        break
+                    }
+                } catch {}
+            }
+        }
+
+        # Strategy C: Visual Basic GetObject fallback
+        if (-not $corel) {
+            try {
+                Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction SilentlyContinue
+                $corel = [Microsoft.VisualBasic.Interaction]::GetObject("", "CorelDRAW.Application")
+            } catch {}
+        }
+    }
+`;
+
+// Shared multi-strategy CorelDRAW COM Connection PowerShell snippet for all automation handlers
+const COREL_CONNECT_PS = `
+${COREL_FIND_APP_PS}
+
     if (-not $corel) {
         $procs = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue
-        if ($procs) {
-            $realProcs = $procs | Where-Object { $_.MainWindowHandle -ne 0 }
-            $ghostProcs = $procs | Where-Object { $_.MainWindowHandle -eq 0 }
-
-            if (-not $realProcs -and $ghostProcs) {
-                foreach ($gp in $ghostProcs) {
-                    try { Stop-Process -Id $gp.Id -Force } catch {}
-                }
-                throw "Terdeteksi proses CorelDRAW 'ghost' (tergantung di latar belakang tanpa jendela aktif) dan telah dibersihkan secara otomatis. Silakan buka aplikasi CorelDRAW Anda sekarang, lalu ulangi kembali proses ini."
-            } elseif ($realProcs) {
-                $activeWin = $realProcs | Select-Object -First 1
-                throw "CorelDRAW sedang berjalan (Jendela: '$($activeWin.MainWindowTitle)'), namun antarmuka COM belum merespon. Pastikan CorelDRAW tidak sedang menampilkan dialog pop-up/modal, atau silakan buat/buka dokumen di CorelDRAW."
-            }
+        $activeWin = if ($procs) { $procs | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1 } else { $null }
+        if ($activeWin) {
+            throw "CorelDRAW sedang berjalan (Jendela: '$($activeWin.MainWindowTitle)'), namun antarmuka COM belum merespon. Pastikan CorelDRAW tidak sedang menampilkan dialog pop-up/modal, atau silakan buat/buka dokumen di CorelDRAW."
         }
         throw "CorelDRAW tidak sedang berjalan. Silakan buka aplikasi CorelDRAW Anda terlebih dahulu."
     }
@@ -573,6 +627,16 @@ const COREL_CONNECT_PS = `
         try {
             $doc = $corel.Documents.Item(1)
             $doc.Activate()
+        } catch {}
+    }
+    if (-not $doc -and $corel) {
+        try {
+            if ($corel.Documents -and $corel.Documents.Count -gt 0) {
+                for ($dIdx = 1; $dIdx -le $corel.Documents.Count; $dIdx++) {
+                    $testDoc = $corel.Documents.Item($dIdx)
+                    if ($testDoc) { $doc = $testDoc; break }
+                }
+            }
         } catch {}
     }
 `;
@@ -591,44 +655,20 @@ $res = @{
     error = ''
 }
 
-$corel = $null
-for ($v = 26; $v -ge 14; $v--) {
-    try {
-        $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
-        if ($c) {
-            $hasDoc = $false
-            try {
-                if ($c.ActiveDocument -or ($c.Documents -and $c.Documents.Count -gt 0)) {
-                    $hasDoc = $true
-                }
-            } catch {}
-            if ($hasDoc) {
-                $corel = $c
-                break
-            } elseif (-not $corel) {
-                $corel = $c
-            }
-        }
-    } catch {}
-}
-
-if (-not $corel) {
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-    if ($curVer) {
-        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
-    }
-}
-if (-not $corel) {
-    try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application"); if ($c) { $corel = $c } } catch {}
-}
+${COREL_FIND_APP_PS}
 
 $allProcs = Get-Process -Name 'CorelDRW','CorelDRAW' -ErrorAction SilentlyContinue
 $realProcs = if ($allProcs) { $allProcs | Where-Object { $_.MainWindowHandle -ne 0 } } else { $null }
-$ghostProcs = if ($allProcs) { $allProcs | Where-Object { $_.MainWindowHandle -eq 0 } } else { $null }
 
 if ($corel) {
     $res.connected = $true
-    $res.version = if ($realProcs -and ($realProcs | Select-Object -First 1).MainWindowTitle) { ($realProcs | Select-Object -First 1).MainWindowTitle } elseif ($corel.Version) { "CorelDRAW $($corel.Version)" } else { 'CorelDRAW Aktif' }
+    $res.version = if ($realProcs -and ($realProcs | Select-Object -First 1).MainWindowTitle) {
+        ($realProcs | Select-Object -First 1).MainWindowTitle
+    } elseif ($corel.Version) {
+        "CorelDRAW $($corel.Version)"
+    } else {
+        'CorelDRAW Aktif'
+    }
     try {
         $doc = $corel.ActiveDocument
         if (-not $doc -and $corel.Documents -and $corel.Documents.Count -gt 0) {
@@ -643,22 +683,10 @@ if ($corel) {
             }
         }
     } catch {}
-} elseif ($allProcs) {
-    if (-not $realProcs -and $ghostProcs) {
-        # Automatically clean zombie/ghost processes in background
-        foreach ($gp in $ghostProcs) {
-            try { Stop-Process -Id $gp.Id -Force } catch {}
-        }
-        $res.connected = $false
-        $res.error = "Proses ghost CorelDRAW latar belakang telah dibersihkan otomatis. Silakan buka aplikasi CorelDRAW Anda."
-    } elseif ($realProcs) {
-        $res.connected = $false
-        $res.version = ($realProcs | Select-Object -First 1).MainWindowTitle
-        $res.error = "CorelDRAW sedang terbuka namun belum merespon antarmuka COM. Pastikan tidak ada pop-up/dialog aktif di CorelDRAW."
-    } else {
-        $res.connected = $false
-        $res.error = "Buka CorelDRAW terlebih dahulu."
-    }
+} elseif ($realProcs) {
+    $res.connected = $false
+    $res.version = ($realProcs | Select-Object -First 1).MainWindowTitle
+    $res.error = "CorelDRAW sedang terbuka namun belum merespon antarmuka COM. Pastikan tidak ada pop-up/dialog aktif di CorelDRAW."
 } else {
     $res.connected = $false
     $res.error = "Buka CorelDRAW terlebih dahulu."
@@ -675,22 +703,7 @@ ipcMain.handle('corel:get-recent-files', async () => {
 $ErrorActionPreference = 'SilentlyContinue'
 $files = @()
 
-$corel = $null
-for ($v = 26; $v -ge 14; $v--) {
-    try {
-        $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$v")
-        if ($c) { $corel = $c; break }
-    } catch {}
-}
-if (-not $corel) {
-    $curVer = (Get-ItemProperty "Registry::HKEY_CLASSES_ROOT\\CorelDRAW.Application\\CurVer" -ErrorAction SilentlyContinue).'(default)'
-    if ($curVer) {
-        try { $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject($curVer); if ($c) { $corel = $c } } catch {}
-    }
-}
-if (-not $corel) {
-    try { $corel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
-}
+${COREL_FIND_APP_PS}
 
 if ($corel -and $corel.Documents) {
     for ($i = 1; $i -le $corel.Documents.Count; $i++) {
@@ -3403,31 +3416,38 @@ if ($procs) {
 ipcMain.handle('corel:launch-app', async () => {
   const ps = `
 $ErrorActionPreference = 'SilentlyContinue'
-$paths = @(
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2024\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2023\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2022\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2021\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2020\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2019\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite X8\\Programs64\\CorelDrw.exe",
-    "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite X7\\Programs64\\CorelDrw.exe"
-)
-$found = $null
-foreach ($p in $paths) {
-    if (Test-Path $p) { $found = $p; break }
-}
-if (-not $found) {
-    try {
-        $regPath = (Get-ItemProperty "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\CorelDRW.exe" -ErrorAction SilentlyContinue).'(default)'
-        if ($regPath -and (Test-Path $regPath)) { $found = $regPath }
-    } catch {}
-}
-if ($found) {
-    Start-Process -FilePath $found
+$shortcut = Get-ChildItem "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs" -Recurse -Filter "*CorelDRAW*.lnk" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch "Font|PHOTO|CAPTURE" } | Select-Object -First 1
+if ($shortcut) {
+    Start-Process -FilePath $shortcut.FullName
     @{ success = $true; message = "Aplikasi CorelDRAW sedang dibuka..." } | ConvertTo-Json -Compress
 } else {
-    @{ success = $false; message = "File eksekusi CorelDRW.exe tidak ditemukan di lokasi standar." } | ConvertTo-Json -Compress
+    $paths = @(
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2024\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2023\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2022\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2021\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2020\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite 2019\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite X8\\Programs64\\CorelDrw.exe",
+        "C:\\Program Files\\Corel\\CorelDRAW Graphics Suite X7\\Programs64\\CorelDrw.exe"
+    )
+    $found = $null
+    foreach ($p in $paths) {
+        if (Test-Path $p) { $found = $p; break }
+    }
+    if (-not $found) {
+        try {
+            $regPath = (Get-ItemProperty "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\CorelDRW.exe" -ErrorAction SilentlyContinue).'(default)'
+            if ($regPath -and (Test-Path $regPath)) { $found = $regPath }
+        } catch {}
+    }
+    if ($found) {
+        $workDir = [System.IO.Path]::GetDirectoryName($found)
+        Start-Process -FilePath $found -WorkingDirectory $workDir
+        @{ success = $true; message = "Aplikasi CorelDRAW sedang dibuka..." } | ConvertTo-Json -Compress
+    } else {
+        @{ success = $false; message = "File eksekusi CorelDRW.exe tidak ditemukan di lokasi standar." } | ConvertTo-Json -Compress
+    }
 }
 `;
   return runPowerShellScript(ps, 5000);

@@ -1035,9 +1035,11 @@
 
   <!-- 5. Status Bar -->
   <div class="statusbar">
-    <div style="display: flex; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 6px;">
       <span class="status-dot" id="corelDot"></span>
       <span id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</span>
+      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
+      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
     </div>
     <div id="lblActionStatus">Stat: Siap</div>
   </div>
@@ -1117,6 +1119,8 @@
     const corelDot = document.getElementById('corelDot');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
     const lblActionStatus = document.getElementById('lblActionStatus');
+    const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
+    const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
     function getActiveTotalCount() {
       if (activeSourceMode === 'excel') {
@@ -1892,15 +1896,57 @@
           if (res.connected) {
             corelDot.style.background = '#10b981';
             lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || 'Aktif'})`;
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
           } else {
             corelDot.style.background = '#ef4444';
-            lblCorelStatus.innerText = 'CorelDRAW: Tidak Terdeteksi (Buka Corel)';
+            lblCorelStatus.innerText = `CorelDRAW: Tidak Terdeteksi (${res.error || 'Buka Corel'})`;
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
           }
         }
       } catch {
         corelDot.style.background = '#ef4444';
         lblCorelStatus.innerText = 'CorelDRAW: Terputus';
+        if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+        if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
       }
+    }
+
+    if (btnQuickCleanCorel) {
+      btnQuickCleanCorel.addEventListener('click', async () => {
+        lblActionStatus.innerText = 'Stat: Membersihkan proses background Corel...';
+        btnQuickCleanCorel.disabled = true;
+        try {
+          if (window.electronAPI?.cleanGhostProcesses) {
+            const res = await window.electronAPI.cleanGhostProcesses();
+            lblActionStatus.innerText = `Stat: ${res.message || 'Selesai membersihkan'}`;
+            await checkCorel();
+          }
+        } catch (e) {
+          lblActionStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickCleanCorel.disabled = false;
+        }
+      });
+    }
+
+    if (btnQuickLaunchCorel) {
+      btnQuickLaunchCorel.addEventListener('click', async () => {
+        lblActionStatus.innerText = 'Stat: Membuka aplikasi CorelDRAW...';
+        btnQuickLaunchCorel.disabled = true;
+        try {
+          if (window.electronAPI?.launchCorelApp) {
+            const res = await window.electronAPI.launchCorelApp();
+            lblActionStatus.innerText = `Stat: ${res.message || 'CorelDRAW diluncurkan'}`;
+            setTimeout(checkCorel, 4000);
+          }
+        } catch (e) {
+          lblActionStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickLaunchCorel.disabled = false;
+        }
+      });
     }
 
     // Execute Certificate Merger
