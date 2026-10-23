@@ -32,6 +32,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const footerActionStatus = document.getElementById('footerActionStatus');
   const recentFilesContainer = document.getElementById('recentFilesContainer');
   const btnRefreshFiles = document.getElementById('btnRefreshFiles');
+  const lblAppVersionAbout = document.getElementById('lblAppVersionAbout');
+
+  // Dynamic App Version Initialization
+  const fetchVersionFn = window.electronAPI?.getAppVersion || window.corelAPI?.getAppVersion;
+  if (typeof fetchVersionFn === 'function') {
+    fetchVersionFn()
+      .then((ver) => {
+        if (ver && lblAppVersionAbout) {
+          lblAppVersionAbout.textContent = `Versi ${ver}`;
+        }
+      })
+      .catch((err) => {
+        console.warn('[App] Failed to load app version:', err);
+      });
+  }
 
   // Toast
   const toastNotice = document.getElementById('toastNotice');

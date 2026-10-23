@@ -295,6 +295,10 @@ ipcMain.on('window-reload', (event) => {
   if (win) win.reload();
 });
 
+ipcMain.handle('app:get-version', () => {
+  return app.getVersion();
+});
+
 
 // ==========================================
 // License Management IPC Handlers

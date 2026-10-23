@@ -138,6 +138,9 @@ const api = {
   },
   updaterCheck: () => ipcRenderer.invoke('updater:check'),
   updaterInstall: () => ipcRenderer.invoke('updater:quit-and-install'),
+
+  // Application Info
+  getAppVersion: () => ipcRenderer.invoke('app:get-version'),
 };
 
 // Expose on both names for full backward & forward compatibility
