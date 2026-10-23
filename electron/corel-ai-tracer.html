@@ -791,12 +791,18 @@
   </div>
 
   <!-- 3. Native Status Bar -->
-  <div class="statusbar">
-    <div class="status-left">
+  <div class="statusbar" style="height: auto; min-height: 28px; padding: 4px 10px; flex-wrap: wrap; gap: 6px;">
+    <div class="status-left" style="flex-wrap: wrap;">
       <div class="status-dot" id="corelDot"></div>
       <span id="lblCorelStatus">CorelDRAW: Memeriksa...</span>
+      <select id="selTracerCorelTarget" style="display: none; height: 20px; width: auto; max-width: 190px; font-size: 9.5px; padding: 0 4px; border: 1px solid #10b981; border-radius: 3px; background: #ecfdf5; color: #065f46; font-weight: 700; cursor: pointer;" title="Pilih versi CorelDRAW target"></select>
+      <button type="button" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 5px; display: none; background: #334155; border: 1px solid #475569; border-radius: 3px; color: #f8fafc; cursor: pointer;" title="Bersihkan proses CorelDRAW latar belakang yang macet">Bersihkan Corel</button>
+      <button type="button" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 5px; display: none; background: #2563eb; border: 1px solid #1d4ed8; border-radius: 3px; color: #ffffff; font-weight: 600; cursor: pointer;" title="Buka aplikasi CorelDRAW">Buka Corel</button>
     </div>
-    <div id="lblActionStatus">Stat: Siap digunakan</div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span id="lblTracerRefresh" style="color: #34d399; cursor: pointer; text-decoration: underline; font-weight: 600; font-size: 9.5px;" title="Perbarui koneksi CorelDRAW">Refresh</span>
+      <div id="lblActionStatus">Stat: Siap digunakan</div>
+    </div>
   </div>
 
   <script>
@@ -852,6 +858,10 @@
     const lblCorelStatus = document.getElementById('lblCorelStatus');
     const badgeCorelStatus = document.getElementById('badgeCorelStatus');
     const lblActionStatus = document.getElementById('lblActionStatus');
+    const selTracerCorelTarget = document.getElementById('selTracerCorelTarget');
+    const lblTracerRefresh = document.getElementById('lblTracerRefresh');
+    const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
+    const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
     const DEFAULT_PROMPT = "buatkan motif pada bju ini menjadi pattern berbentuk kotak dengan kualitas full hd kotak potrait buatkan dengan sangat mirip dan presisi sperti yang di kirim contohnya,hanya motif bajunya saja hapus bajunya jadikan kotak pattern hapus logo dan tulisannya, jadikan satu gambar saja jangan di repeat jadikan satu kotak gambar saja,";
 
@@ -1226,21 +1236,108 @@
       }
     });
 
+    if (selTracerCorelTarget) {
+      selTracerCorelTarget.addEventListener('change', async () => {
+        const val = selTracerCorelTarget.value;
+        const opt = selTracerCorelTarget.options[selTracerCorelTarget.selectedIndex];
+        const pid = opt ? parseInt(opt.dataset.pid || '0', 10) : 0;
+        if (window.electronAPI?.setPreferredCorelVersion) {
+          await window.electronAPI.setPreferredCorelVersion(val, pid);
+          await checkCorel();
+        }
+      });
+    }
+
+    if (lblTracerRefresh) {
+      lblTracerRefresh.addEventListener('click', () => {
+        lblActionStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
+        checkCorel();
+        setTimeout(() => { lblActionStatus.innerText = 'Stat: Siap digunakan'; }, 1000);
+      });
+    }
+
+    if (btnQuickCleanCorel) {
+      btnQuickCleanCorel.addEventListener('click', async () => {
+        lblActionStatus.innerText = 'Stat: Membersihkan proses background Corel...';
+        btnQuickCleanCorel.disabled = true;
+        try {
+          if (window.electronAPI?.cleanGhostProcesses) {
+            const res = await window.electronAPI.cleanGhostProcesses();
+            lblActionStatus.innerText = `Stat: ${res.message || 'Selesai membersihkan'}`;
+            await checkCorel();
+          }
+        } catch (e) {
+          lblActionStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickCleanCorel.disabled = false;
+        }
+      });
+    }
+
+    if (btnQuickLaunchCorel) {
+      btnQuickLaunchCorel.addEventListener('click', async () => {
+        lblActionStatus.innerText = 'Stat: Membuka aplikasi CorelDRAW...';
+        btnQuickLaunchCorel.disabled = true;
+        try {
+          if (window.electronAPI?.launchCorelApp) {
+            const res = await window.electronAPI.launchCorelApp();
+            lblActionStatus.innerText = `Stat: ${res.message || 'CorelDRAW diluncurkan'}`;
+            setTimeout(checkCorel, 4000);
+          }
+        } catch (e) {
+          lblActionStatus.innerText = `Stat: Gagal (${e.message})`;
+        } finally {
+          btnQuickLaunchCorel.disabled = false;
+        }
+      });
+    }
+
     // Corel Status Polling
+    let isCheckingCorel = false;
     async function checkCorel() {
+      if (document.hidden || isCheckingCorel) return;
+      isCheckingCorel = true;
       try {
         if (window.electronAPI?.corelCheckStatus) {
           const res = await window.electronAPI.corelCheckStatus();
           if (res.connected) {
             corelDot.style.background = '#10b981';
-            lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || 'Aktif'})`;
+            const docSuffix = res.activeDoc ? ` [${res.activeDoc}]` : '';
+            lblCorelStatus.innerText = `CorelDRAW: ${res.version || 'Aktif'}${docSuffix}`;
             badgeCorelStatus.style.background = '#10b981';
             badgeCorelStatus.innerText = 'COREL AKTIF';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
+
+            if (selTracerCorelTarget && Array.isArray(res.runningInstances) && res.runningInstances.length > 0) {
+              selTracerCorelTarget.style.display = 'inline-block';
+              selTracerCorelTarget.innerHTML = '';
+              const autoOpt = document.createElement('option');
+              autoOpt.value = 'auto';
+              autoOpt.dataset.pid = '0';
+              autoOpt.textContent = 'Target: Otomatis';
+              if (!res.preferredVersion || res.preferredVersion === 'auto') autoOpt.selected = true;
+              selTracerCorelTarget.appendChild(autoOpt);
+
+              res.runningInstances.forEach((inst) => {
+                const opt = document.createElement('option');
+                opt.value = String(inst.version || inst.versionNum || 'auto');
+                opt.dataset.pid = String(inst.pid || 0);
+                opt.textContent = `${inst.name || 'CorelDRAW'} (PID ${inst.pid})`;
+                if (res.preferredVersion && res.preferredVersion !== 'auto' && inst.isCurrent) {
+                  opt.selected = true;
+                }
+                selTracerCorelTarget.appendChild(opt);
+              });
+            }
           } else {
             corelDot.style.background = '#ef4444';
-            lblCorelStatus.innerText = 'CorelDRAW: Tidak Terdeteksi (Buka Corel)';
+            lblCorelStatus.innerText = `CorelDRAW: Tidak Terdeteksi (${res.error || 'Buka Corel'})`;
             badgeCorelStatus.style.background = '#64748b';
             badgeCorelStatus.innerText = 'COREL MATI';
+            if (selTracerCorelTarget) selTracerCorelTarget.style.display = 'none';
+            if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+            if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
           }
         }
       } catch {
@@ -1248,6 +1345,11 @@
         lblCorelStatus.innerText = 'CorelDRAW: Terputus';
         badgeCorelStatus.style.background = '#64748b';
         badgeCorelStatus.innerText = 'TERPUTUS';
+        if (selTracerCorelTarget) selTracerCorelTarget.style.display = 'none';
+        if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
+        if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
+      } finally {
+        isCheckingCorel = false;
       }
     }
 

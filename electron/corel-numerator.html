@@ -443,13 +443,24 @@
           </div>
         </div>
 
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 2px;">
+          <span style="font-size: 10px; font-weight: 700; color: #475569;">JARAK DESAIN:</span>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 9.5px; color: #64748b;">Satuan:</span>
+            <select id="selSpacingUnit" style="font-size: 10px; font-weight: 600; padding: 1px 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #1e293b;">
+              <option value="cm" selected>Centimeter (cm)</option>
+              <option value="mm">Milimeter (mm)</option>
+            </select>
+          </div>
+        </div>
+
         <div class="grid-2">
           <div class="field-group">
-            <label class="field-label">Jarak X (cm)</label>
+            <label class="field-label" id="lblSpacingX">Jarak X (cm)</label>
             <input type="number" id="numSpacingX" value="0.5" step="0.1" min="0" />
           </div>
           <div class="field-group">
-            <label class="field-label">Jarak Y (cm)</label>
+            <label class="field-label" id="lblSpacingY">Jarak Y (cm)</label>
             <input type="number" id="numSpacingY" value="0.5" step="0.1" min="0" />
           </div>
         </div>
@@ -478,24 +489,30 @@
         <span>Dukung nomor ganda (isi semua teks angka dummy pada desain)</span>
       </label>
     </div>
+  </div>
 
+  <!-- Pinned Bottom Dock: Action Buttons & Status Bar -->
+  <div style="padding: 6px 12px 6px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
     <!-- Action Buttons -->
-    <div class="action-group">
-      <button type="button" class="btn-primary btn-gas" id="btnGas">🚀 Gas Nomorator!</button>
+    <div class="action-group" style="margin-top: 0;">
+      <button type="button" class="btn-primary btn-gas" id="btnGas">Gas Nomorator</button>
       <button type="button" class="btn-primary" id="btnCancel">Cancel</button>
     </div>
 
     <!-- Status Bar -->
-    <div class="status-bar">
+    <div class="status-bar" style="margin-top: 0;">
       <div class="status-line">
         <span id="lblStatus">Stat: Siap (Seleksi master di Corel)</span>
         <div style="display: flex; gap: 4px; align-items: center;">
-          <button type="button" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
-          <button type="button" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #1d4ed8; font-weight: 600;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
+          <button type="button" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569;" title="Bersihkan proses CorelDRAW latar belakang yang macet">Bersihkan Corel</button>
+          <button type="button" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; color: #1d4ed8; font-weight: 600;" title="Buka aplikasi CorelDRAW">Buka Corel</button>
           <span id="lblRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600;">Refresh</span>
         </div>
       </div>
-      <div class="status-corel" id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+        <div class="status-corel" id="lblCorelStatus" style="flex: 1;">CorelDRAW: Memeriksa koneksi...</div>
+        <select id="selNumCorelTarget" style="display: none; height: 20px; width: auto; max-width: 170px; font-size: 9.5px; padding: 0 4px; border: 1px solid #10b981; border-radius: 3px; background: #ecfdf5; color: #065f46; font-weight: 700;" title="Pilih versi CorelDRAW target"></select>
+      </div>
     </div>
 
     <div class="footer-author">by: GFX IT PRINTING</div>
@@ -509,6 +526,7 @@
     const lblStatus = document.getElementById('lblStatus');
     const lblRefresh = document.getElementById('lblRefresh');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
+    const selNumCorelTarget = document.getElementById('selNumCorelTarget');
     const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
     const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
@@ -525,11 +543,37 @@
     const boxGridSettings = document.getElementById('boxGridSettings');
     const numGridCols = document.getElementById('numGridCols');
     const numGridRows = document.getElementById('numGridRows');
+    const selSpacingUnit = document.getElementById('selSpacingUnit');
+    const lblSpacingX = document.getElementById('lblSpacingX');
+    const lblSpacingY = document.getElementById('lblSpacingY');
     const numSpacingX = document.getElementById('numSpacingX');
     const numSpacingY = document.getElementById('numSpacingY');
     const selGridOrder = document.getElementById('selGridOrder');
     const chkAutoCurves = document.getElementById('chkAutoCurves');
     const chkDoubleNumber = document.getElementById('chkDoubleNumber');
+
+    if (selSpacingUnit) {
+      selSpacingUnit.addEventListener('change', () => {
+        const isMm = selSpacingUnit.value === 'mm';
+        if (lblSpacingX) lblSpacingX.innerText = isMm ? 'Jarak X (mm)' : 'Jarak X (cm)';
+        if (lblSpacingY) lblSpacingY.innerText = isMm ? 'Jarak Y (mm)' : 'Jarak Y (cm)';
+        if (numSpacingX) numSpacingX.step = isMm ? '0.5' : '0.1';
+        if (numSpacingY) numSpacingY.step = isMm ? '0.5' : '0.1';
+
+        const curX = parseFloat(numSpacingX.value);
+        if (!isNaN(curX) && curX >= 0) {
+          numSpacingX.value = isMm
+            ? (curX * 10).toFixed(1).replace(/\.0$/, '')
+            : (curX / 10).toFixed(2).replace(/\.?0+$/, '');
+        }
+        const curY = parseFloat(numSpacingY.value);
+        if (!isNaN(curY) && curY >= 0) {
+          numSpacingY.value = isMm
+            ? (curY * 10).toFixed(1).replace(/\.0$/, '')
+            : (curY / 10).toFixed(2).replace(/\.?0+$/, '');
+        }
+      });
+    }
 
     // Titlebar
     btnMinimize.addEventListener('click', () => {
@@ -605,19 +649,58 @@
       el.addEventListener('change', updatePreview);
     });
 
+    if (selNumCorelTarget) {
+      selNumCorelTarget.addEventListener('change', async () => {
+        const val = selNumCorelTarget.value;
+        const opt = selNumCorelTarget.options[selNumCorelTarget.selectedIndex];
+        const pid = opt ? parseInt(opt.dataset.pid || '0', 10) : 0;
+        if (window.electronAPI?.setPreferredCorelVersion) {
+          await window.electronAPI.setPreferredCorelVersion(val, pid);
+          await checkCorel();
+        }
+      });
+    }
+
     // Check Corel Connection
+    let isCheckingCorel = false;
     async function checkCorel() {
+      if (document.hidden || isCheckingCorel) return;
+      isCheckingCorel = true;
       try {
         if (window.electronAPI?.corelCheckStatus) {
           const res = await window.electronAPI.corelCheckStatus();
           if (res.connected) {
-            lblCorelStatus.innerText = `CorelDRAW: Connected - Version ${res.version || '2021'}`;
+            const docSuffix = res.activeDoc ? ` [${res.activeDoc}]` : '';
+            lblCorelStatus.innerText = `CorelDRAW: ${res.version || 'Connected'}${docSuffix}`;
             lblCorelStatus.style.color = '#059669';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
+
+            if (selNumCorelTarget && Array.isArray(res.runningInstances) && res.runningInstances.length > 0) {
+              selNumCorelTarget.style.display = 'inline-block';
+              selNumCorelTarget.innerHTML = '';
+              const autoOpt = document.createElement('option');
+              autoOpt.value = 'auto';
+              autoOpt.dataset.pid = '0';
+              autoOpt.textContent = 'Target: Otomatis';
+              if (!res.preferredVersion || res.preferredVersion === 'auto') autoOpt.selected = true;
+              selNumCorelTarget.appendChild(autoOpt);
+
+              res.runningInstances.forEach((inst) => {
+                const opt = document.createElement('option');
+                opt.value = String(inst.version || inst.versionNum || 'auto');
+                opt.dataset.pid = String(inst.pid || 0);
+                opt.textContent = `${inst.name || 'CorelDRAW'} (PID ${inst.pid})`;
+                if (res.preferredVersion && res.preferredVersion !== 'auto' && inst.isCurrent) {
+                  opt.selected = true;
+                }
+                selNumCorelTarget.appendChild(opt);
+              });
+            }
           } else {
             lblCorelStatus.innerText = `CorelDRAW: Disconnected (${res.error || 'Buka CorelDRAW'})`;
             lblCorelStatus.style.color = '#dc2626';
+            if (selNumCorelTarget) selNumCorelTarget.style.display = 'none';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
           }
@@ -627,8 +710,11 @@
       } catch (err) {
         lblCorelStatus.innerText = 'CorelDRAW: Disconnected';
         lblCorelStatus.style.color = '#dc2626';
+        if (selNumCorelTarget) selNumCorelTarget.style.display = 'none';
         if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
         if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
+      } finally {
+        isCheckingCorel = false;
       }
     }
 
@@ -685,8 +771,14 @@
       const mode = selOutputMode.value;
       const cols = parseInt(numGridCols.value, 10) || 2;
       const rows = parseInt(numGridRows.value, 10) || 5;
-      const spacingX = parseFloat(numSpacingX.value) || 0.5;
-      const spacingY = parseFloat(numSpacingY.value) || 0.5;
+      const isMm = selSpacingUnit?.value === 'mm';
+      const rawSpacingX = parseFloat(numSpacingX.value);
+      const valX = !isNaN(rawSpacingX) && rawSpacingX >= 0 ? rawSpacingX : (isMm ? 5 : 0.5);
+      const spacingX = isMm ? (valX / 10.0) : valX;
+
+      const rawSpacingY = parseFloat(numSpacingY.value);
+      const valY = !isNaN(rawSpacingY) && rawSpacingY >= 0 ? rawSpacingY : (isMm ? 5 : 0.5);
+      const spacingY = isMm ? (valY / 10.0) : valY;
       const gridOrder = selGridOrder.value;
       const autoCurves = chkAutoCurves.checked;
       const doubleNumber = chkDoubleNumber.checked;

@@ -801,6 +801,24 @@
       box-shadow: none;
     }
 
+    .btn-danger {
+      background: #dc2626;
+      color: #ffffff;
+      border: 1px solid #b91c1c;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      transition: all 0.15s;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
     /* Status Bar */
     .statusbar {
       height: 26px;
@@ -824,6 +842,32 @@
       display: inline-block;
       margin-right: 5px;
     }
+
+    .btn-restart-update {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #0284c7;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      border: 1px solid #38bdf8;
+      box-shadow: 0 1px 4px rgba(2, 132, 199, 0.4);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-app-region: no-drag;
+      animation: pulseUpdateBtn 2s infinite ease-in-out;
+    }
+    .btn-restart-update:hover {
+      background: #0369a1;
+      border-color: #7dd3fc;
+    }
+    @keyframes pulseUpdateBtn {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.7); }
+      50% { box-shadow: 0 0 0 5px rgba(14, 165, 233, 0); }
+    }
   </style>
 </head>
 <body>
@@ -833,6 +877,9 @@
     <div class="titlebar-left">
       <div class="titlebar-icon">👕</div>
       <span>Corel Tools Suite - Auto-Layout Jersey Pro</span>
+      <button type="button" id="btnCompanionUpdate" class="btn-restart-update" style="display: none; margin-left: 10px;" title="Pembaruan siap dipasang! Klik untuk restart aplikasi.">
+        <span id="lblCompanionUpdateText">Restart to Update &rarr;</span>
+      </button>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="btnPin" title="Pin Selalu di Depan">📌</button>
@@ -933,7 +980,7 @@
             <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi huruf CorelDRAW)">🔠 Change Case...</button>
+            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi huruf CorelDRAW)">Change Case...</button>
             <button type="button" id="btnPresetJersey" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset Standar Jersey">Preset Jersey</button>
             <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #1d4ed8;">+ Tambah Teks</button>
           </div>
@@ -961,7 +1008,7 @@
             <span>INPUT / PASTE DATA TEKS BEBAS PER VARIABEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case">🔠 Change Case...</button>
+            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case">Change Case...</button>
             <button type="button" id="btnManualPresetJersey" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset Standar Jersey">Preset Jersey</button>
             <button type="button" id="btnAddManualVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #1d4ed8;">+ Tambah Variabel</button>
           </div>
@@ -1004,7 +1051,7 @@
           <span class="step-badge">3</span>
           <span>DIMENSI POLA JERSEY (AUTO-RESIZE PER SIZE)</span>
         </div>
-        <button type="button" id="btnSampleMasterShape" class="btn-secondary" style="height: 22px; font-size: 9.5px; font-weight: 700; color: #1d4ed8;" title="Baca dimensi lebar & tinggi pola yang sedang diseleksi di CorelDRAW">🎯 Baca Ukuran Pola dari Corel</button>
+        <button type="button" id="btnSampleMasterShape" class="btn-secondary" style="height: 22px; font-size: 9.5px; font-weight: 700; color: #1d4ed8;" title="Baca dimensi lebar & tinggi pola yang sedang diseleksi di CorelDRAW">Baca Ukuran Pola dari Corel</button>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -1031,6 +1078,12 @@
             <option value="3XL">3XL</option>
           </select>
         </div>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <span style="font-weight: 700; color: #166534;">Kolom Ukuran (Excel):</span>
+          <select id="selSizeColumn" style="height: 22px; font-size: 10px; font-weight: 700; color: #0f172a; border: 1px solid #86efac; border-radius: 3px; max-width: 170px;">
+            <option value="">Otomatis (Deteksi)</option>
+          </select>
+        </div>
         <div style="font-weight: 600; color: #1e40af;">
           Lebar Master: <b id="lblMasterW">206.41</b> cm &bull; Tinggi: <b id="lblMasterH">76.00</b> cm &bull; Rasio: <b id="lblMasterRatio">2.716</b>
         </div>
@@ -1054,7 +1107,7 @@
         </table>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 3px;">
           <button type="button" class="btn-secondary" id="btnAddSizeRow" style="height: 22px; font-size: 9.5px;">+ Tambah Ukuran Size</button>
-          <button type="button" class="btn-secondary" id="btnResetSizeChart" style="height: 22px; font-size: 9.5px;">↺ Reset Standar Sublimasi</button>
+          <button type="button" class="btn-secondary" id="btnResetSizeChart" style="height: 22px; font-size: 9.5px;">Reset Standar Sublimasi</button>
         </div>
       </div>
     </div>
@@ -1070,8 +1123,14 @@
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <div style="display: flex; flex-direction: column; gap: 2px;">
-          <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Antar Pola (cm):</label>
-          <input type="number" id="numSpacing" value="1.0" step="0.5" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label id="lblJerseySpacing" style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Pola (cm):</label>
+            <select id="selJerseySpacingUnit" style="font-size: 9.5px; font-weight: 600; padding: 0 4px; border: 1px solid #cbd5e1; border-radius: 3px; background: #f8fafc; color: #1e293b; height: 18px;">
+              <option value="cm" selected>cm</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+          <input type="number" id="numSpacing" value="1.0" step="0.1" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
         </div>
         <div style="display: flex; flex-direction: column; gap: 2px;">
           <label style="font-size: 10px; font-weight: 700; color: #334155;">Limit Pola per Baris/Kolom:</label>
@@ -1105,23 +1164,31 @@
     </div>
 
     <!-- Tombol Eksekusi -->
-    <div class="action-group">
-      <button type="button" class="btn-gas" id="btnExecute">
-        <span>🚀 Gas! Tata Pola Jersey di CorelDRAW</span>
+    <div class="action-group" style="display: flex; gap: 6px;">
+      <button type="button" class="btn-gas" id="btnExecute" style="flex: 1;">
+        <span>Tata Pola Jersey di CorelDRAW</span>
+      </button>
+      <button type="button" class="btn-danger" id="btnCompanionCancel" style="display: none; height: 38px; padding: 0 14px; font-weight: 700; border-radius: 4px; font-size: 11px;">
+        Batal (Esc)
       </button>
     </div>
 
   </div>
 
   <!-- 5. Status Bar -->
-  <div class="statusbar">
-    <div style="display: flex; align-items: center; gap: 6px;">
+  <div class="statusbar" style="height: auto; min-height: 28px; padding: 4px 10px; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
       <span class="status-dot" id="corelDot"></span>
       <span id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</span>
-      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
-      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
+      <select id="selCompanionTargetVersion" style="display: none; height: 20px; width: auto; max-width: 190px; font-size: 9.5px; padding: 0 4px; border: 1px solid #10b981; border-radius: 3px; background: #ecfdf5; color: #065f46; font-weight: 700; cursor: pointer;" title="Pilih versi CorelDRAW target"></select>
+      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">Bersihkan Corel</button>
+      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">Buka Corel</button>
     </div>
-    <div id="lblActionStatus">Stat: Siap</div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button type="button" class="btn-danger" id="btnCompanionStatusBarCancel" style="display: none; height: 18px; font-size: 9px; padding: 0 6px;">Batal (Esc)</button>
+      <span id="lblCompanionRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600; font-size: 9.5px;" title="Perbarui koneksi CorelDRAW">Refresh</span>
+      <div id="lblActionStatus">Stat: Siap</div>
+    </div>
   </div>
 
   <!-- Modal: CorelDRAW Native-Style Change Case Dialog -->
@@ -1209,18 +1276,18 @@
 
     // Excel Mode Variables
     let excelVariables = [
-      { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-      { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+      { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
       { placeholder: '[UKURAN]', column: 'D', label: 'Ukuran (Size)', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-      { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+      { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
     ];
 
     // Manual Mode Variables
     let manualVariables = [
-      { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-      { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+      { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+      { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
       { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nS', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-      { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+      { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
     ];
 
     // Elements
@@ -1266,6 +1333,7 @@
     const chkEnableAutoResize = document.getElementById('chkEnableAutoResize');
     const btnSampleMasterShape = document.getElementById('btnSampleMasterShape');
     const selMasterSize = document.getElementById('selMasterSize');
+    const selSizeColumn = document.getElementById('selSizeColumn');
     const lblMasterW = document.getElementById('lblMasterW');
     const lblMasterH = document.getElementById('lblMasterH');
     const lblMasterRatio = document.getElementById('lblMasterRatio');
@@ -1275,11 +1343,28 @@
 
     // Layout Settings
     const numSpacing = document.getElementById('numSpacing');
+    const selJerseySpacingUnit = document.getElementById('selJerseySpacingUnit');
+    const lblJerseySpacing = document.getElementById('lblJerseySpacing');
     const numLimitCopy = document.getElementById('numLimitCopy');
     const selDirection = document.getElementById('selDirection');
     const selGrouping = document.getElementById('selGrouping');
     const chkAutoCurves = document.getElementById('chkAutoCurves');
     const btnExecute = document.getElementById('btnExecute');
+
+    if (selJerseySpacingUnit) {
+      selJerseySpacingUnit.addEventListener('change', () => {
+        const isMm = selJerseySpacingUnit.value === 'mm';
+        if (lblJerseySpacing) lblJerseySpacing.innerText = isMm ? 'Jarak Pola (mm):' : 'Jarak Pola (cm):';
+        if (numSpacing) numSpacing.step = isMm ? '1' : '0.1';
+
+        const cur = parseFloat(numSpacing?.value);
+        if (!isNaN(cur) && cur >= 0) {
+          numSpacing.value = isMm
+            ? (cur * 10).toFixed(1).replace(/\.0$/, '')
+            : (cur / 10).toFixed(2).replace(/\.?0+$/, '');
+        }
+      });
+    }
 
     const corelDot = document.getElementById('corelDot');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
@@ -1303,24 +1388,53 @@
 
     const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
     const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
+    const selCompanionTargetVersion = document.getElementById('selCompanionTargetVersion');
+    const lblCompanionRefresh = document.getElementById('lblCompanionRefresh');
 
     // Check Corel Connection
+    let isCheckingCorel = false;
     async function checkCorel() {
+      if (document.hidden || isCheckingCorel) return;
+      isCheckingCorel = true;
       try {
         const api = window.electronAPI || window.corelAPI;
         if (api?.checkStatus || api?.corelCheckStatus) {
-          const fn = api.checkStatus || api.corelCheckStatus;
+          const fn = api.corelCheckStatus || api.checkStatus;
           const res = await fn();
           if (res?.connected) {
-            corelDot.style.background = '#15803d';
-            lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || '2021'})`;
-            lblCorelStatus.style.color = '#15803d';
+            corelDot.style.background = '#10b981';
+            const docSuffix = res.activeDoc ? ` [${res.activeDoc}]` : '';
+            lblCorelStatus.innerText = `CorelDRAW: ${res.version || 'Aktif'}${docSuffix}`;
+            lblCorelStatus.style.color = '#059669';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
+
+            if (selCompanionTargetVersion && Array.isArray(res.runningInstances) && res.runningInstances.length > 0) {
+              selCompanionTargetVersion.style.display = 'inline-block';
+              selCompanionTargetVersion.innerHTML = '';
+              const autoOpt = document.createElement('option');
+              autoOpt.value = 'auto';
+              autoOpt.dataset.pid = '0';
+              autoOpt.textContent = 'Target: Otomatis';
+              if (!res.preferredVersion || res.preferredVersion === 'auto') autoOpt.selected = true;
+              selCompanionTargetVersion.appendChild(autoOpt);
+
+              res.runningInstances.forEach((inst) => {
+                const opt = document.createElement('option');
+                opt.value = String(inst.version || inst.versionNum || 'auto');
+                opt.dataset.pid = String(inst.pid || 0);
+                opt.textContent = `${inst.name || 'CorelDRAW'} (PID ${inst.pid})`;
+                if (res.preferredVersion && res.preferredVersion !== 'auto' && inst.isCurrent) {
+                  opt.selected = true;
+                }
+                selCompanionTargetVersion.appendChild(opt);
+              });
+            }
           } else {
             corelDot.style.background = '#dc2626';
             lblCorelStatus.innerText = `CorelDRAW: Terputus (${res?.error || 'Buka CorelDRAW'})`;
             lblCorelStatus.style.color = '#dc2626';
+            if (selCompanionTargetVersion) selCompanionTargetVersion.style.display = 'none';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-flex';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-flex';
           }
@@ -1331,8 +1445,17 @@
         corelDot.style.background = '#dc2626';
         lblCorelStatus.innerText = 'CorelDRAW: Terputus';
         lblCorelStatus.style.color = '#dc2626';
+        if (selCompanionTargetVersion) selCompanionTargetVersion.style.display = 'none';
+      } finally {
+        isCheckingCorel = false;
       }
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        checkCorel();
+      }
+    });
 
     if (btnQuickCleanCorel) {
       btnQuickCleanCorel.addEventListener('click', async () => {
@@ -1484,6 +1607,18 @@
         else if ((p.includes('UKURAN') || p.includes('SIZE')) && sizeCol) v.column = sizeCol.letter;
         else if ((p.includes('SPONSOR') || p.includes('TIM')) && sponsorCol) v.column = sponsorCol.letter;
       });
+
+      // Populate Size Column selector in Section 3
+      if (selSizeColumn) {
+        selSizeColumn.innerHTML = '<option value="">Otomatis (Deteksi)</option>';
+        headers.forEach(h => {
+          const opt = document.createElement('option');
+          opt.value = h.letter;
+          opt.innerText = h.label || `${h.letter}: ${h.name}`;
+          if (sizeCol && h.letter === sizeCol.letter) opt.selected = true;
+          selSizeColumn.appendChild(opt);
+        });
+      }
 
       // Populate Size Filter dropdown
       selTargetSize.innerHTML = '<option value="ALL">Semua Ukuran (ALL)</option>';
@@ -1708,9 +1843,9 @@
           <option value="toggle" ${v.textCase === 'toggle' ? 'selected' : ''}>aA tOGGLE</option>
         </select>
         <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
-          🎯 Ambil Seleksi Corel
+          Ambil Seleksi Corel
         </button>
-        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
+        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">Auto</button>` : ''}
       `;
 
       const selFitMode = bar.querySelector('.sel-fit-mode');
@@ -1887,10 +2022,10 @@
 
     btnPresetJersey.addEventListener('click', () => {
       excelVariables = [
-        { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-        { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+        { placeholder: '[NAMA]', column: 'B', label: 'Nama Pemain', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[NOMOR]', column: 'C', label: 'Nomor Punggung', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
         { placeholder: '[UKURAN]', column: 'D', label: 'Ukuran (Size)', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-        { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+        { placeholder: '[SPONSOR]', column: 'E', label: 'Sponsor Depan', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
       ];
       renderExcelMappingRows();
     });
@@ -2028,10 +2163,10 @@
 
     btnManualPresetJersey.addEventListener('click', () => {
       manualVariables = [
-        { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: 27, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-        { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: 16, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
+        { placeholder: '[NAMA]', label: 'Nama Pemain', text: 'ALEXANDER\nCHRISTIAN\nDAVID PRATAMA\nFERNANDO', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
+        { placeholder: '[NOMOR]', label: 'Nomor Punggung', text: '10\n07\n09\n11', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'none' },
         { placeholder: '[UKURAN]', label: 'Ukuran (Size)', text: 'L\nM\nXL\nS', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' },
-        { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: 22, height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
+        { placeholder: '[SPONSOR]', label: 'Sponsor Depan', text: 'ONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO\nONEAL SUPERMOTO', width: '', height: '', lockRatio: true, fitMode: 'max', align: 'center', textCase: 'upper' }
       ];
       renderManualUI();
     });
@@ -2111,16 +2246,11 @@
       });
     }
 
-    // Sample Master Pattern from CorelDRAW Selection
-    btnSampleMasterShape.addEventListener('click', async () => {
+    // Helper: Sample Master Pattern from CorelDRAW Selection
+    async function sampleMasterFromCorel(isSilent = false) {
+      const api = window.electronAPI || window.corelAPI;
+      if (!api?.corelGetSelectionInfo) return false;
       try {
-        btnSampleMasterShape.disabled = true;
-        btnSampleMasterShape.innerText = '⌛ Membaca Corel...';
-        const api = window.electronAPI || window.corelAPI;
-        if (!api?.corelGetSelectionInfo) {
-          alert('Fitur membaca seleksi CorelDRAW hanya aktif di aplikasi desktop.');
-          return;
-        }
         const sel = await api.corelGetSelectionInfo();
         if (sel && sel.success && sel.count > 0 && sel.widthCm > 0 && sel.heightCm > 0) {
           masterWidthCm = parseFloat(sel.widthCm);
@@ -2133,12 +2263,25 @@
 
           // Update size chart widths proportionally based on new master ratio
           sizeChart.forEach(sc => {
-            if (sc.lockRatio && sc.height > 0) {
+            if (sc.lockRatio !== false && sc.height > 0) {
               sc.width = parseFloat((sc.height * masterRatio).toFixed(2));
             }
           });
           renderSizeChartUI();
+          return true;
+        }
+      } catch (err) {
+        if (!isSilent) throw err;
+      }
+      return false;
+    }
 
+    btnSampleMasterShape.addEventListener('click', async () => {
+      try {
+        btnSampleMasterShape.disabled = true;
+        btnSampleMasterShape.innerText = '⌛ Membaca Corel...';
+        const ok = await sampleMasterFromCorel(false);
+        if (ok) {
           alert(
             `🎯 Berhasil membaca pola master dari CorelDRAW!\n\n` +
             `• Lebar Master: ${masterWidthCm.toFixed(2)} cm\n` +
@@ -2282,19 +2425,53 @@
           return;
         }
 
-        // Map excel data based on variables
+        const sizeColLetter = selSizeColumn ? selSizeColumn.value : '';
         finalRows = excelData.rows.map(r => {
           const rowObj = {};
+          const lowerSeen = new Set();
+          function setUniqueField(k, val) {
+            if (!k) return;
+            const low = k.toString().toLowerCase();
+            if (!lowerSeen.has(low)) {
+              lowerSeen.add(low);
+              rowObj[k] = val !== undefined && val !== null ? String(val) : '';
+            }
+          }
+
+          // 1. Column letters from Excel row (e.g. A, B, C, D...)
+          for (const [colLetter, val] of Object.entries(r)) {
+            setUniqueField(colLetter, val);
+          }
+
+          // 2. Mapped placeholder keys (e.g. [NAMA], [NOMOR], [UKURAN])
           excelVariables.forEach(v => {
             const rawVal = r[v.column] !== undefined ? r[v.column] : '';
-            rowObj[v.placeholder] = rawVal;
-            // Also store aliases
-            const pUpper = v.placeholder.toUpperCase();
-            if (pUpper.includes('NAMA')) { rowObj.Nama = rawVal; rowObj.name = rawVal; }
-            if (pUpper.includes('NOMOR') || pUpper.includes('NO')) { rowObj.Nomor = rawVal; rowObj.number = rawVal; }
-            if (pUpper.includes('UKURAN') || pUpper.includes('SIZE')) { rowObj.Ukuran = rawVal; rowObj.size = rawVal; }
-            if (pUpper.includes('SPONSOR')) { rowObj.Sponsor = rawVal; }
+            if (v.placeholder) setUniqueField(v.placeholder, rawVal);
           });
+
+          // 3. Resolve Size value
+          let resolvedSize = '';
+          if (sizeColLetter && r[sizeColLetter] !== undefined) {
+            resolvedSize = String(r[sizeColLetter]).trim();
+          } else if (excelData.headers) {
+            const sH = excelData.headers.find(h => /ukuran|size/i.test(h.name));
+            if (sH && r[sH.letter] !== undefined) {
+              resolvedSize = String(r[sH.letter]).trim();
+            }
+          }
+          if (resolvedSize) {
+            setUniqueField('size', resolvedSize);
+            setUniqueField('[UKURAN]', resolvedSize);
+          }
+
+          // 4. Map header names without colliding
+          if (excelData.headers) {
+            excelData.headers.forEach(h => {
+              const cellVal = r[h.letter] !== undefined ? r[h.letter] : '';
+              setUniqueField(h.name, cellVal);
+            });
+          }
+
           return rowObj;
         });
         mappingsToUse = excelVariables;
@@ -2314,15 +2491,37 @@
 
         for (let i = 0; i < maxLines; i++) {
           const rowObj = {};
+          const lowerSeen = new Set();
+          function setUniqueField(k, val) {
+            if (!k) return;
+            const low = k.toString().toLowerCase();
+            if (!lowerSeen.has(low)) {
+              lowerSeen.add(low);
+              rowObj[k] = val !== undefined && val !== null ? String(val) : '';
+            }
+          }
+
           manualVariables.forEach((v, j) => {
             const val = varLines[j][i] || '';
-            rowObj[v.placeholder] = val;
-            const pUpper = v.placeholder.toUpperCase();
-            if (pUpper.includes('NAMA')) { rowObj.Nama = val; rowObj.name = val; }
-            if (pUpper.includes('NOMOR') || pUpper.includes('NO')) { rowObj.Nomor = val; rowObj.number = val; }
-            if (pUpper.includes('UKURAN') || pUpper.includes('SIZE')) { rowObj.Ukuran = val; rowObj.size = val; }
-            if (pUpper.includes('SPONSOR')) { rowObj.Sponsor = val; }
+            v.column = 'col_' + j;
+            setUniqueField('col_' + j, val);
+            if (v.placeholder) {
+              setUniqueField(v.placeholder, val);
+              const bare = v.placeholder.replace(/[\[\]{}]/g, '').trim();
+              if (bare) setUniqueField(bare, val);
+            }
+            if (v.label) {
+              setUniqueField(v.label, val);
+            }
+            const pUpper = (v.placeholder + ' ' + (v.label || '')).toUpperCase();
+            if (pUpper.includes('NAMA') || pUpper.includes('NAME')) setUniqueField('name', val);
+            if (pUpper.includes('NOMOR') || pUpper.includes('NO')) setUniqueField('number', val);
+            if (pUpper.includes('UKURAN') || pUpper.includes('SIZE')) setUniqueField('size', val);
+            if (pUpper.includes('SPONSOR')) setUniqueField('sponsor', val);
           });
+          if (!rowObj.size && !rowObj.Ukuran) {
+            setUniqueField('size', selMasterSize.value || 'L');
+          }
           finalRows.push(rowObj);
         }
         mappingsToUse = manualVariables;
@@ -2344,21 +2543,31 @@
       // Construct Size Chart Map
       const sizeChartMap = {};
       sizeChart.forEach(sc => {
-        sizeChartMap[sc.size] = {
-          height: sc.height,
-          width: sc.width,
-          lockRatio: sc.lockRatio !== false
-        };
+        const szKey = String(sc.size || '').trim().toUpperCase();
+        if (szKey) {
+          sizeChartMap[szKey] = {
+            height: parseFloat(sc.height) || 0,
+            width: parseFloat(sc.width) || 0,
+            lockRatio: sc.lockRatio !== false
+          };
+        }
       });
 
-      const spacingVal = parseFloat(numSpacing.value) || 1.0;
+      const isMm = selJerseySpacingUnit?.value === 'mm';
+      const rawSpacing = parseFloat(numSpacing.value);
+      const valSpacing = !isNaN(rawSpacing) && rawSpacing >= 0 ? rawSpacing : (isMm ? 10 : 1.0);
+      const spacingVal = isMm ? (valSpacing / 10.0) : valSpacing;
       const limitVal = parseInt(numLimitCopy.value, 10) || 4;
       const dirVal = selDirection.value || 'vertical';
       const isGroupSize = selGrouping.value === 'group_size';
       const enableResize = chkEnableAutoResize.checked;
+      const autoCurves = chkAutoCurves ? chkAutoCurves.checked : false;
 
+      isExecutingLayout = true;
       btnExecute.disabled = true;
-      btnExecute.innerText = '🚀 Sedang Menata di CorelDRAW...';
+      btnExecute.innerText = 'Sedang Menata di CorelDRAW...';
+      if (btnCompanionCancel) btnCompanionCancel.style.display = 'inline-flex';
+      if (btnCompanionStatusBarCancel) btnCompanionStatusBarCancel.style.display = 'inline-flex';
       lblActionStatus.innerText = `Stat: Menata ${finalRows.length} pola jersey...`;
 
       try {
@@ -2375,17 +2584,18 @@
           mappings: mappingsToUse,
           sizeChart: sizeChartMap,
           enableAutoResize: enableResize,
+          autoCurves: autoCurves,
           masterSize: selMasterSize.value || 'L',
           spacingCm: spacingVal,
           limitCopy: limitVal,
           direction: dirVal,
-          maxNameWidthCm: mappingsToUse[0]?.width || 27.0,
+          maxNameWidthCm: parseFloat(mappingsToUse[0]?.width) || 0.0,
           groupBySize: isGroupSize
         });
 
         if (res && res.success) {
           lblActionStatus.innerText = `Stat: Selesai (${res.count || finalRows.length} pola)!`;
-          alert(`🎉 Berhasil menata ${res.count || finalRows.length} pola jersey di CorelDRAW!\n\n${res.message}`);
+          alert(`Berhasil menata ${res.count || finalRows.length} pola jersey di CorelDRAW!\n\n${res.message}`);
         } else {
           lblActionStatus.innerText = 'Stat: Gagal';
           alert(`Gagal menata pola di CorelDRAW:\n\n${res?.message || 'Pastikan grup master pola jersey sudah diseleksi di CorelDRAW.'}`);
@@ -2394,20 +2604,105 @@
         lblActionStatus.innerText = 'Stat: Error';
         alert(`Error: ${err.message}`);
       } finally {
+        isExecutingLayout = false;
         btnExecute.disabled = false;
-        btnExecute.innerText = '🚀 Gas! Tata Pola Jersey di CorelDRAW';
+        btnExecute.innerText = 'Tata Pola Jersey di CorelDRAW';
+        if (btnCompanionCancel) btnCompanionCancel.style.display = 'none';
+        if (btnCompanionStatusBarCancel) btnCompanionStatusBarCancel.style.display = 'none';
       }
     });
 
+    let isExecutingLayout = false;
+    const btnCompanionCancel = document.getElementById('btnCompanionCancel');
+    const btnCompanionStatusBarCancel = document.getElementById('btnCompanionStatusBarCancel');
+
+    async function cancelCompanionOperation() {
+      const api = window.electronAPI || window.corelAPI;
+      if (api?.cancelOperation) {
+        lblActionStatus.innerText = 'Stat: Membatalkan proses...';
+        const res = await api.cancelOperation();
+        lblActionStatus.innerText = 'Stat: Dibatalkan';
+        alert(res?.message || 'Proses di CorelDRAW berhasil dibatalkan.');
+      }
+    }
+
+    if (btnCompanionCancel) {
+      btnCompanionCancel.addEventListener('click', cancelCompanionOperation);
+    }
+    if (btnCompanionStatusBarCancel) {
+      btnCompanionStatusBarCancel.addEventListener('click', cancelCompanionOperation);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isExecutingLayout) {
+        cancelCompanionOperation();
+      }
+    });
+
+    if (selCompanionTargetVersion) {
+      selCompanionTargetVersion.addEventListener('change', async () => {
+        const val = selCompanionTargetVersion.value;
+        const opt = selCompanionTargetVersion.options[selCompanionTargetVersion.selectedIndex];
+        const pid = opt ? parseInt(opt.dataset.pid || '0', 10) : 0;
+        const api = window.electronAPI || window.corelAPI;
+        if (api?.setPreferredCorelVersion) {
+          await api.setPreferredCorelVersion(val, pid);
+          await checkCorel();
+          sampleMasterFromCorel(true);
+        }
+      });
+    }
+
+    if (lblCompanionRefresh) {
+      lblCompanionRefresh.addEventListener('click', () => {
+        lblActionStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
+        checkCorel();
+        sampleMasterFromCorel(true);
+        setTimeout(() => { lblActionStatus.innerText = 'Stat: Siap'; }, 1000);
+      });
+    }
+
+    const btnCompanionUpdate = document.getElementById('btnCompanionUpdate');
+    const lblCompanionUpdateText = document.getElementById('lblCompanionUpdateText');
+
+    if (window.electronAPI?.onUpdaterStatus || window.corelAPI?.onUpdaterStatus) {
+      const listenFn = window.electronAPI?.onUpdaterStatus || window.corelAPI?.onUpdaterStatus;
+      listenFn((data) => {
+        if (!btnCompanionUpdate) return;
+        if (data.status === 'downloading') {
+          btnCompanionUpdate.style.display = 'inline-flex';
+          btnCompanionUpdate.style.background = '#0369a1';
+          if (lblCompanionUpdateText) lblCompanionUpdateText.innerText = `Update: ${data.percent || 0}%`;
+        } else if (data.status === 'downloaded') {
+          btnCompanionUpdate.style.display = 'inline-flex';
+          btnCompanionUpdate.style.background = '#0284c7';
+          if (lblCompanionUpdateText) lblCompanionUpdateText.innerHTML = 'Restart to Update &rarr;';
+        }
+      });
+    }
+
+    if (btnCompanionUpdate) {
+      btnCompanionUpdate.addEventListener('click', () => {
+        const installFn = window.electronAPI?.updaterInstall || window.corelAPI?.updaterInstall;
+        if (installFn) installFn();
+      });
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       checkCorel();
+      sampleMasterFromCorel(true);
       renderExcelMappingRows();
       renderManualUI();
       renderSizeChartUI();
-      setInterval(checkCorel, 8000);
+      setInterval(() => {
+        checkCorel();
+      }, 8000);
     });
 
-    window.addEventListener('focus', () => checkCorel());
+    window.addEventListener('focus', () => {
+      checkCorel();
+      sampleMasterFromCorel(true);
+    });
   </script>
 </body>
 </html>

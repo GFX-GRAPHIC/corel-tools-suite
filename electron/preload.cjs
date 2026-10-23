@@ -20,6 +20,12 @@ const api = {
   selectExcelFile: () => ipcRenderer.invoke('dialog:select-excel-file'),
   dialogSelectExcelFile: () => ipcRenderer.invoke('dialog:select-excel-file'),
   dialogSelectExportFolder: () => ipcRenderer.invoke('dialog:open-directory'),
+  selectCorelExeDialog: () => ipcRenderer.invoke('dialog:select-corel-exe'),
+  corelSelectCorelExeDialog: () => ipcRenderer.invoke('dialog:select-corel-exe'),
+  autoRegisterCorel: () => ipcRenderer.invoke('corel:auto-register'),
+  corelAutoRegister: () => ipcRenderer.invoke('corel:auto-register'),
+  registerCorelCustomPath: (filePath) => ipcRenderer.invoke('corel:register-custom-path', filePath),
+  corelRegisterCustomPath: (filePath) => ipcRenderer.invoke('corel:register-custom-path', filePath),
 
   // CorelDRAW Status & Info
   checkStatus: () => ipcRenderer.invoke('corel:check-status'),
@@ -28,10 +34,16 @@ const api = {
   openDocument: (filePath) => ipcRenderer.invoke('corel:open-document', filePath),
   corelGetSelectionInfo: () => ipcRenderer.invoke('corel:get-selection-info'),
   corelGetActiveOrderData: () => ipcRenderer.invoke('corel:get-active-order-data'),
+  forceKillAllCorel: () => ipcRenderer.invoke('corel:force-kill-all'),
   cleanGhostProcesses: () => ipcRenderer.invoke('corel:clean-ghost-processes'),
   corelCleanGhostProcesses: () => ipcRenderer.invoke('corel:clean-ghost-processes'),
   launchCorelApp: () => ipcRenderer.invoke('corel:launch-app'),
   corelLaunchApp: () => ipcRenderer.invoke('corel:launch-app'),
+  cancelOperation: () => ipcRenderer.invoke('corel:cancel-operation'),
+  corelCancelOperation: () => ipcRenderer.invoke('corel:cancel-operation'),
+  getPreferredCorelVersion: () => ipcRenderer.invoke('corel:get-preferred-version'),
+  setPreferredCorelVersion: (ver, pid) => ipcRenderer.invoke('corel:set-preferred-version', ver, pid),
+  getDetectedCorelVersions: () => ipcRenderer.invoke('corel:get-detected-versions'),
 
   // Companion Windows
   corelOpenCompanionTool: (data) => ipcRenderer.invoke('corel:open-companion-tool', data),
@@ -82,6 +94,21 @@ const api = {
     ipcRenderer.on('tracer:clipboard-image-ready', () => callback());
   },
 
+  // Order Sorter, Google Lens & AI APIs
+  scanGoogleLens: (payload) => ipcRenderer.invoke('corel:scan-google-lens', payload),
+  aiParseJerseyText: (payload) => ipcRenderer.invoke('corel:ai-parse-jersey-text', payload),
+  aiScanJerseyImage: (payload) => ipcRenderer.invoke('corel:ai-scan-jersey-image', payload),
+  ocrImageToText: (payload) => ipcRenderer.invoke('corel:ocr-image-to-text', payload),
+  exportOrderExcel: (payload) => ipcRenderer.invoke('corel:export-order-excel', payload),
+  saveComparisonImage: (payload) => ipcRenderer.invoke('corel:save-comparison-image', payload),
+  showSaveDialog: (options) => ipcRenderer.invoke('corel:show-save-dialog', options),
+
+  // CDR Version Converter & Inspector APIs
+  inspectCdrFile: (filePath) => ipcRenderer.invoke('corel:inspect-cdr-file', filePath),
+  inspectCdrFiles: (filePaths) => ipcRenderer.invoke('corel:inspect-cdr-files', filePaths),
+  scanCdrDirectory: (dirPath, recursive) => ipcRenderer.invoke('corel:scan-cdr-directory', { dirPath, recursive }),
+  downsaveCdrBatch: (payload) => ipcRenderer.invoke('corel:downsave-cdr-batch', payload),
+
   // File Utilities
   getPathForFile: (file) => {
     try {
@@ -93,6 +120,24 @@ const api = {
       return file?.path || '';
     }
   },
+
+  // License Management APIs
+  licenseGetStatus: () => ipcRenderer.invoke('license:get-status'),
+  licenseGetHwid: () => ipcRenderer.invoke('license:get-hwid'),
+  licenseActivate: (key) => ipcRenderer.invoke('license:activate', key),
+  licenseDeactivate: () => ipcRenderer.invoke('license:deactivate'),
+  onLicenseBlocked: (callback) => {
+    ipcRenderer.on('license:blocked', (_event, data) => callback(data));
+  },
+
+  // Auto-Updater APIs
+  onUpdaterStatus: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('updater:status', handler);
+    return () => ipcRenderer.removeListener('updater:status', handler);
+  },
+  updaterCheck: () => ipcRenderer.invoke('updater:check'),
+  updaterInstall: () => ipcRenderer.invoke('updater:quit-and-install'),
 };
 
 // Expose on both names for full backward & forward compatibility

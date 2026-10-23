@@ -889,7 +889,7 @@
             <span>PEMETAAN TEKS COREL ➔ KOLOM EXCEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">🔠 Change Case...</button>
+            <button type="button" id="btnOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">Change Case...</button>
             <button type="button" id="btnPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset placeholder ke A1, A2, A3">Preset: A1-A3</button>
             <button type="button" id="btnAddVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Teks</button>
           </div>
@@ -917,7 +917,7 @@
             <span>INPUT / PASTE DATA TEKS BEBAS PER VARIABEL</span>
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">🔠 Change Case...</button>
+            <button type="button" id="btnManualOpenChangeCase" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #2563eb;" title="Buka dialog Change Case (Ubah kapitalisasi teks CorelDRAW)">Change Case...</button>
             <button type="button" id="btnManualPresetA1" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Reset ke Preset A1, A2, A3">Preset A1-A3</button>
             <button type="button" id="btnAddManualVar" class="btn-secondary" style="height: 20px; font-size: 9px; padding: 0 6px; font-weight: 700; color: #4338ca;">+ Tambah Variabel</button>
           </div>
@@ -988,13 +988,24 @@
           </div>
         </div>
 
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 2px;">
+          <span style="font-size: 10px; font-weight: 700; color: #475569;">JARAK DESAIN:</span>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 9.5px; color: #64748b;">Satuan:</span>
+            <select id="selMergerSpacingUnit" style="font-size: 10px; font-weight: 600; padding: 1px 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #1e293b;">
+              <option value="cm" selected>Centimeter (cm)</option>
+              <option value="mm">Milimeter (mm)</option>
+            </select>
+          </div>
+        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
           <div style="display: flex; flex-direction: column; gap: 2px;">
-            <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak X (cm):</label>
+            <label id="lblMergerSpacingX" style="font-size: 10px; font-weight: 700; color: #334155;">Jarak X (cm):</label>
             <input type="number" id="numSpacingX" value="0.5" step="0.1" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
           </div>
           <div style="display: flex; flex-direction: column; gap: 2px;">
-            <label style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Y (cm):</label>
+            <label id="lblMergerSpacingY" style="font-size: 10px; font-weight: 700; color: #334155;">Jarak Y (cm):</label>
             <input type="number" id="numSpacingY" value="0.5" step="0.1" min="0" style="height: 24px; padding: 2px 6px; font-size: 11px; border: 1px solid #cbd5e1; border-radius: 3px;" />
           </div>
         </div>
@@ -1027,21 +1038,25 @@
     <!-- Tombol Eksekusi -->
     <div class="action-group">
       <button type="button" class="btn-gas" id="btnExecute">
-        <span>🚀 Gas Buat Sertifikat di CorelDRAW!</span>
+        <span>Gas Buat Sertifikat di CorelDRAW</span>
       </button>
     </div>
 
   </div>
 
   <!-- 5. Status Bar -->
-  <div class="statusbar">
-    <div style="display: flex; align-items: center; gap: 6px;">
+  <div class="statusbar" style="height: auto; min-height: 28px; padding: 4px 10px; flex-wrap: wrap; gap: 4px;">
+    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
       <span class="status-dot" id="corelDot"></span>
       <span id="lblCorelStatus">CorelDRAW: Memeriksa koneksi...</span>
-      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">⚡ Bersihkan Corel</button>
-      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">🚀 Buka Corel</button>
+      <select id="selCertCorelTarget" style="display: none; height: 20px; width: auto; max-width: 190px; font-size: 9.5px; padding: 0 4px; border: 1px solid #10b981; border-radius: 3px; background: #ecfdf5; color: #065f46; font-weight: 700; cursor: pointer;" title="Pilih versi CorelDRAW target"></select>
+      <button type="button" class="btn-secondary" id="btnQuickCleanCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none;" title="Bersihkan proses CorelDRAW latar belakang yang macet">Bersihkan Corel</button>
+      <button type="button" class="btn-secondary" id="btnQuickLaunchCorel" style="height: 18px; font-size: 8.5px; padding: 0 4px; display: none; color: #1d4ed8;" title="Buka aplikasi CorelDRAW">Buka Corel</button>
     </div>
-    <div id="lblActionStatus">Stat: Siap</div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span id="lblCertRefresh" style="color: #059669; cursor: pointer; text-decoration: underline; font-weight: 600; font-size: 9.5px;" title="Perbarui koneksi CorelDRAW">Refresh</span>
+      <div id="lblActionStatus">Stat: Siap</div>
+    </div>
   </div>
 
   <script>
@@ -1110,8 +1125,34 @@
     const numGridRows = document.getElementById('numGridRows');
     const numSpacingX = document.getElementById('numSpacingX');
     const numSpacingY = document.getElementById('numSpacingY');
+    const selMergerSpacingUnit = document.getElementById('selMergerSpacingUnit');
+    const lblMergerSpacingX = document.getElementById('lblMergerSpacingX');
+    const lblMergerSpacingY = document.getElementById('lblMergerSpacingY');
     const selGridOrder = document.getElementById('selGridOrder');
     const lblGridSummary = document.getElementById('lblGridSummary');
+
+    if (selMergerSpacingUnit) {
+      selMergerSpacingUnit.addEventListener('change', () => {
+        const isMm = selMergerSpacingUnit.value === 'mm';
+        if (lblMergerSpacingX) lblMergerSpacingX.innerText = isMm ? 'Jarak X (mm):' : 'Jarak X (cm):';
+        if (lblMergerSpacingY) lblMergerSpacingY.innerText = isMm ? 'Jarak Y (mm):' : 'Jarak Y (cm):';
+        if (numSpacingX) numSpacingX.step = isMm ? '0.5' : '0.1';
+        if (numSpacingY) numSpacingY.step = isMm ? '0.5' : '0.1';
+
+        const curX = parseFloat(numSpacingX?.value);
+        if (!isNaN(curX) && curX >= 0) {
+          numSpacingX.value = isMm
+            ? (curX * 10).toFixed(1).replace(/\.0$/, '')
+            : (curX / 10).toFixed(2).replace(/\.?0+$/, '');
+        }
+        const curY = parseFloat(numSpacingY?.value);
+        if (!isNaN(curY) && curY >= 0) {
+          numSpacingY.value = isMm
+            ? (curY * 10).toFixed(1).replace(/\.0$/, '')
+            : (curY / 10).toFixed(2).replace(/\.?0+$/, '');
+        }
+      });
+    }
 
     const chkAutoCurves = document.getElementById('chkAutoCurves');
     const btnExecute = document.getElementById('btnExecute');
@@ -1119,6 +1160,8 @@
     const corelDot = document.getElementById('corelDot');
     const lblCorelStatus = document.getElementById('lblCorelStatus');
     const lblActionStatus = document.getElementById('lblActionStatus');
+    const selCertCorelTarget = document.getElementById('selCertCorelTarget');
+    const lblCertRefresh = document.getElementById('lblCertRefresh');
     const btnQuickCleanCorel = document.getElementById('btnQuickCleanCorel');
     const btnQuickLaunchCorel = document.getElementById('btnQuickLaunchCorel');
 
@@ -1523,9 +1566,9 @@
           <option value="toggle" ${v.textCase === 'toggle' ? 'selected' : ''}>aA tOGGLE</option>
         </select>
         <button type="button" class="btn-sample-size" title="Ambil ukuran objek teks (${v.placeholder}) yang sedang dipilih di CorelDRAW">
-          🎯 Ambil Seleksi Corel
+          Ambil Seleksi Corel
         </button>
-        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">↺ Auto</button>` : ''}
+        ${(v.width || v.height) ? `<button type="button" class="btn-clear-size" title="Kembalikan ukuran teks ke Otomatis">Auto</button>` : ''}
       `;
 
       const selFitMode = bar.querySelector('.sel-fit-mode');
@@ -1888,19 +1931,68 @@
       renderManualUI();
     });
 
+    if (selCertCorelTarget) {
+      selCertCorelTarget.addEventListener('change', async () => {
+        const val = selCertCorelTarget.value;
+        const opt = selCertCorelTarget.options[selCertCorelTarget.selectedIndex];
+        const pid = opt ? parseInt(opt.dataset.pid || '0', 10) : 0;
+        if (window.electronAPI?.setPreferredCorelVersion) {
+          await window.electronAPI.setPreferredCorelVersion(val, pid);
+          await checkCorel();
+        }
+      });
+    }
+
+    if (lblCertRefresh) {
+      lblCertRefresh.addEventListener('click', () => {
+        lblActionStatus.innerText = 'Stat: Memeriksa CorelDRAW...';
+        checkCorel();
+        setTimeout(() => { lblActionStatus.innerText = 'Stat: Siap'; }, 1000);
+      });
+    }
+
     // Check CorelDRAW Connection
+    let isCheckingCorel = false;
     async function checkCorel() {
+      if (document.hidden || isCheckingCorel) return;
+      isCheckingCorel = true;
       try {
         if (window.electronAPI?.corelCheckStatus) {
           const res = await window.electronAPI.corelCheckStatus();
           if (res.connected) {
             corelDot.style.background = '#10b981';
-            lblCorelStatus.innerText = `CorelDRAW: Terhubung (v${res.version || 'Aktif'})`;
+            const docSuffix = res.activeDoc ? ` [${res.activeDoc}]` : '';
+            lblCorelStatus.innerText = `CorelDRAW: ${res.version || 'Aktif'}${docSuffix}`;
+            lblCorelStatus.style.color = '#059669';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'none';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'none';
+
+            if (selCertCorelTarget && Array.isArray(res.runningInstances) && res.runningInstances.length > 0) {
+              selCertCorelTarget.style.display = 'inline-block';
+              selCertCorelTarget.innerHTML = '';
+              const autoOpt = document.createElement('option');
+              autoOpt.value = 'auto';
+              autoOpt.dataset.pid = '0';
+              autoOpt.textContent = 'Target: Otomatis';
+              if (!res.preferredVersion || res.preferredVersion === 'auto') autoOpt.selected = true;
+              selCertCorelTarget.appendChild(autoOpt);
+
+              res.runningInstances.forEach((inst) => {
+                const opt = document.createElement('option');
+                opt.value = String(inst.version || inst.versionNum || 'auto');
+                opt.dataset.pid = String(inst.pid || 0);
+                opt.textContent = `${inst.name || 'CorelDRAW'} (PID ${inst.pid})`;
+                if (res.preferredVersion && res.preferredVersion !== 'auto' && inst.isCurrent) {
+                  opt.selected = true;
+                }
+                selCertCorelTarget.appendChild(opt);
+              });
+            }
           } else {
             corelDot.style.background = '#ef4444';
             lblCorelStatus.innerText = `CorelDRAW: Tidak Terdeteksi (${res.error || 'Buka Corel'})`;
+            lblCorelStatus.style.color = '#dc2626';
+            if (selCertCorelTarget) selCertCorelTarget.style.display = 'none';
             if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
             if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
           }
@@ -1908,8 +2000,12 @@
       } catch {
         corelDot.style.background = '#ef4444';
         lblCorelStatus.innerText = 'CorelDRAW: Terputus';
+        lblCorelStatus.style.color = '#dc2626';
+        if (selCertCorelTarget) selCertCorelTarget.style.display = 'none';
         if (btnQuickCleanCorel) btnQuickCleanCorel.style.display = 'inline-block';
         if (btnQuickLaunchCorel) btnQuickLaunchCorel.style.display = 'inline-block';
+      } finally {
+        isCheckingCorel = false;
       }
     }
 
@@ -1957,8 +2053,14 @@
       const autoCurves = chkAutoCurves.checked;
       const cols = parseInt(numGridCols?.value, 10) || 2;
       const gridRows = parseInt(numGridRows?.value, 10) || 5;
-      const spacingX = parseFloat(numSpacingX?.value) >= 0 ? parseFloat(numSpacingX.value) : 0.5;
-      const spacingY = parseFloat(numSpacingY?.value) >= 0 ? parseFloat(numSpacingY.value) : 0.5;
+      const isMm = selMergerSpacingUnit?.value === 'mm';
+      const rawX = parseFloat(numSpacingX?.value);
+      const valX = !isNaN(rawX) && rawX >= 0 ? rawX : (isMm ? 5 : 0.5);
+      const spacingX = isMm ? (valX / 10.0) : valX;
+
+      const rawY = parseFloat(numSpacingY?.value);
+      const valY = !isNaN(rawY) && rawY >= 0 ? rawY : (isMm ? 5 : 0.5);
+      const spacingY = isMm ? (valY / 10.0) : valY;
       const gridOrder = selGridOrder?.value || 'left_right';
 
       if (activeSourceMode === 'excel') {

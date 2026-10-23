@@ -2,3 +2,18 @@ node_modules/
 dist-release/
 .DS_Store
 Thumbs.db
+
+# Security: Never commit or upload Keygen, Secrets or Private Licensing Tools
+keygen/
+keygen-builder.json
+license-registry.json
+*Keygen*.exe
+*keygen*.exe
+*.traineddata
+data_test_jersey.xlsx
+scratch/
+versi/
+
+# Large binaries in publish folder (auto-uploaded to GitHub Releases, not git commit)
+publish/*.exe
+publish/*.blockmap

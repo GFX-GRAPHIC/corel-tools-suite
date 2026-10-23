@@ -50,6 +50,272 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
+  // License Management & Activation Controller
+  // ==========================================
+  let currentLicenseState = null;
+  const btnTitlebarLicenseBadge = document.getElementById('btnTitlebarLicenseBadge');
+  const lblTitlebarLicText = document.getElementById('lblTitlebarLicText');
+  const modalLicenseActivation = document.getElementById('modalLicenseActivation');
+  const btnLicModalClose = document.getElementById('btnLicModalClose');
+  const boxLicStatusBanner = document.getElementById('boxLicStatusBanner');
+  const iconLicStatus = document.getElementById('iconLicStatus');
+  const lblLicStatusTitle = document.getElementById('lblLicStatusTitle');
+  const lblLicStatusDesc = document.getElementById('lblLicStatusDesc');
+  const badgeLicDialogType = document.getElementById('badgeLicDialogType');
+  const txtLicHwid = document.getElementById('txtLicHwid');
+  const btnLicCopyHwid = document.getElementById('btnLicCopyHwid');
+  const lblLicCopyText = document.getElementById('lblLicCopyText');
+  const txtLicSerialKey = document.getElementById('txtLicSerialKey');
+  const btnLicSubmitActivate = document.getElementById('btnLicSubmitActivate');
+  const boxLicError = document.getElementById('boxLicError');
+  const boxLicSuccess = document.getElementById('boxLicSuccess');
+  const linkLicContactAdmin = document.getElementById('linkLicContactAdmin');
+
+  async function checkLicenseStatus(autoOpenIfUnlicensed = false) {
+    try {
+      if (window.corelAPI?.licenseGetStatus) {
+        const status = await window.corelAPI.licenseGetStatus();
+        currentLicenseState = status;
+        updateLicenseUI(status);
+
+        if (autoOpenIfUnlicensed) {
+          if (status.isBlocked || (!status.isLicensed && !status.isTrial)) {
+            openLicenseModal();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[License Check Error]', err);
+    }
+  }
+
+  function updateLicenseUI(status) {
+    if (!status) return;
+
+    if (txtLicHwid && status.hwid) {
+      txtLicHwid.value = status.hwid;
+    }
+
+    // Update Titlebar Badge
+    if (btnTitlebarLicenseBadge && lblTitlebarLicText) {
+      btnTitlebarLicenseBadge.className = 'titlebar-lic-pill';
+      if (status.isBlocked) {
+        btnTitlebarLicenseBadge.classList.add('lic-blocked');
+        lblTitlebarLicText.innerText = 'DITANGGUHKAN';
+      } else if (status.isLicensed) {
+        btnTitlebarLicenseBadge.classList.add('lic-lifetime');
+        lblTitlebarLicText.innerText = status.status === 'LIFETIME' ? 'LIFETIME' : 'AKTIF';
+      } else if (status.isTrial) {
+        btnTitlebarLicenseBadge.classList.add('lic-trial');
+        lblTitlebarLicText.innerText = `TRIAL (${status.remainingDays || 0}H)`;
+      } else {
+        btnTitlebarLicenseBadge.classList.add('lic-unlicensed');
+        lblTitlebarLicText.innerText = 'BELUM AKTIF';
+      }
+    }
+
+    // Update Modal Banner
+    if (boxLicStatusBanner && lblLicStatusTitle && lblLicStatusDesc && iconLicStatus) {
+      boxLicStatusBanner.className = 'lic-alert-box';
+      if (badgeLicDialogType) badgeLicDialogType.style.display = 'none';
+
+      if (status.isBlocked) {
+        boxLicStatusBanner.classList.add('lic-alert-blocked');
+        iconLicStatus.innerText = '⛔';
+        lblLicStatusTitle.innerText = 'Lisensi Ditangguhkan (Suspended)';
+        lblLicStatusDesc.innerText = status.message || 'Lisensi untuk komputer ini telah dinonaktifkan oleh Administrator.';
+      } else if (status.isLicensed) {
+        boxLicStatusBanner.classList.add('lic-alert-lifetime');
+        iconLicStatus.innerText = '✓';
+        lblLicStatusTitle.innerText = status.customerName || 'Lisensi Permanen Aktif';
+        lblLicStatusDesc.innerText = status.message || 'Lisensi software aktif seumur hidup (Beli Putus).';
+        if (badgeLicDialogType) {
+          badgeLicDialogType.innerText = status.status || 'LIFETIME';
+          badgeLicDialogType.style.display = 'inline-block';
+        }
+      } else if (status.isTrial) {
+        boxLicStatusBanner.classList.add('lic-alert-trial');
+        iconLicStatus.innerText = '⏱️';
+        lblLicStatusTitle.innerText = 'Masa Percobaan Resmi (Trial Mode)';
+        lblLicStatusDesc.innerText = `Sisa waktu aktif: ${status.remainingDays || 0} Hari. Masukkan Serial Key Beli Putus untuk aktivasi permanen.`;
+        if (badgeLicDialogType) {
+          badgeLicDialogType.innerText = 'TRIAL';
+          badgeLicDialogType.style.display = 'inline-block';
+        }
+      } else {
+        boxLicStatusBanner.classList.add('lic-alert-unlicensed');
+        iconLicStatus.innerText = '⚠️';
+        lblLicStatusTitle.innerText = 'Aplikasi Belum Teraktivasi';
+        lblLicStatusDesc.innerText = 'Silakan masukkan Serial Key resmi dari Admin untuk mengaktifkan seluruh fitur aplikasi.';
+      }
+    }
+  }
+
+  function openLicenseModal() {
+    if (!modalLicenseActivation) return;
+    if (boxLicError) boxLicError.style.display = 'none';
+    if (boxLicSuccess) boxLicSuccess.style.display = 'none';
+    if (txtLicSerialKey) txtLicSerialKey.value = '';
+    modalLicenseActivation.style.display = 'flex';
+    checkLicenseStatus(false);
+  }
+
+  function closeLicenseModal() {
+    if (!modalLicenseActivation) return;
+    modalLicenseActivation.style.display = 'none';
+  }
+
+  function requireActiveLicense() {
+    if (currentLicenseState?.isBlocked) {
+      alert(`⛔ AKSES DITOLAK: Komputer ini sedang dinonaktifkan (BLOCKED) oleh Administrator!\n\nAlasan: ${currentLicenseState.message || 'Penangguhan lisensi'}\n\nHubungi WhatsApp Support (0851-6359-4245).`);
+      openLicenseModal();
+      return false;
+    }
+    if (currentLicenseState && !currentLicenseState.isLicensed && !currentLicenseState.isTrial) {
+      showToast('Aplikasi belum diaktivasi! Harap aktivasi lisensi resmi terlebih dahulu.', false);
+      alert('Aplikasi belum diaktivasi!\n\nSilakan masukkan Serial Key lisensi resmi untuk menggunakan fitur ini.');
+      openLicenseModal();
+      return false;
+    }
+    return true;
+  }
+
+  if (btnTitlebarLicenseBadge) {
+    btnTitlebarLicenseBadge.addEventListener('click', openLicenseModal);
+  }
+  if (btnLicModalClose) {
+    btnLicModalClose.addEventListener('click', closeLicenseModal);
+  }
+  if (btnLicCopyHwid) {
+    btnLicCopyHwid.addEventListener('click', () => {
+      const hwidVal = txtLicHwid?.value || '';
+      if (hwidVal) {
+        navigator.clipboard.writeText(hwidVal);
+        showToast('Hardware ID berhasil disalin ke clipboard!', true);
+        if (lblLicCopyText) {
+          lblLicCopyText.innerText = 'Disalin!';
+          setTimeout(() => { if (lblLicCopyText) lblLicCopyText.innerText = 'Salin HWID'; }, 2000);
+        }
+      }
+    });
+  }
+  if (btnLicSubmitActivate) {
+    btnLicSubmitActivate.addEventListener('click', async () => {
+      const keyVal = txtLicSerialKey?.value.trim();
+      if (!keyVal) {
+        if (boxLicError) {
+          boxLicError.innerText = 'Harap masukkan Kode Lisensi / Serial Key dari Admin!';
+          boxLicError.style.display = 'block';
+        }
+        return;
+      }
+
+      btnLicSubmitActivate.disabled = true;
+      btnLicSubmitActivate.innerText = 'Memverifikasi...';
+      if (boxLicError) boxLicError.style.display = 'none';
+      if (boxLicSuccess) boxLicSuccess.style.display = 'none';
+
+      try {
+        if (window.corelAPI?.licenseActivate) {
+          const res = await window.corelAPI.licenseActivate(keyVal);
+          if (res.success) {
+            if (boxLicSuccess) {
+              boxLicSuccess.innerText = res.message || 'Lisensi berhasil diaktifkan!';
+              boxLicSuccess.style.display = 'block';
+            }
+            showToast(res.message || 'Lisensi berhasil diaktifkan!', true);
+            await checkLicenseStatus(false);
+            setTimeout(() => {
+              closeLicenseModal();
+            }, 1800);
+          } else {
+            if (boxLicError) {
+              boxLicError.innerText = res.message || 'Kode lisensi tidak valid!';
+              boxLicError.style.display = 'block';
+            }
+            showToast(res.message || 'Gagal aktivasi!', false);
+          }
+        }
+      } catch (err) {
+        if (boxLicError) {
+          boxLicError.innerText = `Error: ${err.message}`;
+          boxLicError.style.display = 'block';
+        }
+      } finally {
+        btnLicSubmitActivate.disabled = false;
+        btnLicSubmitActivate.innerText = 'Aktivasi Lisensi Sekarang';
+      }
+    });
+  }
+
+  if (linkLicContactAdmin) {
+    linkLicContactAdmin.addEventListener('click', (e) => {
+      e.preventDefault();
+      const hwidVal = txtLicHwid?.value || 'GFX-UNKNOWN';
+      const text = encodeURIComponent(
+        `Halo Admin / Support GFX, saya ingin membeli / aktivasi lisensi software Corel Tools Suite.\n\nBerikut Hardware ID komputer saya:\n💻 HWID: ${hwidVal}\n\nMohon info nomor rekening & total biayanya. Terima kasih!`
+      );
+      const waUrl = `https://wa.me/6285163594245?text=${text}`;
+      if (window.corelAPI?.openExternalUrl) {
+        window.corelAPI.openExternalUrl(waUrl);
+      } else {
+        window.open(waUrl, '_blank');
+      }
+    });
+  }
+
+  // ==========================================
+  // Auto-Updater UI Controller (Restart to Update)
+  // ==========================================
+  const btnTitlebarUpdate = document.getElementById('btnTitlebarUpdate');
+  const lblUpdateBtnText = document.getElementById('lblUpdateBtnText');
+
+  if (window.electronAPI?.onUpdaterStatus || window.corelAPI?.onUpdaterStatus) {
+    const listenFn = window.electronAPI?.onUpdaterStatus || window.corelAPI?.onUpdaterStatus;
+    listenFn((data) => {
+      if (!btnTitlebarUpdate) return;
+      if (data.status === 'downloading') {
+        btnTitlebarUpdate.style.display = 'inline-flex';
+        btnTitlebarUpdate.style.background = '#0369a1';
+        if (lblUpdateBtnText) lblUpdateBtnText.innerText = `Downloading: ${data.percent || 0}%`;
+      } else if (data.status === 'downloaded') {
+        btnTitlebarUpdate.style.display = 'inline-flex';
+        btnTitlebarUpdate.style.background = '#0284c7';
+        if (lblUpdateBtnText) lblUpdateBtnText.innerHTML = 'Restart to Update &rarr;';
+      }
+    });
+  }
+
+  if (btnTitlebarUpdate) {
+    btnTitlebarUpdate.addEventListener('click', () => {
+      const installFn = window.electronAPI?.updaterInstall || window.corelAPI?.updaterInstall;
+      if (installFn) {
+        installFn();
+      }
+    });
+  }
+
+  // Listen to remote kill switch signal
+  if (window.corelAPI?.onLicenseBlocked) {
+    window.corelAPI.onLicenseBlocked((data) => {
+      currentLicenseState = {
+        isLicensed: false,
+        isTrial: false,
+        isExpired: true,
+        isBlocked: true,
+        status: 'BLOCKED',
+        message: data?.reason || 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.'
+      };
+      updateLicenseUI(currentLicenseState);
+      openLicenseModal();
+      alert(`⛔ LISENSI DITANGGUHKAN: ${data?.reason || 'Lisensi komputer ini telah dinonaktifkan oleh Administrator.'}`);
+    });
+  }
+
+  // Initial check on startup (auto opens modal if unlicensed)
+  checkLicenseStatus(true);
+
+  // ==========================================
   // 1. Navigation & Page Router
   // ==========================================
   function switchView(viewName) {
@@ -81,6 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
   navItems.forEach(item => {
     item.addEventListener('click', () => {
       const view = item.getAttribute('data-view');
+      if (view === 'license') {
+        openLicenseModal();
+        return;
+      }
       switchView(view);
     });
   });
@@ -162,7 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // 3. CorelDRAW Connection & File Status
   // ==========================================
+  let isUpdatingStatus = false;
   async function updateCorelStatus() {
+    if (document.hidden || isUpdatingStatus) return;
+    isUpdatingStatus = true;
     try {
       if (window.corelAPI?.checkStatus) {
         const res = await window.corelAPI.checkStatus();
@@ -177,6 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const docInfo = res.activeDoc ? `Dokumen: ${res.activeDoc} (${res.pageCount || 1} Hal, ${res.selectionCount || 0} Seleksi)` : 'Dokumen: -';
           if (lblActiveDocName) lblActiveDocName.innerText = `Dokumen: ${docName}`;
           if (footerDocInfo) footerDocInfo.innerText = docInfo;
+          if (res.versionMajor && selTargetCorelVersion) {
+            selTargetCorelVersion.value = String(res.versionMajor);
+          }
         } else {
           if (corelDotStatus) corelDotStatus.className = 'status-dot-indicator';
           if (footerCorelDot) footerCorelDot.className = 'status-dot-indicator';
@@ -185,8 +461,98 @@ document.addEventListener('DOMContentLoaded', () => {
           if (lblActiveDocName) lblActiveDocName.innerText = 'Buka CorelDRAW untuk menggunakan tools';
           if (footerDocInfo) footerDocInfo.innerText = 'Dokumen: -';
         }
+        renderMultiCorelInstances(res);
+        refreshTargetCorelDropdown();
       }
     } catch {}
+    finally {
+      isUpdatingStatus = false;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      updateCorelStatus();
+    }
+  });
+
+  const selTargetCorelVersion = document.getElementById('selTargetCorelVersion');
+  const btnGlobalCancelTask = document.getElementById('btnGlobalCancelTask');
+
+  function setTaskRunning(isRunning, label = '') {
+    if (btnGlobalCancelTask) {
+      btnGlobalCancelTask.style.display = isRunning ? 'inline-flex' : 'none';
+    }
+    if (footerActionStatus) {
+      footerActionStatus.innerText = isRunning ? (label || 'Memproses...') : 'Siap';
+    }
+  }
+
+  async function refreshTargetCorelDropdown() {
+    if (!selTargetCorelVersion || !window.corelAPI?.getDetectedCorelVersions) return;
+    try {
+      const res = await window.corelAPI.getDetectedCorelVersions();
+      if (res && res.preferred && !selTargetCorelVersion.dataset.userChanged) {
+        selTargetCorelVersion.value = res.preferred;
+      }
+      if (res && Array.isArray(res.running)) {
+        const runningIds = res.running.filter(r => r.isVisible && r.id && r.id !== '0').map(r => String(r.id));
+        for (let i = 0; i < selTargetCorelVersion.options.length; i++) {
+          const opt = selTargetCorelVersion.options[i];
+          const baseName = opt.getAttribute('data-basename') || opt.text.replace(/\s*-\s*Sedang Terbuka$/i, '');
+          opt.setAttribute('data-basename', baseName);
+          if (runningIds.includes(opt.value)) {
+            opt.text = `${baseName} - Sedang Terbuka`;
+          } else {
+            opt.text = baseName;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  if (selTargetCorelVersion) {
+    if (window.corelAPI?.getPreferredCorelVersion) {
+      window.corelAPI.getPreferredCorelVersion().then((res) => {
+        if (res && res.preferredVersion) {
+          selTargetCorelVersion.value = res.preferredVersion;
+        }
+        refreshTargetCorelDropdown();
+      }).catch(() => {});
+    }
+    selTargetCorelVersion.addEventListener('change', async () => {
+      const chosenVer = selTargetCorelVersion.value;
+      let targetPid = 0;
+      try {
+        if (window.corelAPI?.getDetectedCorelVersions) {
+          const det = await window.corelAPI.getDetectedCorelVersions();
+          if (det && Array.isArray(det.running)) {
+            const match = det.running.find(r => String(r.version) === chosenVer);
+            if (match) targetPid = match.pid;
+          }
+        }
+      } catch {}
+      if (window.corelAPI?.setPreferredCorelVersion) {
+        await window.corelAPI.setPreferredCorelVersion(chosenVer, targetPid);
+        await updateCorelStatus();
+        const selectedText = selTargetCorelVersion.options[selTargetCorelVersion.selectedIndex].text;
+        showToast(`Target CorelDRAW: ${selectedText}`);
+      }
+    });
+  }
+
+  async function triggerCancelOperation() {
+    if (window.corelAPI?.cancelOperation) {
+      if (footerActionStatus) footerActionStatus.innerText = 'Membatalkan proses...';
+      const res = await window.corelAPI.cancelOperation();
+      showToast(res?.message || 'Proses berhasil dibatalkan.', true);
+      if (footerActionStatus) footerActionStatus.innerText = 'Dibatalkan';
+      if (btnGlobalCancelTask) btnGlobalCancelTask.style.display = 'none';
+    }
+  }
+
+  if (btnGlobalCancelTask) {
+    btnGlobalCancelTask.addEventListener('click', triggerCancelOperation);
   }
 
   async function loadRecentFiles() {
@@ -254,6 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const enumGridRows = document.getElementById('enumGridRows');
   const enumSpacingX = document.getElementById('enumSpacingX');
   const enumSpacingY = document.getElementById('enumSpacingY');
+  const selEnumSpacingUnit = document.getElementById('selEnumSpacingUnit');
+  const lblEnumSpacingX = document.getElementById('lblEnumSpacingX');
+  const lblEnumSpacingY = document.getElementById('lblEnumSpacingY');
   const enumGridOrder = document.getElementById('enumGridOrder');
   const enumAutoCurves = document.getElementById('enumAutoCurves');
   const enumPreviewList = document.getElementById('enumPreviewList');
@@ -261,6 +630,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnEnumGenerate = document.getElementById('btnEnumGenerate');
   const btnEnumReset = document.getElementById('btnEnumReset');
   const btnEnumCopyPreview = document.getElementById('btnEnumCopyPreview');
+
+  if (selEnumSpacingUnit) {
+    selEnumSpacingUnit.addEventListener('change', () => {
+      const isMm = selEnumSpacingUnit.value === 'mm';
+      if (lblEnumSpacingX) lblEnumSpacingX.innerText = isMm ? 'Jarak X (mm):' : 'Jarak X (cm):';
+      if (lblEnumSpacingY) lblEnumSpacingY.innerText = isMm ? 'Jarak Y (mm):' : 'Jarak Y (cm):';
+      if (enumSpacingX) enumSpacingX.step = isMm ? '0.5' : '0.1';
+      if (enumSpacingY) enumSpacingY.step = isMm ? '0.5' : '0.1';
+
+      const curX = parseFloat(enumSpacingX?.value);
+      if (!isNaN(curX) && curX >= 0) {
+        enumSpacingX.value = isMm
+          ? (curX * 10).toFixed(1).replace(/\.0$/, '')
+          : (curX / 10).toFixed(2).replace(/\.?0+$/, '');
+      }
+      const curY = parseFloat(enumSpacingY?.value);
+      if (!isNaN(curY) && curY >= 0) {
+        enumSpacingY.value = isMm
+          ? (curY * 10).toFixed(1).replace(/\.0$/, '')
+          : (curY / 10).toFixed(2).replace(/\.?0+$/, '');
+      }
+    });
+  }
 
   function updateEnumPreview() {
     const s = parseInt(enumStart?.value, 10) || 1;
@@ -340,6 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnEnumGenerate) {
     btnEnumGenerate.addEventListener('click', async () => {
+      if (!requireActiveLicense()) return;
       const s = parseInt(enumStart?.value, 10) || 1;
       const e = parseInt(enumEnd?.value, 10) || 100;
       const step = parseInt(enumStep?.value, 10) || 1;
@@ -349,14 +742,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const mode = enumMode?.value || 'page';
       const cols = parseInt(enumGridCols?.value, 10) || 2;
       const rows = parseInt(enumGridRows?.value, 10) || 5;
-      const spacingX = parseFloat(enumSpacingX?.value) || 0.5;
-      const spacingY = parseFloat(enumSpacingY?.value) || 0.5;
+      const isMm = selEnumSpacingUnit?.value === 'mm';
+      const rawSpacingX = parseFloat(enumSpacingX?.value);
+      const valX = !isNaN(rawSpacingX) && rawSpacingX >= 0 ? rawSpacingX : (isMm ? 5 : 0.5);
+      const spacingX = isMm ? (valX / 10.0) : valX;
+
+      const rawSpacingY = parseFloat(enumSpacingY?.value);
+      const valY = !isNaN(rawSpacingY) && rawSpacingY >= 0 ? rawSpacingY : (isMm ? 5 : 0.5);
+      const spacingY = isMm ? (valY / 10.0) : valY;
       const gridOrder = enumGridOrder?.value || 'cut_stack';
       const autoCurves = enumAutoCurves ? enumAutoCurves.checked : true;
 
       btnEnumGenerate.disabled = true;
       btnEnumGenerate.innerText = 'Memproses di CorelDRAW...';
-      footerActionStatus.innerText = 'Sedang membuat penomoran di CorelDRAW...';
+      setTaskRunning(true, 'Sedang membuat nomor di CorelDRAW...');
 
       try {
         if (window.corelAPI?.executeNumerator) {
@@ -377,7 +776,9 @@ document.addEventListener('DOMContentLoaded', () => {
             doubleNumber: document.getElementById('enumDoubleNumber')?.checked ?? true
           });
 
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Nomorator dibatalkan.', false);
+          } else if (res.success) {
             showToast(`Sukses: ${res.message || 'Nomorator berhasil dibuat!'}`, true);
             updateCorelStatus();
           } else {
@@ -390,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnEnumGenerate.disabled = false;
         btnEnumGenerate.innerText = '⚡ Generate di CorelDRAW';
-        footerActionStatus.innerText = 'Siap';
+        setTaskRunning(false);
       }
     });
   }
@@ -407,11 +808,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const lblConversionFileCount = document.getElementById('lblConversionFileCount');
   const selConvertOutputFormat = document.getElementById('selConvertOutputFormat');
   const selConvertDPI = document.getElementById('selConvertDPI');
+  const selConvertEngine = document.getElementById('selConvertEngine');
   const txtConvertOutputFolder = document.getElementById('txtConvertOutputFolder');
   const btnBrowseOutputFolder = document.getElementById('btnBrowseOutputFolder');
   const chkOpenFolderAfter = document.getElementById('chkOpenFolderAfter');
   const chkOverwriteFiles = document.getElementById('chkOverwriteFiles');
   const btnStartConversion = document.getElementById('btnStartConversion');
+
+  // Cloud Converter Link Buttons
+  document.querySelectorAll('.btn-cloud-link').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = btn.getAttribute('data-url');
+      if (url && window.corelAPI?.openExternalUrl) {
+        window.corelAPI.openExternalUrl(url);
+      }
+    });
+  });
 
   function renderConversionFiles() {
     if (!tbodyConversionFiles) return;
@@ -465,13 +878,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const btnCancelConversion = document.getElementById('btnCancelConversion');
+  let isConverting = false;
+
   if (btnClearFiles) {
-    btnClearFiles.addEventListener('click', () => {
+    btnClearFiles.addEventListener('click', async () => {
+      if (isConverting) {
+        const doCancel = confirm('Proses konversi sedang berjalan. Batalkan konversi dan bersihkan daftar file?');
+        if (doCancel) {
+          await triggerCancelOperation();
+        } else {
+          return;
+        }
+      }
       conversionFiles = [];
       renderConversionFiles();
       showToast('Daftar file dikosongkan.');
     });
   }
+
+  if (btnCancelConversion) {
+    btnCancelConversion.addEventListener('click', triggerCancelOperation);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isConverting) {
+      triggerCancelOperation();
+    }
+  });
 
   if (btnStartConversion) {
     btnStartConversion.addEventListener('click', async () => {
@@ -484,8 +918,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      isConverting = true;
       btnStartConversion.disabled = true;
       btnStartConversion.innerText = 'Mengonversi File...';
+      if (btnCancelConversion) btnCancelConversion.style.display = 'inline-flex';
+      if (btnGlobalCancelTask) btnGlobalCancelTask.style.display = 'inline-flex';
       footerActionStatus.innerText = `Mengonversi ${conversionFiles.length} file...`;
 
       try {
@@ -495,13 +932,14 @@ document.addEventListener('DOMContentLoaded', () => {
             outputFormat: selConvertOutputFormat.value,
             outputFolder: txtConvertOutputFolder.value,
             dpi: parseInt(selConvertDPI.value, 10) || 300,
+            engine: selConvertEngine ? selConvertEngine.value : 'auto',
             openFolderAfter: chkOpenFolderAfter.checked,
             overwrite: chkOverwriteFiles.checked
           });
 
           if (res.success) {
             showToast(`Sukses: ${res.message || 'Konversi selesai!'}`, true);
-            alert(`🎉 Sukses!\n\n${res.message}`);
+            alert(`Sukses!\n\n${res.message}`);
           } else {
             showToast(`Gagal: ${res.message}`, false);
             alert(`Gagal konversi:\n\n${res.message}`);
@@ -510,8 +948,11 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         showToast(`Error: ${err.message}`, false);
       } finally {
+        isConverting = false;
         btnStartConversion.disabled = false;
-        btnStartConversion.innerText = '🚀 Mulai Konversi';
+        btnStartConversion.innerText = 'Mulai Konversi';
+        if (btnCancelConversion) btnCancelConversion.style.display = 'none';
+        if (btnGlobalCancelTask) btnGlobalCancelTask.style.display = 'none';
         footerActionStatus.innerText = 'Siap';
       }
     });
@@ -568,6 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnExtractActiveColors.addEventListener('click', async () => {
       btnExtractActiveColors.disabled = true;
       btnExtractActiveColors.innerText = 'Mengekstrak warna dari CorelDRAW...';
+      setTaskRunning(true, 'Mengekstrak warna dari CorelDRAW...');
       try {
         if (window.corelAPI?.executeExtractColors) {
           const res = await window.corelAPI.executeExtractColors();
@@ -597,6 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnExtractActiveColors.disabled = false;
         btnExtractActiveColors.innerText = '🔍 Ambil Warna Otomatis dari Desain CorelDRAW';
+        setTaskRunning(false);
       }
     });
   }
@@ -614,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnColorApply.addEventListener('click', async () => {
       btnColorApply.disabled = true;
       btnColorApply.innerText = 'Menerapkan di CorelDRAW...';
+      setTaskRunning(true, 'Mengganti warna di CorelDRAW...');
       try {
         if (window.corelAPI?.executeColorReplace) {
           const res = await window.corelAPI.executeColorReplace({
@@ -624,7 +1068,9 @@ document.addEventListener('DOMContentLoaded', () => {
             includeGroups: document.getElementById('chkIncludeGroups')?.checked ?? true
           });
 
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Penggantian warna dibatalkan.', false);
+          } else if (res.success) {
             showToast(`Sukses: ${res.message || 'Warna berhasil diganti!'}`, true);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
@@ -637,6 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnColorApply.disabled = false;
         btnColorApply.innerText = 'Terapkan ke CorelDRAW';
+        setTaskRunning(false);
       }
     });
   }
@@ -674,9 +1121,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const numMergerGridRows = document.getElementById('numMergerGridRows');
   const numMergerSpacingX = document.getElementById('numMergerSpacingX');
   const numMergerSpacingY = document.getElementById('numMergerSpacingY');
+  const selWebMergerSpacingUnit = document.getElementById('selWebMergerSpacingUnit');
+  const lblWebMergerSpacingX = document.getElementById('lblWebMergerSpacingX');
+  const lblWebMergerSpacingY = document.getElementById('lblWebMergerSpacingY');
   const selMergerGridOrder = document.getElementById('selMergerGridOrder');
   const lblMergerGridSummary = document.getElementById('lblMergerGridSummary');
   const chkMergerAutoCurves = document.getElementById('chkMergerAutoCurves');
+
+  if (selWebMergerSpacingUnit) {
+    selWebMergerSpacingUnit.addEventListener('change', () => {
+      const isMm = selWebMergerSpacingUnit.value === 'mm';
+      if (lblWebMergerSpacingX) lblWebMergerSpacingX.innerText = isMm ? 'Jarak X (mm):' : 'Jarak X (cm):';
+      if (lblWebMergerSpacingY) lblWebMergerSpacingY.innerText = isMm ? 'Jarak Y (mm):' : 'Jarak Y (cm):';
+      if (numMergerSpacingX) numMergerSpacingX.step = isMm ? '0.5' : '0.1';
+      if (numMergerSpacingY) numMergerSpacingY.step = isMm ? '0.5' : '0.1';
+
+      const curX = parseFloat(numMergerSpacingX?.value);
+      if (!isNaN(curX) && curX >= 0) {
+        numMergerSpacingX.value = isMm
+          ? (curX * 10).toFixed(1).replace(/\.0$/, '')
+          : (curX / 10).toFixed(2).replace(/\.?0+$/, '');
+      }
+      const curY = parseFloat(numMergerSpacingY?.value);
+      if (!isNaN(curY) && curY >= 0) {
+        numMergerSpacingY.value = isMm
+          ? (curY * 10).toFixed(1).replace(/\.0$/, '')
+          : (curY / 10).toFixed(2).replace(/\.?0+$/, '');
+      }
+    });
+  }
 
   const tblMergerPreview = document.getElementById('tblMergerPreview');
   const tblMergerPreviewHead = document.getElementById('tblMergerPreviewHead');
@@ -731,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rows = parseInt(numMergerGridRows?.value, 10) || 5;
     const perPage = cols * rows;
     if (lblMergerGridSummary) {
-      lblMergerGridSummary.innerHTML = `📐 <b>${cols} Kolom × ${rows} Baris = ${perPage} Desain per Lembar Cetak</b>`;
+      lblMergerGridSummary.innerHTML = `<b>${cols} Kolom x ${rows} Baris = ${perPage} Desain per Lembar Cetak</b>`;
     }
   }
 
@@ -1192,7 +1665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputW.style.backgroundColor = '';
             inputH.style.backgroundColor = '';
           }, 800);
-          showToast(`Ukuran teks '${item.placeholder}' diset ke ${item.width} × ${item.height} cm`);
+          showToast(`Ukuran teks '${item.placeholder}' diset ke ${item.width} x ${item.height} cm`);
         } else {
           alert(`Objek teks di CorelDRAW belum dipilih!\n\nSilakan pilih (klik seleksi) objek teks '${item.placeholder}' di lembar kerja CorelDRAW, lalu klik tombol ini lagi.`);
         }
@@ -1200,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`Gagal mengambil ukuran dari CorelDRAW: ${err.message}`);
       } finally {
         btnSample.disabled = false;
-        btnSample.innerHTML = '🎯 Ambil Seleksi Corel';
+        btnSample.innerHTML = 'Ambil Seleksi Corel';
       }
     });
 
@@ -1439,6 +1912,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Execute Certificate & Variable Data Merger
   if (btnExecuteMerger) {
     btnExecuteMerger.addEventListener('click', async () => {
+      if (!requireActiveLicense()) return;
       let finalRows = [];
       let finalMappings = [];
 
@@ -1492,13 +1966,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const mode = selMergerOutputMode?.value || 'page';
       const cols = parseInt(numMergerGridCols?.value, 10) || 2;
       const gridRows = parseInt(numMergerGridRows?.value, 10) || 5;
-      const spacingX = parseFloat(numMergerSpacingX?.value) || 0.5;
-      const spacingY = parseFloat(numMergerSpacingY?.value) || 0.5;
+      const isMm = selWebMergerSpacingUnit?.value === 'mm';
+      const rawMergerSpacingX = parseFloat(numMergerSpacingX?.value);
+      const valX = !isNaN(rawMergerSpacingX) && rawMergerSpacingX >= 0 ? rawMergerSpacingX : (isMm ? 5 : 0.5);
+      const spacingX = isMm ? (valX / 10.0) : valX;
+
+      const rawMergerSpacingY = parseFloat(numMergerSpacingY?.value);
+      const valY = !isNaN(rawMergerSpacingY) && rawMergerSpacingY >= 0 ? rawMergerSpacingY : (isMm ? 5 : 0.5);
+      const spacingY = isMm ? (valY / 10.0) : valY;
       const gridOrder = selMergerGridOrder?.value || 'left_right';
       const autoCurves = chkMergerAutoCurves?.checked ?? true;
 
       btnExecuteMerger.disabled = true;
       btnExecuteMerger.innerText = 'Memproses di CorelDRAW...';
+      setTaskRunning(true, 'Sedang memproses merger data di CorelDRAW...');
 
       try {
         if (window.corelAPI?.executeMerger) {
@@ -1514,7 +1995,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoCurves
           });
 
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Merger data dibatalkan.', false);
+          } else if (res.success) {
             showToast(`Sukses: ${res.message || 'Selesai!'}`, true);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
@@ -1528,6 +2011,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnExecuteMerger.disabled = false;
         btnExecuteMerger.innerText = '🚀 Gas Proses di CorelDRAW';
+        setTaskRunning(false);
       }
     });
   }
@@ -1567,6 +2051,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const tbodyJerseySizeChart = document.getElementById('tbodyJerseySizeChart');
   const btnJerseyAddSizeRow = document.getElementById('btnJerseyAddSizeRow');
   const btnJerseyResetSizeChart = document.getElementById('btnJerseyResetSizeChart');
+  const selWebJerseySpacingUnit = document.getElementById('selWebJerseySpacingUnit');
+  const lblWebJerseySpacing = document.getElementById('lblWebJerseySpacing');
+  const numJerseySpacing = document.getElementById('numJerseySpacing');
+
+  if (selWebJerseySpacingUnit) {
+    selWebJerseySpacingUnit.addEventListener('change', () => {
+      const isMm = selWebJerseySpacingUnit.value === 'mm';
+      if (lblWebJerseySpacing) lblWebJerseySpacing.innerText = isMm ? 'Jarak Pola (mm):' : 'Jarak Pola (cm):';
+      if (numJerseySpacing) numJerseySpacing.step = isMm ? '1' : '0.1';
+
+      const cur = parseFloat(numJerseySpacing?.value);
+      if (!isNaN(cur) && cur >= 0) {
+        numJerseySpacing.value = isMm
+          ? (cur * 10).toFixed(1).replace(/\.0$/, '')
+          : (cur / 10).toFixed(2).replace(/\.?0+$/, '');
+      }
+    });
+  }
 
   // Mode Tabs
   const btnTabJerseyExcel = document.getElementById('btnTabJerseyExcel');
@@ -1603,14 +2105,81 @@ document.addEventListener('DOMContentLoaded', () => {
   let jerseyMasterHeightCm = 76.0;
   let jerseyMasterRatio = 2.716;
 
+  const STANDARD_SIZE_ORDER = [
+    'XXS ANAK', 'XS ANAK', 'S ANAK', 'M ANAK', 'L ANAK', 'XL ANAK', 'XXL ANAK',
+    '2', '4', '6', '8', '10', '12', '14', '16',
+    'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL'
+  ];
+
+  function normalizeJerseySize(sz) {
+    if (!sz) return 'L';
+    let s = sz.toUpperCase().trim().replace(/[\(\)\[\]"']/g, '').replace(/\s+/g, ' ');
+    if (s === 'XXXXL') return '4XL';
+    if (s === 'XXXL') return '3XL';
+    if (s === '2XL') return 'XXL';
+    return s;
+  }
+
+  function getJerseySizeRank(sz) {
+    const norm = normalizeJerseySize(sz);
+    const idx = STANDARD_SIZE_ORDER.indexOf(norm);
+    return idx >= 0 ? idx : 999;
+  }
+
+  function cleanPlayerName(str) {
+    if (!str) return '';
+    let s = String(str).trim();
+    // Strip leading numbering e.g. "1. ", "12) ", "[1] ", "1 " (when followed by letters or open paren)
+    s = s.replace(/^\s*(?:\[\s*\d+\s*\]|\d+[\.\)\-:]\s*|\d+\s+(?=[A-Za-z\(\[\{])|\*\s*)/, '').trim();
+    // Remove size enclosed in parentheses/brackets e.g. "(S)", "( M )", "(XL)", "[L]", "{XXL}"
+    s = s.replace(/[\(\[\{]\s*(?:7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\s*[\)\]\}]/gi, ' ').trim();
+    // Remove any leftover empty parentheses, brackets, or braces: "()", "( )", "[]", "[ ]", "{}", "{ }"
+    s = s.replace(/[\(\[\{]\s*[\)\]\}]/g, ' ').trim();
+    // Remove leftover field labels like "Nama:", "Name:", "Punggung:", "Nama Punggung:"
+    s = s.replace(/^(?:nama|name|punggung|nama\s*punggung)\s*[:=-]?\s*/i, '').trim();
+    // Remove leftover leading/trailing punctuation like '-', '/', ',', '|', ':'
+    s = s.replace(/^[\s\-\/\|:,]+|[\s\-\/\|:,]+$/g, '').trim();
+    // Clean empty parentheses once more in case stripped punctuation revealed them
+    s = s.replace(/[\(\[\{]\s*[\)\]\}]/g, ' ').trim();
+    // Collapse whitespace
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  function cleanPlayerNumber(num) {
+    if (num === null || num === undefined) return '-';
+    let str = String(num).trim();
+    if (!str || str === '-' || /^(?:tanpa\s*no(?:mor)?|ga\s*pake\s*no(?:mor)?|no\s*nomor|none|null|undefined)$/i.test(str)) {
+      return '-';
+    }
+    str = str.replace(/[\(\)\[\]\{\}]/g, '').trim();
+    str = str.replace(/^(?:no\.?|nomor|nomer|#)\s*[:=-]?\s*/i, '').trim();
+    return str || '-';
+  }
+
+  function cleanPlayerSize(sz) {
+    if (!sz) return 'L';
+    let str = String(sz).trim().toUpperCase();
+    str = str.replace(/[\(\)\[\]\{\}'"]/g, '').trim();
+    str = str.replace(/^(?:size|ukuran|uk\.?|sz\.?)\s*[:=-]?\s*/i, '').trim();
+    return normalizeJerseySize(str) || 'L';
+  }
+
   let jerseySizeChart = [
+    { size: 'S ANAK', height: 56.0, width: 152.0, lockRatio: true },
+    { size: 'M ANAK', height: 59.0, width: 160.0, lockRatio: true },
+    { size: 'L ANAK', height: 62.0, width: 168.0, lockRatio: true },
+    { size: 'XL ANAK', height: 65.0, width: 176.0, lockRatio: true },
+    { size: 'XXL ANAK', height: 67.0, width: 182.0, lockRatio: true },
     { size: 'XS', height: 68.5, width: 186.05, lockRatio: true },
     { size: 'S', height: 71.0, width: 192.84, lockRatio: true },
     { size: 'M', height: 73.5, width: 199.63, lockRatio: true },
     { size: 'L', height: 76.0, width: 206.41, lockRatio: true },
     { size: 'XL', height: 78.5, width: 213.20, lockRatio: true },
     { size: 'XXL', height: 81.0, width: 219.99, lockRatio: true },
-    { size: '3XL', height: 83.5, width: 226.78, lockRatio: true }
+    { size: '3XL', height: 83.5, width: 226.78, lockRatio: true },
+    { size: '4XL', height: 86.0, width: 233.50, lockRatio: true },
+    { size: '5XL', height: 88.5, width: 240.00, lockRatio: true }
   ];
 
   let jerseyExcelHeaders = ['Nama', 'Nomor', 'Ukuran', 'Sponsor', 'Tim'];
@@ -1782,7 +2351,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           });
           renderJerseySizeChart();
-          showToast(`Ukuran master terdeteksi: ${jerseyMasterWidthCm.toFixed(2)} × ${jerseyMasterHeightCm.toFixed(2)} cm (Rasio: ${jerseyMasterRatio.toFixed(3)})`, true);
+          showToast(`Ukuran master terdeteksi: ${jerseyMasterWidthCm.toFixed(2)} x ${jerseyMasterHeightCm.toFixed(2)} cm (Rasio: ${jerseyMasterRatio.toFixed(3)})`, true);
         } else {
           alert('Pilih 1 objek grup master pola jersey di CorelDRAW terlebih dahulu!');
         }
@@ -1790,7 +2359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`Error membaca CorelDRAW: ${err.message}`);
       } finally {
         btnJerseySampleMaster.disabled = false;
-        btnJerseySampleMaster.innerText = '🎯 Baca Ukuran Pola dari Corel';
+        btnJerseySampleMaster.innerText = 'Baca Ukuran Pola dari Corel';
       }
     });
   }
@@ -1974,38 +2543,74 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function updateJerseyTargetSizeOptions() {
+    const selTarget = document.getElementById('selJerseyTargetSize');
+    if (!selTarget) return;
+    const currentVal = selTarget.value;
+    const uniqueSizes = [...new Set(jerseyPlayers.map(p => (p.Ukuran || p.size || 'L').toUpperCase()))];
+    uniqueSizes.sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+
+    let html = `<option value="ALL">Semua Ukuran (Campur)</option>`;
+    uniqueSizes.forEach(sz => {
+      html += `<option value="${sz}">${sz} Saja</option>`;
+    });
+    selTarget.innerHTML = html;
+    if (uniqueSizes.includes(currentVal)) {
+      selTarget.value = currentVal;
+    } else {
+      selTarget.value = 'ALL';
+    }
+  }
+
   // Render Player Table (Excel Mode)
   function renderJerseyPlayerTable() {
     if (!tbodyJerseyPlayers) return;
     tbodyJerseyPlayers.innerHTML = '';
+    const hasDada = jerseyPlayers.some(p => p['Nama Dada'] || p.dada);
+    const thDada = document.getElementById('thJerseyNamaDada');
+    if (thDada) thDada.style.display = hasDada ? '' : 'none';
+
     jerseyPlayers.forEach((p, idx) => {
       const tr = document.createElement('tr');
-      const pName = p.Nama || p.name || 'PEMAIN';
+      const pName = p['Nama Punggung'] || p.Nama || p.name || 'PEMAIN';
+      const pDada = p['Nama Dada'] || p.dada || '';
       const pNum = p.Nomor || p.number || '00';
       const pSize = (p.Ukuran || p.size || 'L').toUpperCase();
 
-      tr.innerHTML = `
-        <td>${idx + 1}</td>
-        <td><input type="text" class="input-text p-name" value="${pName}" style="height: 22px; font-size: 11px;" /></td>
-        <td><input type="text" class="input-text p-num" value="${pNum}" style="height: 22px; font-size: 11px;" /></td>
+      let sizeOpts = STANDARD_SIZE_ORDER.map(sz => `<option value="${sz}" ${sz === pSize ? 'selected' : ''}>${sz}</option>`).join('');
+      if (!STANDARD_SIZE_ORDER.includes(pSize) && pSize) {
+        sizeOpts += `<option value="${pSize}" selected>${pSize}</option>`;
+      }
+
+      let rowHtml = `
+        <td style="text-align: center; color: var(--text-dim);">${idx + 1}</td>
+        <td><input type="text" class="input-text p-name" value="${pName}" style="height: 22px; font-size: 11px;" /></td>`;
+      if (hasDada) {
+        rowHtml += `<td><input type="text" class="input-text p-dada" value="${pDada}" placeholder="Dada..." style="height: 22px; font-size: 11px;" /></td>`;
+      }
+      rowHtml += `
+        <td><input type="text" class="input-text p-num" value="${pNum}" style="height: 22px; font-size: 11px; font-weight: 700; color: var(--accent-blue);" /></td>
         <td>
-          <select class="select-native p-size" style="height: 22px; font-size: 11px;">
-            <option value="XS" ${pSize === 'XS' ? 'selected' : ''}>XS</option>
-            <option value="S" ${pSize === 'S' ? 'selected' : ''}>S</option>
-            <option value="M" ${pSize === 'M' ? 'selected' : ''}>M</option>
-            <option value="L" ${pSize === 'L' ? 'selected' : ''}>L</option>
-            <option value="XL" ${pSize === 'XL' ? 'selected' : ''}>XL</option>
-            <option value="XXL" ${pSize === 'XXL' ? 'selected' : ''}>XXL</option>
-            <option value="3XL" ${pSize === '3XL' ? 'selected' : ''}>3XL</option>
+          <select class="select-native p-size" style="height: 22px; font-size: 11px; font-weight: 700;">
+            ${sizeOpts}
           </select>
         </td>
-        <td><button type="button" class="btn-danger p-del" style="height: 20px; font-size: 9px; padding: 0 4px;">✕</button></td>
+        <td><button type="button" class="btn-danger p-del" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Hapus pemain">✕</button></td>
       `;
+
+      tr.innerHTML = rowHtml;
 
       tr.querySelector('.p-name').addEventListener('input', (e) => {
         p.name = e.target.value;
         p.Nama = e.target.value;
       });
+      const inpDada = tr.querySelector('.p-dada');
+      if (inpDada) {
+        inpDada.addEventListener('input', (e) => {
+          p['Nama Dada'] = e.target.value;
+          p.dada = e.target.value;
+        });
+      }
       tr.querySelector('.p-num').addEventListener('input', (e) => {
         p.number = e.target.value;
         p.Nomor = e.target.value;
@@ -2013,10 +2618,12 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.querySelector('.p-size').addEventListener('change', (e) => {
         p.size = e.target.value;
         p.Ukuran = e.target.value;
+        updateJerseyTargetSizeOptions();
       });
       tr.querySelector('.p-del').addEventListener('click', () => {
         jerseyPlayers.splice(idx, 1);
         renderJerseyPlayerTable();
+        updateJerseyTargetSizeOptions();
       });
 
       tbodyJerseyPlayers.appendChild(tr);
@@ -2138,33 +2745,97 @@ document.addEventListener('DOMContentLoaded', () => {
     const headerRowIdx = parseInt(selJerseyHeaderRow?.value || '1', 10);
     const rows = rawJerseyExcelData.rows;
 
-    const headerSet = new Set();
-    rows.forEach(r => {
-      Object.keys(r).forEach(k => {
-        if (k && !k.startsWith('__EMPTY')) headerSet.add(k);
+    if (rawJerseyExcelData.headers && rawJerseyExcelData.headers.length > 0) {
+      jerseyExcelHeaders = rawJerseyExcelData.headers.map(h => h.name).filter(Boolean);
+    } else {
+      const headerSet = new Set();
+      rows.forEach(r => {
+        Object.keys(r).forEach(k => {
+          if (k && !k.startsWith('__EMPTY') && k.length > 1) headerSet.add(k);
+        });
       });
-    });
-
-    if (headerSet.size > 0) {
-      jerseyExcelHeaders = Array.from(headerSet);
+      if (headerSet.size > 0) {
+        jerseyExcelHeaders = Array.from(headerSet);
+      }
     }
 
     jerseyPlayers = rows.slice(headerRowIdx - 1).map(r => {
-      const name = String(r.Nama || r.nama || r.Name || r.name || r.A || 'PEMAIN').trim();
-      const num = String(r.Nomor || r.nomor || r.No || r.no || r.B || '-').trim();
-      const sz = String(r.Ukuran || r.ukuran || r.Size || r.size || r.C || 'L').trim().toUpperCase();
-      const sp = String(r.Sponsor || r.sponsor || r.D || 'GFX ESPORTS').trim();
+      const name = String(
+        r['NAMA PUNGGUNG'] || r['Nama Punggung'] || r['nama_punggung'] ||
+        r['NAMA'] || r['Nama'] || r['nama'] ||
+        r['Name'] || r['name'] ||
+        (r.B && r.A && !isNaN(parseInt(r.A, 10)) ? r.B : '') ||
+        r.A || 'PEMAIN'
+      ).trim();
+
+      const num = String(
+        r['NOMOR'] || r['Nomor'] || r['nomor'] ||
+        r['NO JERSEY'] || r['No Jersey'] || r['no_jersey'] ||
+        r['Number'] || r['number'] ||
+        (r.C && r.A && !isNaN(parseInt(r.A, 10)) ? r.C : '') ||
+        r['No'] || r['no'] || '-'
+      ).trim();
+
+      const sz = String(
+        r['UKURAN'] || r['Ukuran'] || r['ukuran'] ||
+        r['SIZE'] || r['Size'] || r['size'] ||
+        (r.D && r.A && !isNaN(parseInt(r.A, 10)) ? r.D : '') ||
+        'L'
+      ).trim().toUpperCase();
+
+      const dada = String(
+        r['NAMA DADA'] || r['Nama Dada'] || r['nama_dada'] ||
+        r['DADA'] || r['Dada'] || r['dada'] ||
+        r['CHEST'] || r['Chest'] || ''
+      ).trim();
+
+      const sp = String(
+        r['SPONSOR'] || r['Sponsor'] || r['sponsor'] ||
+        r['TIM'] || r['Tim'] || 'GFX ESPORTS'
+      ).trim();
+
+      const catatan = String(
+        r['CATATAN'] || r['Catatan'] || r['catatan'] ||
+        r['POSISI'] || r['Posisi'] || r['posisi'] ||
+        r['KETERANGAN'] || r['Keterangan'] || ''
+      ).trim();
+
       return {
         ...r,
         Nama: name,
+        'Nama Punggung': name,
         Nomor: num,
         Ukuran: sz,
+        'Nama Dada': dada,
         Sponsor: sp,
+        Catatan: catatan,
         name: name,
         number: num,
-        size: sz
+        size: sz,
+        dada: dada
       };
     }).filter(p => p.Nama && p.Nama !== 'PEMAIN');
+
+    // Auto sync mapping for Nama Punggung
+    const nameMapping = jerseyMappings.find(m => m.placeholder === '[NAMA]');
+    const foundBackNameCol = jerseyExcelHeaders.find(h => /^nama\s*punggung$/i.test(h));
+    if (nameMapping && foundBackNameCol && !jerseyExcelHeaders.includes(nameMapping.column)) {
+      nameMapping.column = foundBackNameCol;
+    }
+
+    // Auto sync mapping for Nama Dada
+    const foundDadaCol = jerseyExcelHeaders.find(h => /dada|chest/i.test(h)) || (jerseyPlayers.some(p => !!p['Nama Dada']) ? 'Nama Dada' : null);
+    if (foundDadaCol && !jerseyMappings.some(m => m.placeholder === '[DADA]')) {
+      jerseyMappings.push({
+        id: (jerseyMappings.reduce((max, m) => Math.max(max, m.id || 0), 0)) + 1,
+        column: foundDadaCol,
+        placeholder: '[DADA]',
+        align: 'center',
+        textCase: 'upper',
+        maxWidth: 15.0,
+        lockRatio: true
+      });
+    }
 
     if (lblJerseyRowCount) lblJerseyRowCount.innerText = `(${jerseyPlayers.length} Baris Data)`;
     if (boxJerseyTablePreview) boxJerseyTablePreview.style.display = 'flex';
@@ -2173,6 +2844,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderJerseyExcelPreviewTable(rows.slice(headerRowIdx - 1, headerRowIdx + 4));
     renderJerseyMappings();
     renderJerseyPlayerTable();
+    updateJerseyTargetSizeOptions();
   }
 
   if (selJerseySheet) {
@@ -2325,6 +2997,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Execution: Tata Pola di CorelDRAW
   if (btnExecuteJerseyLayout) {
     btnExecuteJerseyLayout.addEventListener('click', async () => {
+      if (!requireActiveLicense()) return;
       let finalPlayers = [];
       let finalMappings = [];
 
@@ -2375,7 +3048,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const targetSize = document.getElementById('selJerseyTargetSize')?.value || 'ALL';
-      const spacingCm = parseFloat(document.getElementById('numJerseySpacing')?.value) || 1.0;
+      const isMm = selWebJerseySpacingUnit?.value === 'mm';
+      const rawJerseySpacing = parseFloat(document.getElementById('numJerseySpacing')?.value);
+      const valSpacing = !isNaN(rawJerseySpacing) && rawJerseySpacing >= 0 ? rawJerseySpacing : (isMm ? 10 : 1.0);
+      const spacingCm = isMm ? (valSpacing / 10.0) : valSpacing;
       const limitCopy = parseInt(document.getElementById('numJerseyLimit')?.value, 10) || 4;
       const direction = document.getElementById('selJerseyDirection')?.value || 'vertical';
       const groupBySize = document.getElementById('selJerseyGrouping')?.value === 'group_size';
@@ -2395,6 +3071,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       btnExecuteJerseyLayout.disabled = true;
       btnExecuteJerseyLayout.innerText = 'Menata di CorelDRAW...';
+      setTaskRunning(true, 'Sedang menata pola jersey di CorelDRAW...');
 
       try {
         if (window.corelAPI?.executeLayout) {
@@ -2412,7 +3089,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoCurves
           });
 
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Penataan jersey dibatalkan.', false);
+          } else if (res.success) {
             showToast(`Sukses: ${res.message || 'Pola jersey selesai ditata!'}`, true);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
@@ -2433,6 +3112,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnExecuteJerseyLayout.disabled = false;
         btnExecuteJerseyLayout.innerText = '🚀 Tata Pola di CorelDRAW';
+        setTaskRunning(false);
       }
     });
   }
@@ -2507,9 +3187,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const res = await window.corelAPI.aiTracerValidateKey(key);
           if (res.valid) {
             localStorage.setItem('gemini_api_key', key);
-            lblTracerKeyStatus.innerText = '✓ Valid & Aktif';
-            lblTracerKeyStatus.style.color = 'var(--accent-green)';
-            showToast('API Key Gemini berhasil divalidasi dan disimpan.');
+            if (window.syncAiModeBadge) window.syncAiModeBadge();
+            const ordKey = document.getElementById('txtOrderApiKey');
+            if (ordKey) ordKey.value = key;
+            showToast('API Key Gemini berhasil divalidasi dan disimpan! Mode Online aktif.', true);
           } else {
             lblTracerKeyStatus.innerText = '✕ Tidak Valid';
             lblTracerKeyStatus.style.color = 'var(--accent-red)';
@@ -2521,6 +3202,18 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnTracerSaveKey.disabled = false;
       }
+    });
+  }
+
+  const btnTracerClearKey = document.getElementById('btnTracerClearKey');
+  if (btnTracerClearKey) {
+    btnTracerClearKey.addEventListener('click', () => {
+      localStorage.removeItem('gemini_api_key');
+      if (txtTracerApiKey) txtTracerApiKey.value = '';
+      const ordKey = document.getElementById('txtOrderApiKey');
+      if (ordKey) ordKey.value = '';
+      if (window.syncAiModeBadge) window.syncAiModeBadge();
+      showToast('API Key Gemini berhasil dihapus. Sistem beralih ke Mode Offline (Mesin Lokal).');
     });
   }
 
@@ -2562,6 +3255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnTracerProcess) {
     btnTracerProcess.addEventListener('click', async () => {
+      if (!requireActiveLicense()) return;
       if (!tracerImageBase64) {
         alert('Upload gambar mockup jersey terlebih dahulu.');
         return;
@@ -2702,10 +3396,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnQuickConvertCurves = document.getElementById('btnQuickConvertCurves');
   if (btnQuickConvertCurves) {
     btnQuickConvertCurves.addEventListener('click', async () => {
+      setTaskRunning(true, 'Mengonversi seluruh teks ke kurva...');
       try {
         if (window.corelAPI?.corelConvertAllCurves) {
           const res = await window.corelAPI.corelConvertAllCurves();
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Konversi kurva dibatalkan.', false);
+          } else if (res.success) {
             showToast(res.message || 'Semua teks berhasil dikonversi ke kurva!');
             alert(`✓ ${res.message}`);
           } else {
@@ -2714,6 +3411,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         alert(`Error: ${err.message}`);
+      } finally {
+        setTaskRunning(false);
       }
     });
   }
@@ -2767,6 +3466,120 @@ document.addEventListener('DOMContentLoaded', () => {
     window.corelAPI?.corelOpenAiTracerTool?.();
   });
 
+  // Pemulihan & Pembersihan Proses CorelDRAW
+  const btnUtilCleanGhostProcs = document.getElementById('btnUtilCleanGhostProcs');
+  const btnUtilForceKillAll = document.getElementById('btnUtilForceKillAll');
+  const boxKillProcsResult = document.getElementById('boxKillProcsResult');
+
+  if (btnUtilCleanGhostProcs) {
+    btnUtilCleanGhostProcs.addEventListener('click', async () => {
+      btnUtilCleanGhostProcs.disabled = true;
+      try {
+        const res = await window.corelAPI?.cleanGhostProcesses?.();
+        showToast(res?.message || 'Pembersihan selesai.');
+        if (boxKillProcsResult) {
+          boxKillProcsResult.style.display = 'block';
+          boxKillProcsResult.style.color = '#34d399';
+          boxKillProcsResult.innerText = res?.message || 'Pembersihan proses selesai.';
+        }
+        await updateCorelStatus();
+      } catch (err) {
+        showToast('Gagal: ' + (err?.message || err), false);
+      } finally {
+        btnUtilCleanGhostProcs.disabled = false;
+      }
+    });
+  }
+
+  if (btnUtilForceKillAll) {
+    btnUtilForceKillAll.addEventListener('click', async () => {
+      btnUtilForceKillAll.disabled = true;
+      try {
+        const res = await window.corelAPI?.forceKillAllCorel?.();
+        showToast(res?.message || 'Semua proses CorelDRAW berhasil dihentikan.');
+        if (boxKillProcsResult) {
+          boxKillProcsResult.style.display = 'block';
+          boxKillProcsResult.style.color = '#f87171';
+          boxKillProcsResult.innerText = res?.message || 'Semua proses CorelDRAW dihentikan.';
+        }
+        await updateCorelStatus();
+      } catch (err) {
+        showToast('Gagal: ' + (err?.message || err), false);
+      } finally {
+        btnUtilForceKillAll.disabled = false;
+      }
+    });
+  }
+
+  // Registrasi & Integrasi Otomatis CorelDRAW
+  const btnAutoScanRegisterCorel = document.getElementById('btnAutoScanRegisterCorel');
+  const btnBrowseRegisterCorel = document.getElementById('btnBrowseRegisterCorel');
+  const boxRegisterCorelResult = document.getElementById('boxRegisterCorelResult');
+
+  if (btnAutoScanRegisterCorel) {
+    btnAutoScanRegisterCorel.addEventListener('click', async () => {
+      btnAutoScanRegisterCorel.disabled = true;
+      btnAutoScanRegisterCorel.innerText = 'Memindai & Mendaftarkan...';
+      if (boxRegisterCorelResult) {
+        boxRegisterCorelResult.style.display = 'block';
+        boxRegisterCorelResult.style.color = 'var(--text-dim)';
+        boxRegisterCorelResult.innerText = 'Sedang mencari instalasi dan versi portable CorelDRAW di komputer...';
+      }
+      try {
+        const res = await window.corelAPI?.autoRegisterCorel?.();
+        if (res && res.success && res.registered && res.registered.length > 0) {
+          const names = res.registered.map(r => r.name || ('Corel v' + r.version)).join(', ');
+          showToast('Berhasil mendaftarkan: ' + names);
+          if (boxRegisterCorelResult) {
+            boxRegisterCorelResult.style.color = '#34d399';
+            boxRegisterCorelResult.innerHTML = '<strong>Pendaftaran Berhasil!</strong> Ditemukan dan didaftarkan ' + res.count + ' versi:<br/>' + res.registered.map(r => '• <b>' + r.name + '</b> (' + r.path + ')').join('<br/>');
+          }
+        } else {
+          showToast('Tidak ada CorelDRAW baru yang perlu didaftarkan.', true);
+          if (boxRegisterCorelResult) {
+            boxRegisterCorelResult.style.color = '#fbbf24';
+            boxRegisterCorelResult.innerText = 'Pindaian selesai. Seluruh CorelDRAW yang terpasang sudah terdaftar.';
+          }
+        }
+        await updateCorelStatus();
+      } catch (err) {
+        showToast('Gagal mendaftarkan: ' + (err?.message || err), false);
+        if (boxRegisterCorelResult) {
+          boxRegisterCorelResult.style.color = '#f87171';
+          boxRegisterCorelResult.innerText = 'Terjadi kesalahan saat registrasi: ' + (err?.message || err);
+        }
+      } finally {
+        btnAutoScanRegisterCorel.disabled = false;
+        btnAutoScanRegisterCorel.innerText = '⚡ Pindai & Daftarkan Semua Versi Otomatis';
+      }
+    });
+  }
+
+  if (btnBrowseRegisterCorel) {
+    btnBrowseRegisterCorel.addEventListener('click', async () => {
+      try {
+        const fileRes = await window.corelAPI?.selectCorelExeDialog?.();
+        if (fileRes && fileRes.success && fileRes.path) {
+          showToast('Mendaftarkan: ' + fileRes.path + '...');
+          const regRes = await window.corelAPI?.registerCorelCustomPath?.(fileRes.path);
+          if (regRes && regRes.success) {
+            showToast(regRes.message || 'CorelDRAW berhasil didaftarkan!');
+            if (boxRegisterCorelResult) {
+              boxRegisterCorelResult.style.display = 'block';
+              boxRegisterCorelResult.style.color = '#34d399';
+              boxRegisterCorelResult.innerHTML = '<strong>Pendaftaran Berhasil!</strong><br/>• ' + regRes.message;
+            }
+            await updateCorelStatus();
+          } else {
+            showToast(regRes?.message || 'Gagal mendaftarkan file ini.', false);
+          }
+        }
+      } catch (err) {
+        showToast('Error: ' + (err?.message || err), false);
+      }
+    });
+  }
+
   // Render initial player table and manual cards
   renderJerseyPlayerTable();
   renderManualCards();
@@ -2782,10 +3595,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const center = document.getElementById('chkCenterToPage')?.checked ?? true;
 
       btnApplyResizeLayout.disabled = true;
+      setTaskRunning(true, 'Mengubah ukuran layout di CorelDRAW...');
       try {
         if (window.corelAPI?.executeResizeLayout) {
           const res = await window.corelAPI.executeResizeLayout({ widthCm: w, heightCm: h, centerPage: center });
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Ubah ukuran dibatalkan.', false);
+          } else if (res.success) {
             showToast(res.message || 'Ukuran berhasil diubah.');
           } else {
             alert(res.message);
@@ -2795,6 +3611,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(err.message, false);
       } finally {
         btnApplyResizeLayout.disabled = false;
+        setTaskRunning(false);
       }
     });
   }
@@ -2824,13 +3641,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       btnExecuteSplit.disabled = true;
+      setTaskRunning(true, 'Memisahkan dokumen di CorelDRAW...');
       try {
         if (window.corelAPI?.executeSplit) {
           const res = await window.corelAPI.executeSplit({
             mode: document.getElementById('selSplitMode')?.value || 'pages',
             outputFolder: txtSplitFolder.value
           });
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Pemisahan dokumen dibatalkan.', false);
+          } else if (res.success) {
             showToast(res.message);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
@@ -2841,6 +3661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(err.message, false);
       } finally {
         btnExecuteSplit.disabled = false;
+        setTaskRunning(false);
       }
     });
   }
@@ -2862,10 +3683,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       btnExecuteBatchPipeline.disabled = true;
       btnExecuteBatchPipeline.innerText = 'Menjalankan Batch...';
+      setTaskRunning(true, 'Menjalankan batch pipeline di CorelDRAW...');
       try {
         if (window.corelAPI?.executeBatch) {
           const res = await window.corelAPI.executeBatch({ tasks: checkedSteps });
-          if (res.success) {
+          if (res.cancelled) {
+            showToast('Batch pipeline dibatalkan.', false);
+          } else if (res.success) {
             showToast(res.message);
             alert(`🎉 Sukses!\n\n${res.message}`);
           } else {
@@ -2877,6 +3701,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnExecuteBatchPipeline.disabled = false;
         btnExecuteBatchPipeline.innerText = '⚡ Jalankan Pipeline di CorelDRAW';
+        setTaskRunning(false);
       }
     });
   }
@@ -3029,11 +3854,2881 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 12. Keyboard Shortcuts (Native Desktop)
+  // 12. Tool: Perapih List Pesanan Jersey
+  // ==========================================
+  const btnTabOrderText = document.getElementById('btnTabOrderText');
+  const btnTabOrderImage = document.getElementById('btnTabOrderImage');
+  const boxOrderTextSection = document.getElementById('boxOrderTextSection');
+  const boxOrderImageSection = document.getElementById('boxOrderImageSection');
+
+  const txtOrderRawInput = document.getElementById('txtOrderRawInput');
+  const btnOrderParseNow = document.getElementById('btnOrderParseNow');
+  const btnOrderLoadSample = document.getElementById('btnOrderLoadSample');
+  const btnOrderPasteText = document.getElementById('btnOrderPasteText');
+  const btnOrderClearText = document.getElementById('btnOrderClearText');
+
+  const dropzoneOrderImage = document.getElementById('dropzoneOrderImage');
+  const fileOrderImageInput = document.getElementById('fileOrderImageInput');
+  const boxOrderImagePreviewWrap = document.getElementById('boxOrderImagePreviewWrap');
+  const imgOrderPreview = document.getElementById('imgOrderPreview');
+  const lblOrderImageName = document.getElementById('lblOrderImageName');
+  const btnOrderRemoveImage = document.getElementById('btnOrderRemoveImage');
+  const btnOrderScanOCR = document.getElementById('btnOrderScanOCR');
+  const boxOrderOCRProgress = document.getElementById('boxOrderOCRProgress');
+  const lblOrderOCRStep = document.getElementById('lblOrderOCRStep');
+  const boxOrderLensRawWrap = document.getElementById('boxOrderLensRawWrap');
+  const preOrderLensRaw = document.getElementById('preOrderLensRaw');
+  const btnOrderPasteClipboardImg = document.getElementById('btnOrderPasteClipboardImg');
+
+  const txtOrderApiKey = document.getElementById('txtOrderApiKey');
+  const btnOrderSaveApiKey = document.getElementById('btnOrderSaveApiKey');
+  const lblOrderAiStatus = document.getElementById('lblOrderAiStatus');
+
+  const lblOrderTotalCount = document.getElementById('lblOrderTotalCount');
+  const boxOrderSizeChips = document.getElementById('boxOrderSizeChips');
+  const selOrderSortMode = document.getElementById('selOrderSortMode');
+  const selOrderFilterSize = document.getElementById('selOrderFilterSize');
+  const selOrderCaseTransform = document.getElementById('selOrderCaseTransform');
+  const txtOrderDefaultSponsor = document.getElementById('txtOrderDefaultSponsor');
+  const btnOrderAddEmptyRow = document.getElementById('btnOrderAddEmptyRow');
+  const btnOrderClearAllRows = document.getElementById('btnOrderClearAllRows');
+
+  const tblOrderResult = document.getElementById('tblOrderResult');
+  const tbodyOrderResult = document.getElementById('tbodyOrderResult');
+
+  const btnOrderCopyFormatted = document.getElementById('btnOrderCopyFormatted');
+  const btnOrderExportExcel = document.getElementById('btnOrderExportExcel');
+  const btnOrderSendToAutoLayout = document.getElementById('btnOrderSendToAutoLayout');
+
+  let orderItems = [];
+  let orderImageFile = null;
+  let orderImageBase64 = '';
+
+  // Synchronize Gemini API Key & Offline/Online Mode Badge
+  function syncAiModeBadge() {
+    window.syncAiModeBadge = syncAiModeBadge;
+    const key = localStorage.getItem('gemini_api_key') || (txtOrderApiKey ? txtOrderApiKey.value.trim() : '');
+    if (lblOrderAiStatus) {
+      if (key) {
+        lblOrderAiStatus.textContent = '[MODE ONLINE] AI Gemini Flash Aktif';
+        lblOrderAiStatus.style.color = '#10b981';
+        lblOrderAiStatus.style.background = 'rgba(16, 185, 129, 0.12)';
+        lblOrderAiStatus.style.border = '1px solid rgba(16, 185, 129, 0.35)';
+      } else {
+        lblOrderAiStatus.textContent = '[MODE OFFLINE] Mesin Lokal (Tanpa API Key)';
+        lblOrderAiStatus.style.color = '#f59e0b';
+        lblOrderAiStatus.style.background = 'rgba(245, 158, 11, 0.12)';
+        lblOrderAiStatus.style.border = '1px solid rgba(245, 158, 11, 0.35)';
+      }
+    }
+    const lblTrk = document.getElementById('lblTracerKeyStatus');
+    if (lblTrk) {
+      if (key) {
+        lblTrk.textContent = 'Online (Gemini Aktif)';
+        lblTrk.style.color = '#10b981';
+      } else {
+        lblTrk.textContent = 'Offline (Belum Ada Key)';
+        lblTrk.style.color = '#f59e0b';
+      }
+    }
+  }
+
+  const storedGeminiKey = localStorage.getItem('gemini_api_key') || '';
+  if (txtOrderApiKey && storedGeminiKey) {
+    txtOrderApiKey.value = storedGeminiKey;
+  }
+  const trkInputInit = document.getElementById('txtTracerApiKey');
+  if (trkInputInit && storedGeminiKey) {
+    trkInputInit.value = storedGeminiKey;
+  }
+  syncAiModeBadge();
+
+  if (txtOrderApiKey) {
+    txtOrderApiKey.addEventListener('input', syncAiModeBadge);
+  }
+  if (trkInputInit) {
+    trkInputInit.addEventListener('input', syncAiModeBadge);
+  }
+
+  if (btnOrderSaveApiKey && txtOrderApiKey) {
+    btnOrderSaveApiKey.addEventListener('click', () => {
+      const k = txtOrderApiKey.value.trim();
+      if (!k) {
+        alert('Masukkan API Key Gemini.');
+        return;
+      }
+      localStorage.setItem('gemini_api_key', k);
+      const trk = document.getElementById('txtTracerApiKey');
+      if (trk) trk.value = k;
+      syncAiModeBadge();
+      showToast('API Key Gemini berhasil disimpan! Mode Online aktif.', true);
+    });
+  }
+
+  const btnOrderClearApiKey = document.getElementById('btnOrderClearApiKey');
+  if (btnOrderClearApiKey && txtOrderApiKey) {
+    btnOrderClearApiKey.addEventListener('click', () => {
+      localStorage.removeItem('gemini_api_key');
+      txtOrderApiKey.value = '';
+      const trk = document.getElementById('txtTracerApiKey');
+      if (trk) trk.value = '';
+      syncAiModeBadge();
+      showToast('API Key Gemini berhasil dihapus. Sistem beralih ke Mode Offline (Mesin Lokal).');
+    });
+  }
+
+  let orderActiveCustomCols = [];
+  let orderShowDada = false;
+
+  function applyCaseTransform(text, mode) {
+    if (!text || mode === 'asis') return text;
+    if (mode === 'upper') return text.toUpperCase();
+    if (mode === 'title') {
+      return text.toLowerCase().replace(/(?:^|\s|-)\S/g, c => c.toUpperCase());
+    }
+    return text;
+  }
+
+  // Switch Sub-Tabs
+  if (btnTabOrderText && btnTabOrderImage) {
+    btnTabOrderText.addEventListener('click', () => {
+      btnTabOrderText.classList.add('active');
+      btnTabOrderImage.classList.remove('active');
+      if (boxOrderTextSection) boxOrderTextSection.style.display = 'flex';
+      if (boxOrderImageSection) boxOrderImageSection.style.display = 'none';
+    });
+
+    btnTabOrderImage.addEventListener('click', () => {
+      btnTabOrderImage.classList.add('active');
+      btnTabOrderText.classList.remove('active');
+      if (boxOrderImageSection) boxOrderImageSection.style.display = 'flex';
+      if (boxOrderTextSection) boxOrderTextSection.style.display = 'none';
+    });
+  }
+
+  // Dropzone Image Handlers
+  if (dropzoneOrderImage && fileOrderImageInput) {
+    dropzoneOrderImage.addEventListener('click', () => fileOrderImageInput.click());
+
+    dropzoneOrderImage.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzoneOrderImage.style.borderColor = 'var(--accent-blue)';
+    });
+    dropzoneOrderImage.addEventListener('dragleave', () => {
+      dropzoneOrderImage.style.borderColor = 'var(--border-color)';
+    });
+    dropzoneOrderImage.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzoneOrderImage.style.borderColor = 'var(--border-color)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleOrderImageSelected(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileOrderImageInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleOrderImageSelected(e.target.files[0]);
+      }
+    });
+  }
+
+  function handleOrderImageSelected(file) {
+    if (!file) return;
+    orderImageFile = file;
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      orderImageBase64 = loadEvt.target.result;
+      if (imgOrderPreview) imgOrderPreview.src = orderImageBase64;
+      if (lblOrderImageName) lblOrderImageName.innerText = file.name || 'foto_pesanan.jpg';
+      if (boxOrderImagePreviewWrap) boxOrderImagePreviewWrap.style.display = 'flex';
+      showToast('Gambar pesanan siap dipindai.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  if (btnOrderRemoveImage) {
+    btnOrderRemoveImage.addEventListener('click', () => {
+      orderImageFile = null;
+      orderImageBase64 = '';
+      if (imgOrderPreview) imgOrderPreview.src = '';
+      if (boxOrderImagePreviewWrap) boxOrderImagePreviewWrap.style.display = 'none';
+      if (fileOrderImageInput) fileOrderImageInput.value = '';
+    });
+  }
+
+  // Paste Image from Clipboard
+  if (btnOrderPasteClipboardImg) {
+    btnOrderPasteClipboardImg.addEventListener('click', async () => {
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            handleOrderImageSelected(blob);
+            return;
+          }
+        }
+        alert('Tidak ada gambar di clipboard. Silakan salin gambar / screenshot terlebih dahulu.');
+      } catch (err) {
+        showToast('Gunakan tombol Ctrl+V langsung untuk menempel gambar.', false);
+      }
+    });
+  }
+
+  // Google Lens + AI Scan Action (Direct in-app processing, no browser redirects)
+  if (btnOrderScanOCR) {
+    btnOrderScanOCR.addEventListener('click', async () => {
+      if (!orderImageBase64 && !orderImageFile) {
+        alert('Pilih atau tempel gambar catatan/foto terlebih dahulu.');
+        return;
+      }
+      btnOrderScanOCR.disabled = true;
+      btnOrderScanOCR.innerText = 'Memindai Google Lens + AI...';
+      if (boxOrderOCRProgress) {
+        boxOrderOCRProgress.style.display = 'block';
+        if (lblOrderOCRStep) lblOrderOCRStep.innerText = '1/2: Memindai teks foto dengan Google Lens...';
+      }
+
+      try {
+        const apiKey = localStorage.getItem('gemini_api_key') || (txtOrderApiKey ? txtOrderApiKey.value.trim() : '');
+        let pth = '';
+        try {
+          if (window.corelAPI?.getPathForFile && orderImageFile) {
+            pth = window.corelAPI.getPathForFile(orderImageFile);
+          }
+        } catch {}
+
+        const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+        const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+        // 1. Preferred Route: Combined Google Lens + Gemini AI
+        if (window.corelAPI?.aiScanJerseyImage && apiKey) {
+          if (lblOrderOCRStep) lblOrderOCRStep.innerText = 'Memproses foto dengan Google Lens & AI...';
+          const res = await window.corelAPI.aiScanJerseyImage({
+            imageBase64: orderImageBase64,
+            imagePath: pth || orderImageFile?.path || '',
+            apiKey,
+            defaultSponsor,
+            caseMode
+          });
+
+          if (res.success && Array.isArray(res.items) && res.items.length > 0) {
+            orderItems = healJoinedNameVariations(res.items, res.lensRawText || '');
+            if (res.lensRawText && preOrderLensRaw) {
+              preOrderLensRaw.innerText = res.lensRawText;
+              if (boxOrderLensRawWrap) boxOrderLensRawWrap.style.display = 'block';
+            }
+            if (txtOrderRawInput && res.lensRawText) {
+              txtOrderRawInput.value = res.lensRawText;
+            }
+            updateFilterSizeDropdown();
+            renderOrderTable();
+            showToast(`Selesai! Berhasil merapihkan ${orderItems.length} pesanan dengan Google Lens + AI!`, true);
+            return;
+          } else if (!res.success) {
+            throw new Error(res.message || 'Gagal memproses gambar.');
+          }
+        }
+
+        // 2. Direct Google Lens OCR Scan
+        if (window.corelAPI?.scanGoogleLens) {
+          if (lblOrderOCRStep) lblOrderOCRStep.innerText = '1/2: Memindai teks dengan Google Lens...';
+          const lensRes = await window.corelAPI.scanGoogleLens({
+            imageBase64: orderImageBase64,
+            imagePath: pth || orderImageFile?.path || ''
+          });
+
+          if (lensRes.success && lensRes.text) {
+            if (preOrderLensRaw) preOrderLensRaw.innerText = lensRes.text;
+            if (boxOrderLensRawWrap) boxOrderLensRawWrap.style.display = 'block';
+            if (txtOrderRawInput) txtOrderRawInput.value = lensRes.text.trim();
+
+            if (apiKey && window.corelAPI?.aiParseJerseyText) {
+              if (lblOrderOCRStep) lblOrderOCRStep.innerText = '2/2: Merapihkan dengan AI Gemini...';
+              const aiRes = await window.corelAPI.aiParseJerseyText({
+                rawText: lensRes.text,
+                apiKey,
+                defaultSponsor,
+                caseMode
+              });
+              if (aiRes.success && Array.isArray(aiRes.items) && aiRes.items.length > 0) {
+                orderItems = healJoinedNameVariations(aiRes.items, lensRes.text);
+                updateFilterSizeDropdown();
+                renderOrderTable();
+                showToast(`Selesai! Google Lens + AI berhasil mengekstrak ${orderItems.length} pesanan!`, true);
+                return;
+              }
+            }
+
+            // Local fallback if no API key
+            const parsed = healJoinedNameVariations(parseJerseyOrderList(lensRes.text), lensRes.text);
+            if (parsed.length > 0) {
+              orderItems = parsed.map((item, index) => ({ ...item, id: index + 1 }));
+              updateFilterSizeDropdown();
+              renderOrderTable();
+              showToast(`Google Lens berhasil mendeteksi ${orderItems.length} pesanan!`, true);
+              return;
+            }
+          }
+        }
+
+        alert('Gagal mendeteksi teks dari gambar. Pastikan foto jelas dan periksa kembali API Key Gemini.');
+      } catch (err) {
+        showToast('Error: ' + err.message, false);
+        alert('Terjadi kesalahan:\n' + err.message);
+      } finally {
+        btnOrderScanOCR.disabled = false;
+        btnOrderScanOCR.innerText = 'Pindai & Rapihkan Foto';
+        if (boxOrderOCRProgress) boxOrderOCRProgress.style.display = 'none';
+      }
+    });
+  }
+
+  // Direct Table Parser (Supports Markdown tables from Web Gemini and TSV from Excel/Google Sheets)
+  function parseTableInput(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+    const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+
+    const isMarkdownTable = lines.some(l => l.startsWith('|') && l.endsWith('|') && l.includes('|'));
+    const isTSV = lines.some(l => l.includes('\t'));
+
+    if (!isMarkdownTable && !isTSV) return null;
+
+    const rows = [];
+    for (let line of lines) {
+      if (/^\|?[\s\-:]+(\|[\s\-:]+)+\|?$/.test(line)) continue;
+
+      let cells;
+      if (isMarkdownTable) {
+        cells = line.split('|').map(c => c.trim());
+        if (line.startsWith('|')) cells.shift();
+        if (line.endsWith('|')) cells.pop();
+      } else {
+        cells = line.split('\t').map(c => c.trim());
+      }
+
+      if (cells.length >= 2) {
+        rows.push(cells);
+      }
+    }
+
+    if (rows.length === 0) return null;
+
+    const headerRow = rows[0];
+    let hasHeader = false;
+    let colNameIdx = -1;
+    let colNoIdx = -1;
+    let colSizeIdx = -1;
+    let colDadaIdx = -1;
+    let colNoteIdx = -1;
+
+    headerRow.forEach((col, idx) => {
+      const c = col.toLowerCase().trim();
+      if (/^(?:nama|name|nama\s*punggung|punggung|nama\s*pemain|player)$/i.test(c)) {
+        colNameIdx = idx;
+      } else if (/^(?:no\.?\s*punggung|nomor|nomer|no\.?|#)$/i.test(c)) {
+        if (colNoIdx === -1 || /punggung/i.test(c)) {
+          colNoIdx = idx;
+        }
+      } else if (/^(?:ukuran|size|uk\.?|sz\.?)$/i.test(c)) {
+        colSizeIdx = idx;
+      } else if (/^(?:dada|nama\s*dada|depan)$/i.test(c)) {
+        colDadaIdx = idx;
+      } else if (/^(?:keterangan|catatan|posisi|note|ket\.?)$/i.test(c)) {
+        colNoteIdx = idx;
+      }
+    });
+
+    if (colNameIdx !== -1 && (colSizeIdx !== -1 || colNoIdx !== -1)) {
+      hasHeader = true;
+    } else {
+      if (headerRow.length === 4 && /^\d+$/.test(rows[0][0])) {
+        colNameIdx = 1;
+        colNoIdx = 2;
+        colSizeIdx = 3;
+      } else if (headerRow.length === 3) {
+        colNameIdx = 0;
+        colNoIdx = 1;
+        colSizeIdx = 2;
+      }
+    }
+
+    if (colNameIdx === -1 && colSizeIdx === -1 && colNoIdx === -1) {
+      return null;
+    }
+
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+    const items = [];
+
+    for (let r of dataRows) {
+      let rawName = colNameIdx !== -1 && r[colNameIdx] !== undefined ? r[colNameIdx] : '';
+      let rawNo = colNoIdx !== -1 && r[colNoIdx] !== undefined ? r[colNoIdx] : '-';
+      let rawSize = colSizeIdx !== -1 && r[colSizeIdx] !== undefined ? r[colSizeIdx] : 'L';
+      let rawDada = colDadaIdx !== -1 && r[colDadaIdx] !== undefined ? r[colDadaIdx] : '';
+      let rawNote = colNoteIdx !== -1 && r[colNoteIdx] !== undefined ? r[colNoteIdx] : '';
+
+      let nama = cleanPlayerName(rawName);
+      let nomor = cleanPlayerNumber(rawNo);
+      let ukuran = cleanPlayerSize(rawSize);
+
+      if (nama) {
+        items.push({
+          nama,
+          nama_punggung: nama,
+          nomor,
+          ukuran,
+          nama_dada: rawDada ? cleanPlayerName(rawDada) : '',
+          dada: rawDada ? cleanPlayerName(rawDada) : '',
+          posisi: rawNote || '',
+          sponsor: ''
+        });
+      }
+    }
+
+    if (items.length > 0) {
+      items.sort((a, b) => getJerseySizeRank(a.ukuran) - getJerseySizeRank(b.ukuran));
+      return items;
+    }
+    return null;
+  }
+
+  // Text Parsing Function (Supports Single-Line, Multi-Line Blocks, Dada vs Punggung, Celana, Kiper, Tanpa Nomor)
+  function parseJerseyOrderList(rawText) {
+    if (!rawText || typeof rawText !== 'string') return [];
+
+    // 0. Direct Table Parser (Markdown table from Gemini Web or Excel TSV)
+    const tableItems = parseTableInput(rawText);
+    if (tableItems && tableItems.length > 0) {
+      return tableItems;
+    }
+
+    const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+
+    // Filter out document/sponsor/table header lines
+    const cleanLines = [];
+    for (const l of lines) {
+      if (/^(?:LIS|LIST|DAFTAR|PESANAN|ORDER|DATA\s+JERSEY|TIM|SPONSOR\s+DEPAN)\b/i.test(l) && !/\b(?:no|nomor|uk|ukuran|size)\b/i.test(l)) {
+        continue;
+      }
+      if (/^(?:#\s*|NO\.?\s*|\d+\s*)?(?:NAMA|NAME)\s+(?:#\s*|NO\.?\s*|\d+\s*)?(?:UKURAN|SIZE|UK)\b/i.test(l) || /^(?:NAMA|NAME)\s+(?:UKURAN|SIZE|UK)\b/i.test(l)) {
+        continue;
+      }
+      cleanLines.push(l);
+    }
+
+    // Check if multi-line block format exists
+    const isMultiLineBlock = cleanLines.some((l, i) => {
+      return /^\d+[:.]\s*[A-Za-z]/.test(l) && cleanLines[i + 1] && /^(?:No|Nomor|#|Uk|Size|Ukuran|Dada|Punggung|Celana)/i.test(cleanLines[i + 1]);
+    }) || cleanLines.some(l => /^(?:Punggung|Nama\s*Punggung|Nama\s*Depan|Dada|Nama\s*Dada)[:=\s]/i.test(l));
+
+    if (isMultiLineBlock) {
+      const blocks = [];
+      let currentBlock = [];
+
+      for (let i = 0; i < cleanLines.length; i++) {
+        const line = cleanLines[i];
+        const isNewNumbered = /^\s*(?:\[\s*\d+\s*\]|\d+[\.\)\-:]\s*)/.test(line);
+        const isLabelStart = /^(?:Punggung|Nama\s*Punggung|Nama\s*Depan|Nama\s*Pemain|Nama)[:\s]/i.test(line);
+
+        if ((isNewNumbered || isLabelStart) && currentBlock.length > 0) {
+          blocks.push(currentBlock);
+          currentBlock = [];
+        } else if (currentBlock.length > 0 && /^(?:No|Nomor|Uk|Ukuran|Size|Dada|Depan|Celana|Catatan|Ket)[:\s]/i.test(line)) {
+          // Continuation of current block
+        } else if (currentBlock.length >= 3 && !/^(?:No|Nomor|Uk|Ukuran|Size|Dada|Depan|Celana|Catatan|Ket)[:\s]/i.test(line)) {
+          blocks.push(currentBlock);
+          currentBlock = [];
+        }
+
+        currentBlock.push(line);
+      }
+      if (currentBlock.length > 0) blocks.push(currentBlock);
+
+      const parsedItems = [];
+      for (const block of blocks) {
+        const fullBlockText = block.join(' \n ');
+        const item = parseSinglePlayerRecord(fullBlockText, block);
+        if (item && item.nama) {
+          parsedItems.push(item);
+        }
+      }
+
+      if (parsedItems.length > 0) {
+        parsedItems.sort((a, b) => getJerseySizeRank(a.ukuran) - getJerseySizeRank(b.ukuran));
+        return parsedItems;
+      }
+    }
+
+    // Standard Single-Line Parser (e.g. "1. Adi - 07 - M" or "Dimas // 10 // L")
+    const items = [];
+    const headerSizeRegex = /^(?:SIZE|UKURAN|UK|SZ)?\s*[:=-]?\s*(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\s*(?:\([^)]*\))?\s*[:=-]?$/i;
+    const sizeTokenRegex = /^(?:SIZE|UKURAN|UK|SZ)?\s*[:=-]?\s*(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)$/i;
+
+    let currentGroupSize = '';
+
+    for (let rawLine of cleanLines) {
+      let line = rawLine.trim();
+      if (!line) continue;
+
+      const headerMatch = line.match(headerSizeRegex);
+      if (headerMatch) {
+        currentGroupSize = normalizeJerseySize(headerMatch[1]);
+        continue;
+      }
+
+      const item = parseLineDelimited(line, currentGroupSize, sizeTokenRegex);
+      if (item) {
+        items.push(item);
+      }
+    }
+
+    items.sort((a, b) => getJerseySizeRank(a.ukuran) - getJerseySizeRank(b.ukuran));
+    return items;
+  }
+
+  function parseSinglePlayerRecord(fullText, blockLines) {
+    let nama = '';
+    let nomor = '';
+    let ukuran = '';
+    let namaDada = '';
+    let catatanArr = [];
+
+    // 1. Explicit Dada / Depan pattern
+    const mDada = fullText.match(/(?:dada(?:\s*depan)?|nama\s*dada|depan)\s*[:=-]?\s*([A-Za-z0-9\s'\.\-_]+?)(?=[,\/\n\|\)]|$|\s+(?:punggung|no|uk|size|celana))/i);
+    if (mDada && mDada[1]) {
+      namaDada = mDada[1].trim();
+    }
+
+    // 2. Explicit Punggung / Nama Belakang pattern
+    const mPunggung = fullText.match(/(?:punggung|nama\s*punggung|nama\s*belakang|nama\s*pemain|nama)\s*[:=-]?\s*([A-Za-z0-9\s'\.\-_]+?)(?=[,\/\n\|\)]|$|\s+(?:dada|depan|no|uk|size|celana))/i);
+    if (mPunggung && mPunggung[1]) {
+      nama = mPunggung[1].trim();
+    }
+
+    // 3. Explicit Ukuran / Size pattern
+    const mSize = fullText.match(/(?:uk(?:uran)?|size|sz)\s*[:=\-\/]?\s*(7XL|6XL|5XL|4XL|3XL|XXL|2XL|XL|L|M|S|XS|XXS)(?:\s*(?:anak(?:-anak)?|"|'))?/i);
+    if (mSize) {
+      let rawSz = mSize[1].toUpperCase();
+      if (/anak/i.test(mSize[0])) rawSz += ' ANAK';
+      ukuran = normalizeJerseySize(rawSz);
+    }
+
+    // 4. Nomor pattern
+    if (/tanpa\s*no(?:mor)?|ga\s*pake\s*no(?:mor)?|no\s*nomor/i.test(fullText)) {
+      nomor = '-';
+    } else {
+      const mNo = fullText.match(/(?:no(?:\.?\s*punggung)?|nomor|nomer|#)\s*[:=\-\/]?\s*(\d{1,4})/i);
+      if (mNo) {
+        nomor = mNo[1];
+      }
+    }
+
+    // 5. Celana pattern
+    const mCelana = fullText.match(/celana\s*[:=-]?\s*([A-Za-z0-9\s]+?)(?=[,\/\n\|\)]|$)/i);
+    if (mCelana) {
+      catatanArr.push(`Celana: ${mCelana[1].trim()}`);
+    }
+
+    // 6. Role / Posisi / Keterangan
+    if (/kiper|gk|goalkeeper/i.test(fullText)) catatanArr.push('GK Kiper');
+    if (/kapten|\(c\)/i.test(fullText)) catatanArr.push('Kapten');
+    if (/tangan\s*panjang|lengan\s*panjang/i.test(fullText)) catatanArr.push('Lengan Panjang');
+    if (/tanpa\s*lengan/i.test(fullText)) catatanArr.push('Tanpa Lengan');
+
+    // If nama not found from label, extract from first line
+    if (!nama && blockLines.length > 0) {
+      let firstLine = blockLines[0];
+      firstLine = firstLine.replace(/^\s*(?:\[\s*\d+\s*\]|\d+[\.\)\-:]\s*)/, '').trim();
+
+      const parts = firstLine.split(/\s*(?:\/\/|\s+-\s+|\/)\s*/);
+      if (parts.length > 1) {
+        nama = parts[0].trim();
+        for (let p of parts.slice(1)) {
+          if (!nomor && /^\d{1,4}$/.test(p)) nomor = p;
+          if (!ukuran && /(?:7XL|6XL|5XL|4XL|3XL|XXL|2XL|XL|L|M|S|XS|XXS)/i.test(p)) {
+            ukuran = normalizeJerseySize(p);
+          }
+        }
+      } else {
+        firstLine = firstLine.replace(/\(.*\)/, '').replace(/no\s*\d+/i, '').replace(/uk\s*\w+/i, '').trim();
+        nama = firstLine;
+      }
+    }
+
+    nama = cleanPlayerName(nama);
+    nomor = cleanPlayerNumber(nomor);
+    ukuran = cleanPlayerSize(ukuran);
+    if (!ukuran) ukuran = 'L';
+    if (!nomor) nomor = '-';
+    if (!nama) {
+      nama = nomor !== '-' ? `PEMAIN ${nomor}` : 'PEMAIN';
+    }
+
+    let finalCatatan = catatanArr.join(', ');
+    if (namaDada) {
+      finalCatatan = `Dada: ${cleanPlayerName(namaDada)}` + (finalCatatan ? ` | ${finalCatatan}` : '');
+    }
+
+    return {
+      nama,
+      nomor,
+      ukuran,
+      posisi: finalCatatan,
+      sponsor: ''
+    };
+  }
+
+  function parseLineDelimited(line, fallbackSize, sizeTokenRegex) {
+    let text = line.trim();
+    // Remove leading numbering with dot, paren, dash, colon, OR whitespace when followed by letters
+    text = text.replace(/^\s*(?:\[\s*\d+\s*\]|\d+[\.\)\-:]\s*|\d+\s+(?=[A-Za-z\(\[\{])|\*\s*)/, '').trim();
+    if (!text) return null;
+
+    let nama = '';
+    let nomor = '';
+    let size = '';
+    let extraNotes = [];
+    let namaDada = '';
+
+    // Check for explicit Dada
+    const mDada = text.match(/(?:dada(?:\s*depan)?|nama\s*dada|depan)\s*[:=-]?\s*([A-Za-z0-9\s'\.\-_]+?)(?=[,\/\n\|\)]|$|\s+(?:punggung|no|uk|size|celana))/i);
+    if (mDada) {
+      namaDada = cleanPlayerName(mDada[1]);
+      text = text.replace(mDada[0], ' ');
+    }
+
+    // Check for explicit Celana
+    const mCelana = text.match(/celana\s*[:=-]?\s*([A-Za-z0-9\s]+?)(?=[,\/\n\|\)]|$)/i);
+    if (mCelana) {
+      extraNotes.push(`Celana: ${mCelana[1].trim()}`);
+      text = text.replace(mCelana[0], ' ');
+    }
+
+    if (/tanpa\s*no(?:mor)?|ga\s*pake\s*no(?:mor)?|no\s*nomor/i.test(text)) {
+      nomor = '-';
+      text = text.replace(/tanpa\s*no(?:mor)?|ga\s*pake\s*no(?:mor)?|no\s*nomor/gi, ' ');
+    }
+
+    // Check for labeled Nomor (e.g. "Nomer 28", "No. 07", "#14")
+    const mLabNo = text.match(/(?:NO\.?|NOMOR|NOMER|#)\s*[:=-]?\s*(\d{1,4})/i);
+    if (mLabNo) {
+      nomor = mLabNo[1];
+      text = text.replace(mLabNo[0], ' ');
+    }
+
+    // Detect size in parentheses/brackets: e.g. ( L ), (XL), [M], (S)
+    const mParenSize = text.match(/[\(\[\{]\s*(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\s*[\)\]\}]/i);
+    if (mParenSize) {
+      size = cleanPlayerSize(mParenSize[1]);
+      text = text.replace(mParenSize[0], ' ');
+    }
+
+    // Check labeled size (e.g. "Size: L", "Ukuran XL", "Uk. M")
+    if (!size) {
+      const mLabSize = text.match(/(?:SIZE|UKURAN|UK\.?|SZ\.?)\s*[:=-]?\s*(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\b/i);
+      if (mLabSize) {
+        size = cleanPlayerSize(mLabSize[1]);
+        text = text.replace(mLabSize[0], ' ');
+      }
+    }
+
+    // Detect delimiter
+    let delimiter = null;
+    if (text.includes('//')) delimiter = '//';
+    else if (text.includes('\t')) delimiter = '\t';
+    else if (text.includes('|')) delimiter = '|';
+    else if (text.includes('/')) delimiter = '/';
+    else if (/\s+-\s+/.test(text)) delimiter = '-';
+    else if (text.includes(',') && !text.match(/^(?:nama|name)/i)) delimiter = ',';
+
+    if (delimiter) {
+      const parts = text.split(delimiter === '-' ? /\s+-\s+/ : (delimiter === '//' ? /\/\// : delimiter)).map(p => p.trim()).filter(Boolean);
+      const unassignedWords = [];
+
+      for (let part of parts) {
+        if (!size && sizeTokenRegex.test(part)) {
+          const m = part.match(sizeTokenRegex);
+          size = cleanPlayerSize(m[1]);
+          continue;
+        }
+        const labSize = part.match(/(?:SIZE|UKURAN|UK\.?|SZ\.?)\s*[:=-]?\s*([A-Z0-9]+(?:\s*ANAK)?)/i);
+        if (!size && labSize) {
+          size = cleanPlayerSize(labSize[1]);
+          continue;
+        }
+        const labNo = part.match(/(?:NO\.?|NOMOR|NOMER|#)\s*[:=-]?\s*(\d{1,4})/i);
+        if (!nomor && labNo) {
+          nomor = labNo[1];
+          continue;
+        }
+        const pureNo = part.match(/^[\(\[\{]?\s*(\d{1,4})\s*[\)\]\}]?$/);
+        if (!nomor && pureNo) {
+          nomor = pureNo[1];
+          continue;
+        }
+
+        unassignedWords.push(part);
+      }
+
+      if (unassignedWords.length > 0) {
+        nama = unassignedWords[0];
+      }
+      if (unassignedWords.length > 1) {
+        extraNotes.push(unassignedWords.slice(1).join(' - '));
+      }
+    } else {
+      // Space-separated token parsing
+      // Size at the very END of line (e.g. "Ferdi 007 M" or "Vera S 022 M" -> "M" is at the end)
+      if (!size) {
+        const mEndSize = text.match(/(?:^|\s)(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\s*$/i);
+        if (mEndSize) {
+          size = cleanPlayerSize(mEndSize[1]);
+          text = text.substring(0, mEndSize.index).trim();
+        }
+      }
+
+      if (!nomor) {
+        const mParen = text.match(/[\(\[\{]\s*(\d{1,4})\s*[\)\]\}]/);
+        if (mParen) {
+          nomor = mParen[1];
+          text = text.replace(mParen[0], ' ');
+        } else {
+          // Standalone number ONLY if strictly separated by whitespace and at least 2 tokens exist
+          // (e.g. "Budi 10" -> "10" is nomor; but "Padli-046", "SYARIF_007", or "74" as sole token is NAME!)
+          const words = text.trim().split(/\s+/).filter(Boolean);
+          if (words.length >= 2) {
+            let numIdx = -1;
+            for (let i = words.length - 1; i >= 0; i--) {
+              if (/^\d{1,4}$/.test(words[i])) {
+                numIdx = i;
+                break;
+              }
+            }
+            if (numIdx !== -1) {
+              nomor = words[numIdx];
+              words.splice(numIdx, 1);
+              text = words.join(' ');
+            }
+          }
+        }
+      }
+
+      // If size still not found, search anywhere
+      if (!size) {
+        const mSize = text.match(/\b(7XL|6XL|5XL|4XL|XXXXL|3XL|XXXL|XXL|2XL|XL|L|M|S|XS|XXS|S\s*ANAK|M\s*ANAK|L\s*ANAK|XL\s*ANAK|XXL\s*ANAK)\b/i);
+        if (mSize) {
+          size = cleanPlayerSize(mSize[1]);
+          const idx = mSize.index;
+          text = text.substring(0, idx) + ' ' + text.substring(idx + mSize[0].length);
+        }
+      }
+
+      // Check for item notes like HOODIE, SWEATER, etc.
+      const rawWords = text.trim().split(/\s+/).filter(Boolean);
+      const remainingNameWords = [];
+      for (const w of rawWords) {
+        if (/^(?:HOODIE|SWEATER|JAKET|JERSEY|KAOS)$/i.test(w)) {
+          extraNotes.push(w.toUpperCase());
+        } else {
+          remainingNameWords.push(w);
+        }
+      }
+      nama = remainingNameWords.join(' ').trim();
+    }
+
+    nama = cleanPlayerName(nama);
+    nomor = cleanPlayerNumber(nomor);
+    if (!size && fallbackSize) size = fallbackSize;
+    size = cleanPlayerSize(size);
+    if (!size) size = 'L';
+    if (!nomor) nomor = '-';
+    if (!nama) {
+      nama = nomor !== '-' ? `PEMAIN ${nomor}` : 'PEMAIN';
+    }
+
+    let finalPosisi = extraNotes.join(', ');
+    if (namaDada) {
+      finalPosisi = `Dada: ${namaDada}` + (finalPosisi ? ` | ${finalPosisi}` : '');
+    }
+
+    return {
+      nama,
+      nomor,
+      ukuran: size,
+      posisi: finalPosisi,
+      sponsor: ''
+    };
+  }
+
+  function healJoinedNameVariations(items, rawText) {
+    if (!Array.isArray(items)) return items;
+    return items.map((it) => {
+      let nama = cleanPlayerName(it.nama_punggung || it.nama || '');
+      let namaDada = cleanPlayerName(it.nama_dada || it.dada || '');
+      let nomor = cleanPlayerNumber(it.nomor);
+      let ukuran = cleanPlayerSize(it.ukuran || it.size || 'L');
+
+      if (rawText && nomor && nomor !== '-') {
+        // 1. Check if name and number were joined with '-' or '_' in rawText (e.g. Padli-046, SYARIF_007)
+        if (nama && nama !== '-') {
+          const escapedName = nama.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedNum = nomor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const numPattern = '0*' + escapedNum.replace(/^0+/, '');
+          const regexJoined = new RegExp('(\\b' + escapedName + ')([-_])(' + numPattern + '\\b)', 'i');
+          const match = rawText.match(regexJoined);
+          if (match) {
+            nama = match[0];
+            nomor = '-';
+          }
+        }
+
+        // 2. Check if number was actually the player name (e.g. "6. 74 ( M )")
+        if (!nama || nama === '-' || nama === 'PEMAIN') {
+          const escapedNum = nomor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regexSoleNumber = new RegExp('^\\s*(?:\\[\\s*\\d+\\s*\\]|\\d+[\\.\\)\\-:]\\s*)?(' + escapedNum + ')\\s*(?:\\([\\s\\S]*?\\)|[A-Z0-9]+)?\\s*$', 'im');
+          const matchSole = rawText.match(regexSoleNumber);
+          if (matchSole) {
+            nama = matchSole[1];
+            nomor = '-';
+          }
+        }
+      }
+      return {
+        ...it,
+        nama,
+        nama_punggung: nama,
+        nama_dada: namaDada,
+        dada: namaDada,
+        nomor,
+        ukuran
+      };
+    });
+  }
+
+  async function parseAndPopulateOrders() {
+    if (!txtOrderRawInput) return;
+    const raw = txtOrderRawInput.value.trim();
+    if (!raw) {
+      alert('Masukkan atau tempel list pesanan terlebih dahulu.');
+      return;
+    }
+
+    // 0. Instant Route: If input is a structured table (Markdown from Web Gemini or TSV from Excel)
+    const tableDirect = parseTableInput(raw);
+    if (tableDirect && tableDirect.length > 0) {
+      orderItems = tableDirect.map((item, index) => ({
+        ...item,
+        originalIndex: index
+      }));
+      orderShowDada = orderItems.some(it => !!(it.nama_dada || it.dada));
+      updateFilterSizeDropdown();
+      renderOrderTable();
+      showToast(`Berhasil memuat ${orderItems.length} pesanan langsung dari Tabel (100% Akurat, Tanpa Typo)!`, true);
+      return;
+    }
+
+    const apiKey = localStorage.getItem('gemini_api_key') || (txtOrderApiKey ? txtOrderApiKey.value.trim() : '');
+    const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+    const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+    // 1. Primary Route: Gemini AI Parsing
+    if (apiKey && window.corelAPI?.aiParseJerseyText) {
+      if (btnOrderParseNow) {
+        btnOrderParseNow.disabled = true;
+        btnOrderParseNow.innerText = 'AI Sedang Merapihkan List...';
+      }
+      try {
+        const res = await window.corelAPI.aiParseJerseyText({
+          rawText: raw,
+          apiKey,
+          defaultSponsor,
+          caseMode
+        });
+        if (res.success && Array.isArray(res.items) && res.items.length > 0) {
+          orderItems = healJoinedNameVariations(res.items, raw);
+          orderShowDada = orderItems.some(it => !!(it.nama_dada || it.dada));
+          updateFilterSizeDropdown();
+          renderOrderTable();
+          showToast(`Berhasil merapihkan ${orderItems.length} pesanan dengan AI Gemini (Mode Online)!`, true);
+          return;
+        } else if (!res.success) {
+          console.warn('AI Parsing warning:', res.message);
+        }
+      } catch (err) {
+        console.warn('AI Parsing error, falling back to local parser:', err);
+      } finally {
+        if (btnOrderParseNow) {
+          btnOrderParseNow.disabled = false;
+          btnOrderParseNow.innerText = 'Rapihkan & Urutkan List';
+        }
+      }
+    }
+
+    // 2. Heuristic Local Parser Fallback (Offline Mode)
+    const parsed = healJoinedNameVariations(parseJerseyOrderList(raw), raw);
+    if (parsed.length === 0) {
+      alert('Tidak ada baris pesanan yang dapat dikenali. Periksa kembali format teks atau masukkan API Key Gemini.');
+      return;
+    }
+
+    orderItems = parsed.map((item, index) => ({
+      ...item,
+      originalIndex: index
+    }));
+    orderShowDada = orderItems.some(it => !!(it.nama_dada || it.dada));
+
+    updateFilterSizeDropdown();
+    renderOrderTable();
+    showToast(`Berhasil merapihkan ${orderItems.length} pesanan dengan Algoritma Lokal (Mode Offline)!`, true);
+  }
+
+  if (btnOrderParseNow) {
+    btnOrderParseNow.addEventListener('click', parseAndPopulateOrders);
+  }
+
+  if (btnOrderPasteText) {
+    btnOrderPasteText.addEventListener('click', async () => {
+      try {
+        const clipText = await navigator.clipboard.readText();
+        if (clipText && txtOrderRawInput) {
+          txtOrderRawInput.value = clipText;
+          showToast('Teks berhasil ditempel dari clipboard.');
+        }
+      } catch (err) {
+        showToast('Gunakan tombol Ctrl+V pada kotak teks.', false);
+      }
+    });
+  }
+
+  if (btnOrderClearText) {
+    btnOrderClearText.addEventListener('click', () => {
+      if (txtOrderRawInput) txtOrderRawInput.value = '';
+    });
+  }
+
+  if (btnOrderLoadSample) {
+    btnOrderLoadSample.addEventListener('click', () => {
+      if (txtOrderRawInput) {
+        txtOrderRawInput.value = `LIST PESANAN JERSEY TIM GARUDA UNITED
+Sponsor Depan: PT INDO MAJU JAYA
+
+1. Budi Santoso no 10, ukuran L (dada: KAPTI, tangan panjang)
+Punggung: EKO PRASETYO
+Dada: EKO
+No: 07
+Uk: M
+Ket: GK Kiper
+
+3. Dimas // 09 // XL // Depan: POLRESTABES
+Siti Rahma - uk S (tanpa nomor, dada: OFFICIAL)
+
+5:MUHAMMAD RIZKY
+nomor: 99
+ukuran: XXL
+nama dada: RIZKY 99
+catatan: kapten tim
+
+Fahri 04 L
+7. AHMAD DHANI / NO 17 / UKURAN XL / DADA: DEWA 19 / CELANA: L
+8) Hendra tanpa nomor ukuran M (dada: COACH)
+9. YUDHA No.08 Size: M anak (dada: YUDHA JR)
+
+10. KEVIN SANJAYA
+Punggung: SANJAYA
+Dada: KEVIN
+No: 01
+Uk: L
+Catatan: Lengan Panjang
+
+11. Bayu - nomor 23 - xxl anak - depan: BINTANG KECIL
+12. ARIS (Dada: ARIS, Punggung: A. KURNIAWAN, No: 12, Size: 3XL)
+13. Rian no 05 uk L
+14. Bambang Pamungkas (20) XL Striker
+15. Bagas #02 Size S (dada: GFX RUNNER)`;
+        parseAndPopulateOrders();
+      }
+    });
+  }
+
+  function updateFilterSizeDropdown() {
+    if (!selOrderFilterSize) return;
+    const currentVal = selOrderFilterSize.value;
+    const sizeCounts = {};
+    orderItems.forEach(it => {
+      const sz = it.ukuran || 'L';
+      sizeCounts[sz] = (sizeCounts[sz] || 0) + 1;
+    });
+
+    const uniqueSizes = Object.keys(sizeCounts).sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+    let html = `<option value="ALL">Semua Ukuran (${orderItems.length} Total)</option>`;
+    uniqueSizes.forEach(sz => {
+      html += `<option value="${sz}">Ukuran ${sz} (${sizeCounts[sz]} Pcs)</option>`;
+    });
+
+    selOrderFilterSize.innerHTML = html;
+    if (uniqueSizes.includes(currentVal)) {
+      selOrderFilterSize.value = currentVal;
+    } else {
+      selOrderFilterSize.value = 'ALL';
+    }
+  }
+
+  function getProcessedOrderItems() {
+    let items = [...orderItems];
+    const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+    const sortMode = selOrderSortMode ? selOrderSortMode.value : 'size_asc';
+    const filterSize = selOrderFilterSize ? selOrderFilterSize.value : 'ALL';
+
+    // 1. Filter Size
+    if (filterSize !== 'ALL') {
+      items = items.filter(it => (it.ukuran || 'L') === filterSize);
+    }
+
+    // 2. Sort
+    items.sort((a, b) => {
+      if (sortMode === 'size_asc') {
+        const diff = getJerseySizeRank(a.ukuran) - getJerseySizeRank(b.ukuran);
+        if (diff !== 0) return diff;
+        return (parseInt(a.nomor, 10) || 0) - (parseInt(b.nomor, 10) || 0);
+      }
+      if (sortMode === 'size_desc') {
+        const diff = getJerseySizeRank(b.ukuran) - getJerseySizeRank(a.ukuran);
+        if (diff !== 0) return diff;
+        return (parseInt(a.nomor, 10) || 0) - (parseInt(b.nomor, 10) || 0);
+      }
+      if (sortMode === 'nomor_asc') {
+        return (parseInt(a.nomor, 10) || 0) - (parseInt(b.nomor, 10) || 0);
+      }
+      if (sortMode === 'nomor_desc') {
+        return (parseInt(b.nomor, 10) || 0) - (parseInt(a.nomor, 10) || 0);
+      }
+      if (sortMode === 'nama_asc') {
+        return String(a.nama_punggung || a.nama || '').localeCompare(String(b.nama_punggung || b.nama || ''));
+      }
+      if (sortMode === 'nama_desc') {
+        return String(b.nama_punggung || b.nama || '').localeCompare(String(a.nama_punggung || a.nama || ''));
+      }
+      return (a.originalIndex || 0) - (b.originalIndex || 0);
+    });
+
+    return items;
+  }
+
+  function renderOrderTable() {
+    if (!tbodyOrderResult) return;
+    const items = getProcessedOrderItems();
+    const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+    // Update Total Counter
+    if (lblOrderTotalCount) {
+      lblOrderTotalCount.innerText = `${orderItems.length} Pcs`;
+    }
+
+    // Update Size Chips
+    if (boxOrderSizeChips) {
+      if (orderItems.length === 0) {
+        boxOrderSizeChips.innerHTML = '<span style="font-size: 10.5px; color: var(--text-dim); font-style: italic;">Belum ada data. Masukkan list di samping lalu klik "Rapihkan".</span>';
+      } else {
+        const counts = {};
+        orderItems.forEach(it => {
+          const sz = it.ukuran || 'L';
+          counts[sz] = (counts[sz] || 0) + 1;
+        });
+        const sortedSizes = Object.keys(counts).sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+        boxOrderSizeChips.innerHTML = sortedSizes.map(sz => `
+          <div class="size-chip-btn" data-filter-sz="${sz}" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); font-size: 11px; cursor: pointer;">
+            <b style="color: var(--accent-blue);">${sz}:</b>
+            <span style="color: #ffffff; font-weight: 700;">${counts[sz]}</span>
+          </div>
+        `).join('');
+
+        boxOrderSizeChips.querySelectorAll('[data-filter-sz]').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const sz = chip.getAttribute('data-filter-sz');
+            if (selOrderFilterSize) {
+              selOrderFilterSize.value = (selOrderFilterSize.value === sz) ? 'ALL' : sz;
+              renderOrderTable();
+            }
+          });
+        });
+      }
+    }
+
+    // Check duplicate numbers
+    const numCounts = {};
+    orderItems.forEach(it => {
+      const no = String(it.nomor || '').trim();
+      if (no && no !== '-') {
+        numCounts[no] = (numCounts[no] || 0) + 1;
+      }
+    });
+    const duplicateNumbers = Object.keys(numCounts).filter(no => numCounts[no] > 1);
+    const boxAlert = document.getElementById('boxOrderValidationAlerts');
+    if (boxAlert) {
+      if (duplicateNumbers.length > 0) {
+        boxAlert.style.display = 'block';
+        boxAlert.innerHTML = `⚠️ <b>Peringatan Nomor Kembar:</b> Nomor ${duplicateNumbers.map(n => `<span style="background: rgba(239, 68, 68, 0.25); padding: 1px 5px; border-radius: 3px; font-weight: 700;">#${n} (${numCounts[n]}x)</span>`).join(', ')} digunakan lebih dari satu pemain. Silakan periksa kembali sebelum masuk CorelDRAW.`;
+      } else {
+        boxAlert.style.display = 'none';
+        boxAlert.innerHTML = '';
+      }
+    }
+
+    // Render Dynamic thead
+    const thead = document.getElementById('theadOrderResult');
+    if (thead) {
+      let thHtml = `<tr>
+        <th style="width: 35px;">No</th>
+        <th>Nama Punggung</th>`;
+      if (orderShowDada) {
+        thHtml += `<th style="width: 115px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span>Nama Dada</span>
+            <button type="button" id="btnHideOrderDada" style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 9px; padding: 0;" title="Sembunyikan kolom Nama Dada">✕</button>
+          </div>
+        </th>`;
+      }
+      thHtml += `<th style="width: 85px;">Nomor</th>
+        <th style="width: 95px;">Ukuran</th>
+        <th style="width: 110px;">Catatan</th>`;
+      orderActiveCustomCols.forEach(col => {
+        thHtml += `<th style="min-width: 90px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span>${col}</span>
+            <button type="button" class="btn-remove-custom-col" data-col="${col}" style="background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 9px; padding: 0;" title="Hapus kolom ini">✕</button>
+          </div>
+        </th>`;
+      });
+      thHtml += `<th style="width: 45px;">Aksi</th></tr>`;
+      thead.innerHTML = thHtml;
+
+      const btnHideDada = document.getElementById('btnHideOrderDada');
+      if (btnHideDada) {
+        btnHideDada.addEventListener('click', () => {
+          orderShowDada = false;
+          renderOrderTable();
+        });
+      }
+      thead.querySelectorAll('.btn-remove-custom-col').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const c = btn.getAttribute('data-col');
+          orderActiveCustomCols = orderActiveCustomCols.filter(x => x !== c);
+          renderOrderTable();
+        });
+      });
+    }
+
+    // Empty state
+    const colCount = 5 + (orderShowDada ? 1 : 0) + orderActiveCustomCols.length;
+    if (items.length === 0) {
+      tbodyOrderResult.innerHTML = `
+        <tr>
+          <td colspan="${colCount}" style="text-align: center; color: var(--text-dim); padding: 40px;">
+            ${orderItems.length === 0 ? 'Belum ada data pesanan. Masukkan list di samping lalu klik <b>"Rapihkan & Urutkan List"</b>.' : 'Tidak ada data yang cocok dengan filter ukuran ini.'}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbodyOrderResult.innerHTML = '';
+    const sizeOptions = STANDARD_SIZE_ORDER.map(s => `<option value="${s}">${s}</option>`).join('');
+
+    items.forEach((item, displayIdx) => {
+      const tr = document.createElement('tr');
+      const displayName = applyCaseTransform(item.nama_punggung || item.nama, caseMode);
+      const isDuplicate = item.nomor && item.nomor !== '-' && duplicateNumbers.includes(item.nomor);
+      const isLongName = displayName.length > 16;
+
+      let rowHtml = `
+        <td style="font-weight: 700; color: var(--text-dim); text-align: center;">${displayIdx + 1}</td>
+        <td>
+          <input type="text" class="input-text ord-name" value="${displayName}" style="height: 22px; font-size: 11px; font-weight: 600; ${isLongName ? 'border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.08);' : ''}" ${isLongName ? 'title="Nama panjang (' + displayName.length + ' karakter). Pertimbangkan disingkat agar muat di pundak jersey."' : ''} />
+        </td>`;
+
+      if (orderShowDada) {
+        rowHtml += `
+        <td>
+          <input type="text" class="input-text ord-dada" value="${item.nama_dada || item.dada || ''}" placeholder="Dada depan..." style="height: 22px; font-size: 10.5px;" />
+        </td>`;
+      }
+
+      rowHtml += `
+        <td>
+          <input type="text" class="input-text ord-no" value="${item.nomor || '-'}" style="height: 22px; font-size: 11px; font-weight: 700; color: ${isDuplicate ? '#ef4444' : 'var(--accent-blue)'}; ${isDuplicate ? 'border: 1px solid #ef4444; background: rgba(239, 68, 68, 0.15);' : ''}" ${isDuplicate ? 'title="Nomor ini kembar/duplikat! Digunakan ' + numCounts[item.nomor] + 'x pemain."' : ''} />
+        </td>
+        <td>
+          <select class="select-native ord-size" style="height: 22px; font-size: 10.5px; font-weight: 700;">
+            ${sizeOptions}
+          </select>
+        </td>
+        <td>
+          <input type="text" class="input-text ord-pos" value="${item.keterangan || item.posisi || ''}" placeholder="Catatan..." style="height: 22px; font-size: 10.5px;" />
+        </td>`;
+
+      orderActiveCustomCols.forEach(col => {
+        rowHtml += `
+        <td>
+          <input type="text" class="input-text ord-custom" data-col="${col}" value="${item[col] || ''}" placeholder="${col}..." style="height: 22px; font-size: 10.5px;" />
+        </td>`;
+      });
+
+      rowHtml += `
+        <td style="text-align: center;">
+          <button type="button" class="btn-danger ord-del" style="height: 20px; font-size: 9px; padding: 0 4px;" title="Hapus baris ini">✕</button>
+        </td>
+      `;
+
+      tr.innerHTML = rowHtml;
+
+      const inpName = tr.querySelector('.ord-name');
+      if (inpName) {
+        inpName.addEventListener('input', (e) => {
+          item.nama = e.target.value;
+          item.nama_punggung = e.target.value;
+        });
+      }
+
+      const inpDada = tr.querySelector('.ord-dada');
+      if (inpDada) {
+        inpDada.addEventListener('input', (e) => {
+          item.nama_dada = e.target.value;
+          item.dada = e.target.value;
+        });
+      }
+
+      const inpNo = tr.querySelector('.ord-no');
+      if (inpNo) {
+        inpNo.addEventListener('input', (e) => {
+          item.nomor = e.target.value;
+        });
+        inpNo.addEventListener('change', () => {
+          renderOrderTable();
+        });
+      }
+
+      const selSize = tr.querySelector('.ord-size');
+      if (selSize) {
+        if (!STANDARD_SIZE_ORDER.includes(item.ukuran)) {
+          const opt = document.createElement('option');
+          opt.value = item.ukuran;
+          opt.innerText = item.ukuran;
+          selSize.appendChild(opt);
+        }
+        selSize.value = item.ukuran;
+        selSize.addEventListener('change', () => {
+          item.ukuran = selSize.value;
+          updateFilterSizeDropdown();
+          renderOrderTable();
+        });
+      }
+
+      const inpPos = tr.querySelector('.ord-pos');
+      if (inpPos) {
+        inpPos.addEventListener('input', (e) => {
+          item.posisi = e.target.value;
+          item.keterangan = e.target.value;
+        });
+      }
+
+      tr.querySelectorAll('.ord-custom').forEach(inpCust => {
+        inpCust.addEventListener('input', (e) => {
+          const colName = inpCust.getAttribute('data-col');
+          item[colName] = e.target.value;
+        });
+      });
+
+      const btnDel = tr.querySelector('.ord-del');
+      if (btnDel) {
+        btnDel.addEventListener('click', () => {
+          const realIdx = orderItems.indexOf(item);
+          if (realIdx >= 0) {
+            orderItems.splice(realIdx, 1);
+            updateFilterSizeDropdown();
+            renderOrderTable();
+          }
+        });
+      }
+
+      tbodyOrderResult.appendChild(tr);
+    });
+  }
+
+  // Sorter / Filter change listeners
+  if (selOrderSortMode) {
+    selOrderSortMode.addEventListener('change', renderOrderTable);
+  }
+  if (selOrderFilterSize) {
+    selOrderFilterSize.addEventListener('change', renderOrderTable);
+  }
+  if (selOrderCaseTransform) {
+    selOrderCaseTransform.addEventListener('change', renderOrderTable);
+  }
+
+  const btnOrderAddColumn = document.getElementById('btnOrderAddColumn');
+  if (btnOrderAddColumn) {
+    btnOrderAddColumn.addEventListener('click', () => {
+      const colName = prompt('Masukkan nama kolom baru (contoh: Nama Dada, Kerah, dll.):');
+      if (colName && colName.trim()) {
+        const cleanCol = colName.trim();
+        if (cleanCol.toLowerCase().includes('dada')) {
+          orderShowDada = true;
+        } else if (!orderActiveCustomCols.includes(cleanCol)) {
+          orderActiveCustomCols.push(cleanCol);
+        }
+        renderOrderTable();
+        showToast(`Kolom "${cleanCol}" berhasil ditambahkan.`);
+      }
+    });
+  }
+
+  if (btnOrderAddEmptyRow) {
+    btnOrderAddEmptyRow.addEventListener('click', () => {
+      const idx = orderItems.length + 1;
+      orderItems.push({
+        nama: `PEMAIN ${idx}`,
+        nama_punggung: `PEMAIN ${idx}`,
+        nama_dada: '',
+        dada: '',
+        nomor: `${idx}`,
+        ukuran: 'L',
+        posisi: '',
+        keterangan: '',
+        sponsor: '',
+        originalIndex: orderItems.length
+      });
+      updateFilterSizeDropdown();
+      renderOrderTable();
+    });
+  }
+
+  if (btnOrderClearAllRows) {
+    btnOrderClearAllRows.addEventListener('click', () => {
+      if (orderItems.length === 0) return;
+      if (confirm('Kosongkan semua daftar pesanan?')) {
+        orderItems = [];
+        orderShowDada = false;
+        orderActiveCustomCols = [];
+        updateFilterSizeDropdown();
+        renderOrderTable();
+        showToast('Daftar pesanan dikosongkan.');
+      }
+    });
+  }
+
+  // Send directly to Auto-Layout Jersey
+  if (btnOrderSendToAutoLayout) {
+    btnOrderSendToAutoLayout.addEventListener('click', () => {
+      if (!requireActiveLicense()) return;
+      if (orderItems.length === 0) {
+        alert('Daftar pesanan masih kosong. Silakan rapihkan list terlebih dahulu.');
+        return;
+      }
+      const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+      const processedItems = getProcessedOrderItems();
+      const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+      jerseyPlayers = processedItems.map((it, idx) => {
+        const finalName = applyCaseTransform(it.nama_punggung || it.nama, caseMode);
+        const finalDada = applyCaseTransform(it.nama_dada || it.dada || '', caseMode);
+        const playerObj = {
+          no: idx + 1,
+          Nama: finalName,
+          'Nama Punggung': finalName,
+          Nomor: it.nomor || '-',
+          Ukuran: it.ukuran || 'L',
+          'Nama Dada': finalDada,
+          Sponsor: it.sponsor || defaultSponsor || '',
+          Catatan: it.keterangan || it.posisi || '',
+          name: finalName,
+          number: it.nomor || '-',
+          size: it.ukuran || 'L',
+          dada: finalDada
+        };
+        orderActiveCustomCols.forEach(c => {
+          playerObj[c] = it[c] || '';
+        });
+        return playerObj;
+      });
+
+      // Update jerseyExcelHeaders to reflect all active columns
+      jerseyExcelHeaders = ['Nama', 'Nama Punggung', 'Nomor', 'Ukuran'];
+      if (orderShowDada || jerseyPlayers.some(p => !!p['Nama Dada'])) {
+        jerseyExcelHeaders.push('Nama Dada');
+      }
+      jerseyExcelHeaders.push('Sponsor', 'Catatan');
+      orderActiveCustomCols.forEach(c => {
+        if (!jerseyExcelHeaders.includes(c)) jerseyExcelHeaders.push(c);
+      });
+
+      // If any player has Nama Dada, dynamically ensure [DADA] is mapped in Auto-Layout
+      const hasNamaDada = jerseyPlayers.some(p => !!p['Nama Dada']);
+      if (hasNamaDada) {
+        if (!jerseyMappings.some(m => m.column === 'Nama Dada' || m.placeholder === '[DADA]')) {
+          jerseyMappings.push({
+            id: (jerseyMappings.reduce((max, m) => Math.max(max, m.id || 0), 0)) + 1,
+            column: 'Nama Dada',
+            placeholder: '[DADA]',
+            align: 'center',
+            textCase: 'upper',
+            maxWidth: 15.0,
+            lockRatio: true
+          });
+        }
+      }
+
+      renderJerseyMappings();
+      renderJerseyPlayerTable();
+      updateJerseyTargetSizeOptions();
+      switchView('jersey');
+      showToast(`Berhasil memuat ${jerseyPlayers.length} data ke Auto-Layout Jersey!`, true);
+    });
+  }
+
+  // Export to Excel (.xlsx)
+  if (btnOrderExportExcel) {
+    btnOrderExportExcel.addEventListener('click', async () => {
+      if (!requireActiveLicense()) return;
+      if (orderItems.length === 0) {
+        alert('Daftar pesanan masih kosong. Silakan rapihkan list terlebih dahulu.');
+        return;
+      }
+      try {
+        const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+        const saveRes = await window.corelAPI.showSaveDialog({
+          title: 'Simpan File Excel Jersey Auto-Layout',
+          defaultPath: 'data_jersey_rapi.xlsx'
+        });
+        if (saveRes && !saveRes.canceled && saveRes.filePath) {
+          const processedItems = getProcessedOrderItems();
+          const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+          const exportPayload = {
+            items: processedItems.map((it, idx) => {
+              const finalName = applyCaseTransform(it.nama_punggung || it.nama, caseMode);
+              const finalDada = (orderShowDada || it.nama_dada || it.dada) ? applyCaseTransform(it.nama_dada || it.dada || '', caseMode) : '';
+              const row = {
+                no: idx + 1,
+                nama: finalName,
+                nama_punggung: finalName,
+                nomor: it.nomor || '-',
+                ukuran: it.ukuran || 'L',
+                nama_dada: finalDada,
+                dada: finalDada,
+                sponsor: it.sponsor || defaultSponsor || '',
+                catatan: it.keterangan || it.posisi || ''
+              };
+              orderActiveCustomCols.forEach(c => {
+                row[c] = it[c] || '';
+              });
+              return row;
+            }),
+            filePath: saveRes.filePath,
+            showDada: orderShowDada || processedItems.some(it => !!(it.nama_dada || it.dada)),
+            customColumns: orderActiveCustomCols
+          };
+          const res = await window.corelAPI.exportOrderExcel(exportPayload);
+          if (res.success) {
+            showToast(`Sukses: ${res.message}`, true);
+            alert(`🎉 File Excel berhasil disimpan!\n\nLokasi: ${saveRes.filePath}\n\nFormat sudah 100% cocok dengan Auto-Layout.`);
+          } else {
+            showToast(`Gagal: ${res.message}`, false);
+            alert(`Gagal mengekspor: ${res.message}`);
+          }
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, false);
+      }
+    });
+  }
+
+  // Copy Formatted Text for WhatsApp
+  if (btnOrderCopyFormatted) {
+    btnOrderCopyFormatted.addEventListener('click', () => {
+      if (orderItems.length === 0) {
+        alert('Daftar pesanan masih kosong.');
+        return;
+      }
+      const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+      const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+      let text = `*LIST PESANAN JERSEY*\n`;
+      if (defaultSponsor) text += `Tim / Sponsor: ${defaultSponsor}\n`;
+      text += `Total Pesanan: ${orderItems.length} Pcs\n`;
+      text += `==============================\n\n`;
+
+      const grouped = {};
+      orderItems.forEach(it => {
+        const sz = it.ukuran || 'L';
+        if (!grouped[sz]) grouped[sz] = [];
+        grouped[sz].push(it);
+      });
+
+      const sortedSizes = Object.keys(grouped).sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+
+      let counter = 1;
+      for (const sz of sortedSizes) {
+        const list = grouped[sz];
+        text += `*UKURAN ${sz} (${list.length} Pcs):*\n`;
+        list.forEach(p => {
+          const finalName = applyCaseTransform(p.nama_punggung || p.nama, caseMode);
+          let line = `${counter}. ${finalName}`;
+          if (p.nomor && p.nomor !== '-') line += ` - ${p.nomor}`;
+          const finalDada = p.nama_dada || p.dada;
+          let extraArr = [];
+          if (finalDada) extraArr.push(`Dada: ${finalDada}`);
+          if (p.keterangan || p.posisi) extraArr.push(p.keterangan || p.posisi);
+          orderActiveCustomCols.forEach(c => {
+            if (p[c]) extraArr.push(`${c}: ${p[c]}`);
+          });
+          if (extraArr.length > 0) {
+            line += ` (${extraArr.join(' | ')})`;
+          }
+          text += `${line}\n`;
+          counter++;
+        });
+        text += `\n`;
+      }
+
+      navigator.clipboard.writeText(text.trim()).then(() => {
+        showToast('Daftar pesanan berhasil disalin untuk chat WhatsApp!', true);
+      }).catch(() => {
+        showToast('Gunakan seleksi teks manual untuk menyalin.', false);
+      });
+    });
+  }
+
+  // Global Clipboard Image Paste Listener for view-pesanan
+  window.addEventListener('paste', (e) => {
+    if (activeView !== 'pesanan') return;
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleOrderImageSelected(file);
+          if (btnTabOrderImage) btnTabOrderImage.click();
+          break;
+        }
+      }
+    }
+  });
+
+  // ==========================================
+  // 12b. Side-by-Side Comparison & Proofing Feature (Anti-Typo)
+  // ==========================================
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  const SIZE_COLOR_MAP = {
+    'XXS': '#d97706',      // Cokelat Amber
+    'XS': '#f59e0b',       // Kuning Oranye
+    'S': '#eab308',        // Kuning Emas
+    'M': '#10b981',        // Hijau (Permintaan spesifik: M itu hijau)
+    'L': '#2563eb',        // Biru Royal
+    'XL': '#ef4444',       // Merah (Permintaan spesifik: XL itu merah)
+    'XXL': '#8b5cf6',      // Ungu (Permintaan spesifik: XXL itu ungu)
+    '2XL': '#8b5cf6',      // Ungu
+    '3XL': '#ec4899',      // Pink Fuchsia
+    '4XL': '#f43f5e',      // Rose Red
+    '5XL': '#be123c',      // Crimson
+    'M ANAK': '#06b6d4',   // Cyan
+    'XL ANAK': '#0891b2',  // Deep Teal
+    'XXL ANAK': '#0284c7', // Sky Blue
+    'ANAK': '#14b8a6'      // Mint Teal
+  };
+
+  function getSizeColor(size) {
+    if (!size) return '#6b7280';
+    const norm = normalizeJerseySize(size);
+    if (SIZE_COLOR_MAP[norm]) return SIZE_COLOR_MAP[norm];
+    for (const [key, color] of Object.entries(SIZE_COLOR_MAP)) {
+      if (norm === key || norm.includes(key) || key.includes(norm)) return color;
+    }
+    const fallbackColors = ['#10b981', '#2563eb', '#ef4444', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#6366f1'];
+    let hash = 0;
+    for (let i = 0; i < norm.length; i++) hash = norm.charCodeAt(i) + ((hash << 5) - hash);
+    return fallbackColors[Math.abs(hash) % fallbackColors.length];
+  }
+
+  const modalOrderComparison = document.getElementById('modalOrderComparison');
+  const btnOrderOpenComparison = document.getElementById('btnOrderOpenComparison');
+  const btnOrderCompClose = document.getElementById('btnOrderCompClose');
+  const btnOrderCompSavePng = document.getElementById('btnOrderCompSavePng');
+  const btnOrderCompCopyImg = document.getElementById('btnOrderCompCopyImg');
+  const btnOrderCompCopyText = document.getElementById('btnOrderCompCopyText');
+  const boxOrderCompLegend = document.getElementById('boxOrderCompLegend');
+  const colComparisonRawList = document.getElementById('colComparisonRawList');
+  const colComparisonAppList = document.getElementById('colComparisonAppList');
+  const canvasOrderComparison = document.getElementById('canvasOrderComparison');
+
+  function closeOrderComparisonModal() {
+    if (modalOrderComparison) {
+      modalOrderComparison.classList.remove('open');
+    }
+  }
+
+  function openOrderComparisonModal() {
+    if (!orderItems || orderItems.length === 0) {
+      alert('Belum ada data pesanan untuk dibandingkan. Silakan masukkan atau rapihkan list pesanan terlebih dahulu.');
+      return;
+    }
+
+    const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+    const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+    let rawText = txtOrderRawInput ? txtOrderRawInput.value.trim() : '';
+    if (!rawText) {
+      rawText = orderItems.map((it, idx) => `${idx + 1}:${it.nama}\nNo:${it.nomor || '-'}\nUk:${it.ukuran || 'L'}`).join('\n');
+    }
+
+    // Group items by size
+    const grouped = {};
+    orderItems.forEach(it => {
+      const sz = it.ukuran || 'L';
+      if (!grouped[sz]) grouped[sz] = [];
+      grouped[sz].push(it);
+    });
+    const sortedSizes = Object.keys(grouped).sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+
+    // 1. Render Legend Bar
+    if (boxOrderCompLegend) {
+      boxOrderCompLegend.innerHTML = sortedSizes.map(sz => {
+        const col = getSizeColor(sz);
+        return `
+          <span class="comparison-legend-item">
+            <span class="comparison-legend-dot" style="background: ${col};"></span>
+            <span style="color: #ffffff; font-weight: 700;">${sz}</span>
+            <span style="color: var(--text-dim); font-size: 10px;">(${grouped[sz].length} pcs)</span>
+          </span>
+        `;
+      }).join('');
+    }
+
+    // 2. Render Left Column: List Asli
+    if (colComparisonRawList) {
+      colComparisonRawList.innerHTML = '';
+      const rawLines = rawText.split(/\r?\n/);
+
+      const playerLookup = orderItems.map(p => ({
+        cleanName: (p.nama || '').trim().toLowerCase(),
+        nomor: (p.nomor || '').trim(),
+        ukuran: p.ukuran || 'L'
+      })).filter(p => p.cleanName.length >= 2);
+
+      rawLines.forEach(line => {
+        const trimmed = line.trim();
+        const lineLower = trimmed.toLowerCase();
+        let matchedSize = null;
+
+        const sizeMatch = lineLower.match(/(?:uk(?:uran)?|size)\s*[:\-\/]?\s*([a-z0-9\s"]+)/i);
+        if (sizeMatch && sizeMatch[1]) {
+          const rawSz = sizeMatch[1].replace(/["']/g, '').trim();
+          matchedSize = normalizeJerseySize(rawSz);
+        }
+
+        if (!matchedSize) {
+          for (const p of playerLookup) {
+            if (lineLower.includes(p.cleanName)) {
+              matchedSize = p.ukuran;
+              break;
+            }
+          }
+        }
+
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'comparison-raw-line';
+        if (matchedSize) {
+          const col = getSizeColor(matchedSize);
+          lineDiv.innerHTML = `<span>${escapeHtml(line)}</span><span class="comp-badge-dot" style="background: ${col};" title="Ukuran ${matchedSize}"></span>`;
+        } else {
+          lineDiv.innerHTML = `<span>${escapeHtml(line) || '&nbsp;'}</span>`;
+        }
+        colComparisonRawList.appendChild(lineDiv);
+      });
+    }
+
+    // 3. Render Right Column: Hasil Aplikasi
+    if (colComparisonAppList) {
+      let appHtml = `
+        <div style="font-weight: 800; font-size: 13px; margin-bottom: 2px; color: #111827;">*LIST PESANAN JERSEY*</div>
+      `;
+      if (defaultSponsor) {
+        appHtml += `<div style="font-weight: 600; color: #4b5563; font-size: 11.5px;">Tim / Sponsor: ${escapeHtml(defaultSponsor)}</div>`;
+      }
+      appHtml += `
+        <div style="font-weight: 600; color: #4b5563; font-size: 11.5px;">Total Pesanan: ${orderItems.length} Pcs</div>
+        <div style="color: #9ca3af; margin-bottom: 10px; font-weight: 700; font-family: monospace;">==============================</div>
+      `;
+
+      let counter = 1;
+      for (const sz of sortedSizes) {
+        const list = grouped[sz];
+        const col = getSizeColor(sz);
+        appHtml += `
+          <div class="comparison-app-group">
+            <div class="comparison-app-group-title">
+              <span class="comp-badge-dot" style="background: ${col};"></span>
+              <span style="color: #111827;">*UKURAN ${sz} (${list.length} Pcs):*</span>
+            </div>
+        `;
+        list.forEach(p => {
+          const finalName = applyCaseTransform(p.nama, caseMode);
+          let rowTxt = `${counter}. ${finalName}`;
+          if (p.nomor && p.nomor !== '-') rowTxt += ` - ${p.nomor}`;
+          if (p.posisi) rowTxt += ` (${p.posisi})`;
+          appHtml += `<div class="comparison-app-row">${escapeHtml(rowTxt)}</div>`;
+          counter++;
+        });
+        appHtml += `</div>`;
+      }
+
+      colComparisonAppList.innerHTML = appHtml;
+    }
+
+    if (modalOrderComparison) {
+      modalOrderComparison.classList.add('open');
+    }
+  }
+
+  function renderComparisonCanvas() {
+    if (!canvasOrderComparison) return '';
+    const ctx = canvasOrderComparison.getContext('2d');
+    if (!ctx) return '';
+
+    const defaultSponsor = txtOrderDefaultSponsor ? txtOrderDefaultSponsor.value.trim() : '';
+    const caseMode = selOrderCaseTransform ? selOrderCaseTransform.value : 'asis';
+
+    let rawText = txtOrderRawInput ? txtOrderRawInput.value.trim() : '';
+    if (!rawText) {
+      rawText = orderItems.map((it, idx) => `${idx + 1}:${it.nama}\nNo:${it.nomor || '-'}\nUk:${it.ukuran || 'L'}`).join('\n');
+    }
+    const rawLines = rawText.split(/\r?\n/);
+
+    const grouped = {};
+    orderItems.forEach(it => {
+      const sz = it.ukuran || 'L';
+      if (!grouped[sz]) grouped[sz] = [];
+      grouped[sz].push(it);
+    });
+    const sortedSizes = Object.keys(grouped).sort((a, b) => getJerseySizeRank(a) - getJerseySizeRank(b));
+
+    // Calculate lines count for right column
+    let rightLinesCount = 3;
+    if (defaultSponsor) rightLinesCount += 1;
+    for (const sz of sortedSizes) {
+      rightLinesCount += 1;
+      rightLinesCount += grouped[sz].length;
+      rightLinesCount += 1;
+    }
+
+    const maxLines = Math.max(rawLines.length, rightLinesCount);
+    const lineHeight = 21;
+    const topMargin = 85;
+    const bottomMargin = 40;
+    const baseW = 860;
+    const baseH = Math.max(500, topMargin + (maxLines * lineHeight) + bottomMargin);
+
+    const scale = 2;
+    canvasOrderComparison.width = baseW * scale;
+    canvasOrderComparison.height = baseH * scale;
+
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // 1. Clean White Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, baseW, baseH);
+
+    // 2. Legend Bar at Top
+    ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+    let legendX = 35;
+    const legendY = 25;
+    ctx.fillStyle = '#374151';
+    ctx.fillText('KODE WARNA UKURAN:', legendX, legendY);
+    legendX += 135;
+
+    for (const sz of sortedSizes) {
+      const col = getSizeColor(sz);
+      ctx.beginPath();
+      ctx.arc(legendX, legendY - 4, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+
+      ctx.fillStyle = '#111827';
+      const label = `${sz} (${grouped[sz].length})`;
+      ctx.fillText(label, legendX + 8, legendY);
+      legendX += ctx.measureText(label).width + 18;
+      if (legendX > baseW - 80) break;
+    }
+
+    // Top divider line below legend
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(30, 38);
+    ctx.lineTo(baseW - 30, 38);
+    ctx.stroke();
+
+    // 3. Column Headers
+    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+    ctx.fillStyle = '#000000';
+    ctx.fillText('list asli', 35, 70);
+    ctx.fillText('hasil aplikasi', 450, 70);
+
+    // Center vertical divider
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(425, 50);
+    ctx.lineTo(425, baseH - 25);
+    ctx.stroke();
+
+    // 4. Render Left Column: list asli
+    ctx.font = '12px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+    let currY = topMargin + 14;
+
+    const playerLookup = orderItems.map(p => ({
+      cleanName: (p.nama || '').trim().toLowerCase(),
+      nomor: (p.nomor || '').trim(),
+      ukuran: p.ukuran || 'L'
+    })).filter(p => p.cleanName.length >= 2);
+
+    for (const line of rawLines) {
+      const trimmed = line.trim();
+      const lineLower = trimmed.toLowerCase();
+      let matchedSize = null;
+
+      const sizeMatch = lineLower.match(/(?:uk(?:uran)?|size)\s*[:\-\/]?\s*([a-z0-9\s"]+)/i);
+      if (sizeMatch && sizeMatch[1]) {
+        const rawSz = sizeMatch[1].replace(/["']/g, '').trim();
+        matchedSize = normalizeJerseySize(rawSz);
+      }
+
+      if (!matchedSize) {
+        for (const p of playerLookup) {
+          if (lineLower.includes(p.cleanName)) {
+            matchedSize = p.ukuran;
+            break;
+          }
+        }
+      }
+
+      ctx.fillStyle = '#111827';
+      ctx.fillText(line, 35, currY);
+
+      if (matchedSize) {
+        const col = getSizeColor(matchedSize);
+        const textWidth = ctx.measureText(line).width;
+        const dotX = Math.min(395, 35 + textWidth + 10);
+        ctx.beginPath();
+        ctx.arc(dotX, currY - 4, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = col;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      currY += lineHeight;
+    }
+
+    // 5. Render Right Column: hasil aplikasi
+    let rightY = topMargin + 14;
+
+    ctx.font = 'bold 12.5px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+    ctx.fillStyle = '#111827';
+    ctx.fillText('*LIST PESANAN JERSEY*', 450, rightY);
+    rightY += lineHeight;
+
+    if (defaultSponsor) {
+      ctx.font = '12px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+      ctx.fillStyle = '#4b5563';
+      ctx.fillText(`Tim / Sponsor: ${defaultSponsor}`, 450, rightY);
+      rightY += lineHeight;
+    }
+
+    ctx.font = '12px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+    ctx.fillStyle = '#4b5563';
+    ctx.fillText(`Total Pesanan: ${orderItems.length} Pcs`, 450, rightY);
+    rightY += lineHeight;
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('==============================', 450, rightY);
+    rightY += lineHeight + 4;
+
+    let counter = 1;
+    for (const sz of sortedSizes) {
+      const list = grouped[sz];
+      const col = getSizeColor(sz);
+
+      ctx.beginPath();
+      ctx.arc(456, rightY - 4, 5, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.font = 'bold 12.5px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+      ctx.fillStyle = '#111827';
+      ctx.fillText(`*UKURAN ${sz} (${list.length} Pcs):*`, 468, rightY);
+      rightY += lineHeight;
+
+      ctx.font = '12px Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace';
+      ctx.fillStyle = '#1f2937';
+      for (const p of list) {
+        const finalName = applyCaseTransform(p.nama, caseMode);
+        let rowTxt = `  ${counter}. ${finalName}`;
+        if (p.nomor && p.nomor !== '-') rowTxt += ` - ${p.nomor}`;
+        if (p.posisi) rowTxt += ` (${p.posisi})`;
+        ctx.fillText(rowTxt, 450, rightY);
+        rightY += lineHeight;
+        counter++;
+      }
+
+      rightY += 6;
+    }
+
+    ctx.restore();
+    return canvasOrderComparison.toDataURL('image/png');
+  }
+
+  // Comparison Dialog Button Listeners
+  if (btnOrderOpenComparison) {
+    btnOrderOpenComparison.addEventListener('click', openOrderComparisonModal);
+  }
+
+  if (btnOrderCompClose) {
+    btnOrderCompClose.addEventListener('click', closeOrderComparisonModal);
+  }
+
+  if (modalOrderComparison) {
+    modalOrderComparison.addEventListener('click', (e) => {
+      if (e.target === modalOrderComparison) {
+        closeOrderComparisonModal();
+      }
+    });
+  }
+
+  if (btnOrderCompSavePng) {
+    btnOrderCompSavePng.addEventListener('click', async () => {
+      try {
+        const dataUrl = renderComparisonCanvas();
+        if (!dataUrl) {
+          alert('Gagal menghasilkan gambar perbandingan.');
+          return;
+        }
+        const saveRes = await window.corelAPI.showSaveDialog({
+          title: 'Simpan Gambar Perbandingan Pesanan Jersey',
+          defaultPath: 'perbandingan_pesanan_jersey.png',
+          filters: [{ name: 'Gambar PNG (*.png)', extensions: ['png'] }]
+        });
+        if (saveRes && !saveRes.canceled && saveRes.filePath) {
+          const res = await window.corelAPI.saveComparisonImage({ dataUrl, filePath: saveRes.filePath });
+          if (res && res.success) {
+            showToast('Gambar perbandingan berhasil disimpan!', true);
+            alert(`File gambar perbandingan berhasil disimpan!\n\nLokasi: ${saveRes.filePath}\n\nSiap dibagikan ke konsumen untuk verifikasi.`);
+          } else {
+            showToast('Gagal menyimpan gambar: ' + (res?.message || 'Error tidak diketahui'), false);
+          }
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, false);
+      }
+    });
+  }
+
+  if (btnOrderCompCopyImg) {
+    btnOrderCompCopyImg.addEventListener('click', async () => {
+      try {
+        const dataUrl = renderComparisonCanvas();
+        if (!dataUrl) {
+          alert('Gagal menghasilkan gambar perbandingan.');
+          return;
+        }
+        const res = await window.corelAPI.copyImageToClipboard(dataUrl);
+        if (res && res.success) {
+          showToast('Gambar perbandingan disalin ke clipboard! Siap dipaste ke WA.', true);
+        } else {
+          showToast('Gagal menyalin gambar ke clipboard: ' + (res?.message || ''), false);
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, false);
+      }
+    });
+  }
+
+  if (btnOrderCompCopyText && btnOrderCopyFormatted) {
+    btnOrderCompCopyText.addEventListener('click', () => {
+      btnOrderCopyFormatted.click();
+    });
+  }
+
+  // ==========================================
+  // Multi-CorelDRAW Instance Switcher Logic
+  // ==========================================
+  const boxMultiCorelSwitcher = document.getElementById('boxMultiCorelSwitcher');
+  const containerMultiCorelPills = document.getElementById('containerMultiCorelPills');
+  const berandaMultiCorelAlert = document.getElementById('berandaMultiCorelAlert');
+  const berandaMultiCorelList = document.getElementById('berandaMultiCorelList');
+  const lblDownsaverTargetCorel = document.getElementById('lblDownsaverTargetCorel');
+
+  function renderMultiCorelInstances(res) {
+    const running = (res && Array.isArray(res.runningInstances)) ? res.runningInstances : [];
+
+    // Update downsaver target corel label
+    if (lblDownsaverTargetCorel) {
+      if (res?.connected && res?.version) {
+        lblDownsaverTargetCorel.innerText = 'Menggunakan: ' + res.version + ' ▾';
+      } else {
+        lblDownsaverTargetCorel.innerText = 'CorelDRAW Belum Terbuka ▾';
+      }
+    }
+
+    if (running.length >= 2) {
+      // 1. Show titlebar pill switcher
+      if (boxMultiCorelSwitcher && containerMultiCorelPills) {
+        boxMultiCorelSwitcher.style.display = 'flex';
+        containerMultiCorelPills.innerHTML = '';
+        running.forEach((inst) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'multi-corel-pill-btn' + (inst.isCurrent ? ' active' : '');
+          const shortVer = inst.version === '17' ? 'Corel X7' : (inst.version === '23' ? 'Corel 2021' : inst.name.replace('CorelDRAW ', ''));
+          btn.innerText = inst.isCurrent ? (shortVer + ' ✓') : shortVer;
+          btn.title = inst.name + ' (PID: ' + inst.pid + ')\nJudul: ' + (inst.title || '-') + '\nKlik untuk menghubungkan ke instance ini';
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (selTargetCorelVersion) {
+              selTargetCorelVersion.value = inst.version;
+            }
+            document.querySelectorAll('.multi-corel-pill-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (window.corelAPI?.setPreferredCorelVersion) {
+              await window.corelAPI.setPreferredCorelVersion(inst.version, inst.pid);
+              showToast('Berhasil beralih koneksi ke ' + inst.name + '!');
+              await updateCorelStatus();
+            }
+          });
+          containerMultiCorelPills.appendChild(btn);
+        });
+      }
+
+      // 2. Show Beranda alert box
+      if (berandaMultiCorelAlert && berandaMultiCorelList) {
+        berandaMultiCorelAlert.style.display = 'block';
+        berandaMultiCorelList.innerHTML = '';
+        running.forEach((inst) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'multi-corel-item-btn' + (inst.isCurrent ? ' active' : '');
+          const dot = inst.isCurrent ? '●' : '○';
+          const statusText = inst.isCurrent ? 'Terhubung (Aktif)' : 'Klik untuk Beralih';
+          item.innerHTML = '<span>' + dot + ' <strong>' + inst.name + '</strong> <small style="color: var(--text-dim);">(PID: ' + inst.pid + ')</small></span><span style="font-size: 10px; color: ' + (inst.isCurrent ? '#34d399' : '#60a5fa') + ';">' + statusText + '</span>';
+          item.addEventListener('click', async () => {
+            if (selTargetCorelVersion) {
+              selTargetCorelVersion.value = inst.version;
+            }
+            document.querySelectorAll('.multi-corel-item-btn').forEach(b => b.classList.remove('active'));
+            item.classList.add('active');
+            if (window.corelAPI?.setPreferredCorelVersion) {
+              await window.corelAPI.setPreferredCorelVersion(inst.version, inst.pid);
+              showToast('Berhasil beralih koneksi ke ' + inst.name + '!');
+              await updateCorelStatus();
+            }
+          });
+          berandaMultiCorelList.appendChild(item);
+        });
+      }
+    } else {
+      if (boxMultiCorelSwitcher) boxMultiCorelSwitcher.style.display = 'none';
+      if (berandaMultiCorelAlert) berandaMultiCorelAlert.style.display = 'none';
+    }
+  }
+
+  if (lblDownsaverTargetCorel) {
+    lblDownsaverTargetCorel.addEventListener('click', () => {
+      if (selTargetCorelVersion) {
+        selTargetCorelVersion.focus();
+        selTargetCorelVersion.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  }
+
+  // ==========================================
+  // Tool: Penurun Versi CDR (X4/X7 Downsaver)
+  // ==========================================
+  const btnDownsaverQuickX4 = document.getElementById('btnDownsaverQuickX4');
+  const btnDownsaverQuickX7 = document.getElementById('btnDownsaverQuickX7');
+  const btnDownsaverStart = document.getElementById('btnDownsaverStart');
+  const btnDownsaverCancel = document.getElementById('btnDownsaverCancel');
+  const btnDownsaverAddFiles = document.getElementById('btnDownsaverAddFiles');
+  const btnDownsaverAddFolder = document.getElementById('btnDownsaverAddFolder');
+  const btnDownsaverClear = document.getElementById('btnDownsaverClear');
+  const lblDownsaverSummary = document.getElementById('lblDownsaverSummary');
+  const downsaverTableWrapper = document.getElementById('downsaverTableWrapper');
+  const downsaverEmptyDropzone = document.getElementById('downsaverEmptyDropzone');
+  const tblDownsaverFiles = document.getElementById('tblDownsaverFiles');
+  const tbodyDownsaverFiles = document.getElementById('tbodyDownsaverFiles');
+  const chkDownsaverSelectAll = document.getElementById('chkDownsaverSelectAll');
+  const selDownsaverTargetVersion = document.getElementById('selDownsaverTargetVersion');
+  const txtDownsaverSuffix = document.getElementById('txtDownsaverSuffix');
+  const selDownsaverLocationMode = document.getElementById('selDownsaverLocationMode');
+  const groupDownsaverCustomFolder = document.getElementById('groupDownsaverCustomFolder');
+  const txtDownsaverCustomFolder = document.getElementById('txtDownsaverCustomFolder');
+  const btnDownsaverBrowseFolder = document.getElementById('btnDownsaverBrowseFolder');
+  const chkDownsaverCurveTo = document.getElementById('chkDownsaverCurveTo');
+  const chkDownsaverCleanup = document.getElementById('chkDownsaverCleanup');
+  const chkDownsaverOverwrite = document.getElementById('chkDownsaverOverwrite');
+  const chkDownsaverOpenFolder = document.getElementById('chkDownsaverOpenFolder');
+  const downsaverProgressBox = document.getElementById('downsaverProgressBox');
+  const downsaverProgressBarFill = document.getElementById('downsaverProgressBarFill');
+  const lblDownsaverProgressText = document.getElementById('lblDownsaverProgressText');
+  const lblDownsaverProgressPercent = document.getElementById('lblDownsaverProgressPercent');
+
+  let downsaverFiles = [];
+  let isDownsaving = false;
+
+  function getTargetVersionLabel(verNum) {
+    const v = parseInt(verNum, 10);
+    switch (v) {
+      case 14: return 'X4 (v14.0)';
+      case 15: return 'X5 (v15.0)';
+      case 16: return 'X6 (v16.0)';
+      case 17: return 'X7 (v17.0)';
+      case 18: return 'X8 (v18.0)';
+      case 20: return '2018 (v20.0)';
+      case 21: return '2019 (v21.0)';
+      case 22: return '2020 (v22.0)';
+      case 23: return '2021 (v23.0)';
+      default: return 'v' + v;
+    }
+  }
+
+  function renderDownsaverFiles() {
+    if (!tbodyDownsaverFiles || !downsaverEmptyDropzone || !tblDownsaverFiles) return;
+
+    if (downsaverFiles.length === 0) {
+      downsaverEmptyDropzone.style.display = 'flex';
+      tblDownsaverFiles.style.display = 'none';
+      if (lblDownsaverSummary) lblDownsaverSummary.innerText = '0 File CDR Terpilih';
+      return;
+    }
+
+    downsaverEmptyDropzone.style.display = 'none';
+    tblDownsaverFiles.style.display = 'table';
+
+    tbodyDownsaverFiles.innerHTML = '';
+    const currentTargetVer = selDownsaverTargetVersion?.value || '14';
+    const targetLabel = getTargetVersionLabel(currentTargetVer);
+
+    let totalBytes = 0;
+
+    downsaverFiles.forEach((item, idx) => {
+      totalBytes += (item.sizeBytes || 0);
+      const tr = document.createElement('tr');
+
+      // Checkbox
+      const tdCheck = document.createElement('td');
+      tdCheck.style.textAlign = 'center';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = !!item.selected;
+      chk.addEventListener('change', () => {
+        item.selected = chk.checked;
+        updateDownsaverSummary();
+      });
+      tdCheck.appendChild(chk);
+      tr.appendChild(tdCheck);
+
+      // Thumbnail
+      const tdThumb = document.createElement('td');
+      tdThumb.style.textAlign = 'center';
+      if (item.thumbnailBase64) {
+        const img = document.createElement('img');
+        img.src = item.thumbnailBase64;
+        img.className = 'downsaver-thumb';
+        img.alt = 'CDR';
+        tdThumb.appendChild(img);
+      } else {
+        const fb = document.createElement('div');
+        fb.className = 'downsaver-thumb-fallback';
+        fb.innerText = 'CDR';
+        tdThumb.appendChild(fb);
+      }
+      tr.appendChild(tdThumb);
+
+      // Name & Path
+      const tdName = document.createElement('td');
+      tdName.innerHTML = '<div style="font-weight: 600; color: var(--text-main); font-size: 12px; margin-bottom: 2px;">' + item.fileName + '</div><div style="font-size: 10px; color: var(--text-dim); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + item.filePath + '">' + item.filePath + '</div>';
+      tr.appendChild(tdName);
+
+      // Detected Original Version Badge
+      const tdVer = document.createElement('td');
+      let badgeClass = 'badge-ver-recent';
+      if (item.versionNum >= 23) badgeClass = 'badge-ver-recent';
+      else if (item.versionNum >= 17) badgeClass = 'badge-ver-mid';
+      else if (item.versionNum >= 14) badgeClass = 'badge-ver-classic';
+      else badgeClass = 'badge-ver-legacy';
+
+      const displayVerName = item.versionName || ('CorelDRAW v' + item.versionNum);
+      tdVer.innerHTML = '<span class="badge-version-pill ' + badgeClass + '">' + displayVerName + '</span>';
+      tr.appendChild(tdVer);
+
+      // File Size & Pages
+      const tdSize = document.createElement('td');
+      tdSize.style.fontSize = '11px';
+      tdSize.style.color = 'var(--text-muted)';
+      tdSize.innerText = (item.fileSize || '-') + ' • ' + (item.pages || 1) + ' Hal';
+      tr.appendChild(tdSize);
+
+      // Target Version
+      const tdTarget = document.createElement('td');
+      tdTarget.innerHTML = '<span style="color: #60a5fa; font-weight: 700; font-size: 11px;">➔ ' + targetLabel + '</span>';
+      tr.appendChild(tdTarget);
+
+      // Status
+      const tdStatus = document.createElement('td');
+      if (item.status === 'processing') {
+        tdStatus.innerHTML = '<span style="color: #fbbf24; font-size: 11px; font-weight: 600;">⏳ ' + (item.statusText || 'Memproses...') + '</span>';
+      } else if (item.status === 'success') {
+        tdStatus.innerHTML = '<span style="color: #34d399; font-size: 11px; font-weight: 600;">✓ ' + (item.statusText || 'Selesai') + '</span>';
+      } else if (item.status === 'failed') {
+        tdStatus.innerHTML = '<span style="color: #f87171; font-size: 11px; font-weight: 600;">✕ ' + (item.statusText || 'Gagal') + '</span>';
+      } else {
+        tdStatus.innerHTML = '<span style="color: var(--text-dim); font-size: 11px;">Siap</span>';
+      }
+      tr.appendChild(tdStatus);
+
+      // Action Delete
+      const tdAction = document.createElement('td');
+      tdAction.style.textAlign = 'center';
+      const btnDel = document.createElement('button');
+      btnDel.type = 'button';
+      btnDel.className = 'btn-danger';
+      btnDel.style.padding = '2px 6px';
+      btnDel.style.fontSize = '10px';
+      btnDel.innerText = '✕';
+      btnDel.title = 'Hapus dari daftar';
+      btnDel.addEventListener('click', () => {
+        downsaverFiles.splice(idx, 1);
+        renderDownsaverFiles();
+      });
+      tdAction.appendChild(btnDel);
+      tr.appendChild(tdAction);
+
+      tbodyDownsaverFiles.appendChild(tr);
+    });
+
+    updateDownsaverSummary();
+  }
+
+  function updateDownsaverSummary() {
+    if (!lblDownsaverSummary) return;
+    const selectedCount = downsaverFiles.filter(f => f.selected).length;
+    let totalBytes = 0;
+    downsaverFiles.forEach(f => { if (f.selected) totalBytes += (f.sizeBytes || 0); });
+
+    let sizeStr = '';
+    if (totalBytes > 0) {
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(totalBytes) / Math.log(k));
+      sizeStr = ' (' + parseFloat((totalBytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i] + ')';
+    }
+
+    lblDownsaverSummary.innerText = selectedCount + ' dari ' + downsaverFiles.length + ' File Dipilih' + sizeStr;
+  }
+
+  async function addDownsaverFiles(filePaths) {
+    if (!filePaths || !filePaths.length) return;
+
+    // Normalize paths cleanly to string
+    const normalizedPaths = filePaths.map(item => {
+      if (typeof item === 'string') return item;
+      return item?.path || item?.filePath || '';
+    }).filter(p => p && typeof p === 'string' && p.toLowerCase().endsWith('.cdr'));
+
+    if (!normalizedPaths.length) return;
+
+    const existingPaths = new Set(downsaverFiles.map(f => f.filePath));
+    const pathsToInspect = normalizedPaths.filter(p => !existingPaths.has(p));
+    if (!pathsToInspect.length) {
+      showToast('Semua file yang dipilih sudah ada di dalam daftar.');
+      return;
+    }
+
+    if (lblDownsaverSummary) lblDownsaverSummary.innerText = 'Memeriksa ' + pathsToInspect.length + ' file CDR...';
+
+    try {
+      let inspected = [];
+      if (window.corelAPI?.inspectCdrFiles) {
+        inspected = await window.corelAPI.inspectCdrFiles(pathsToInspect);
+      }
+
+      const newEntries = pathsToInspect.map((p, idx) => {
+        const meta = inspected && inspected[idx] ? inspected[idx] : null;
+        return {
+          filePath: p,
+          fileName: meta?.fileName || p.split(/[\\/]/).pop(),
+          fileSize: meta?.fileSize || '',
+          sizeBytes: meta?.sizeBytes || 0,
+          versionNum: meta?.versionNum || 0,
+          versionName: meta?.humanVersion || meta?.versionName || 'CDR',
+          versionShort: meta?.appVersion || meta?.versionShort || '',
+          pages: meta?.pages || 1,
+          thumbnailBase64: meta?.thumbnailBase64 || null,
+          status: 'ready',
+          statusText: 'Siap',
+          selected: true
+        };
+      });
+
+      downsaverFiles = [...downsaverFiles, ...newEntries];
+      renderDownsaverFiles();
+      showToast('Berhasil menambahkan ' + newEntries.length + ' file CDR!');
+    } catch (err) {
+      showToast('Gagal memeriksa file CDR: ' + err.message, false);
+    }
+  }
+
+  async function startDownsaverConversion() {
+    if (isDownsaving) return;
+    if (!requireActiveLicense()) return;
+
+    const selectedFiles = downsaverFiles.filter(f => f.selected);
+    if (!selectedFiles.length) {
+      alert('Pilih setidaknya satu file CDR untuk dikonversi.');
+      return;
+    }
+
+    const targetVer = parseInt(selDownsaverTargetVersion?.value, 10) || 14;
+    const targetLabel = getTargetVersionLabel(targetVer);
+    const suffix = txtDownsaverSuffix?.value || '';
+    const locMode = selDownsaverLocationMode?.value || 'same';
+    const outputFolder = locMode === 'custom' ? (txtDownsaverCustomFolder?.value || '') : '';
+    const curveTo = chkDownsaverCurveTo ? !!chkDownsaverCurveTo.checked : false;
+    const cleanupJunk = !!chkDownsaverCleanup?.checked;
+    const overwrite = !!chkDownsaverOverwrite?.checked;
+    const openAfter = !!chkDownsaverOpenFolder?.checked;
+
+    if (locMode === 'custom' && !outputFolder) {
+      alert('Silakan tentukan Folder Tujuan Output terlebih dahulu.');
+      return;
+    }
+
+    isDownsaving = true;
+    if (btnDownsaverCancel) btnDownsaverCancel.style.display = 'inline-flex';
+    if (btnDownsaverStart) {
+      btnDownsaverStart.disabled = true;
+      btnDownsaverStart.innerText = 'Mengonversi...';
+    }
+    if (downsaverProgressBox) downsaverProgressBox.style.display = 'block';
+    if (downsaverProgressBarFill) downsaverProgressBarFill.style.width = '30%';
+    if (lblDownsaverProgressText) lblDownsaverProgressText.innerText = 'Menghubungkan ke CorelDRAW & menurunkan versi ' + selectedFiles.length + ' file ke ' + targetLabel + '...';
+    if (lblDownsaverProgressPercent) lblDownsaverProgressPercent.innerText = 'Proses...';
+
+    selectedFiles.forEach((f) => {
+      f.status = 'processing';
+      f.statusText = 'Sedang dikonversi...';
+    });
+    renderDownsaverFiles();
+
+    try {
+      const payload = {
+        files: selectedFiles.map(f => f.filePath),
+        targetVersion: targetVer,
+        outputFolder,
+        suffix,
+        curveTo,
+        cleanupJunk,
+        overwrite
+      };
+
+      const res = await window.corelAPI.downsaveCdrBatch(payload);
+
+      if (downsaverProgressBarFill) downsaverProgressBarFill.style.width = '100%';
+      if (lblDownsaverProgressPercent) lblDownsaverProgressPercent.innerText = '100%';
+
+      if (res?.cancelled) {
+        showToast('Proses konversi dibatalkan.', false);
+        selectedFiles.forEach((f) => {
+          if (f.status === 'processing') {
+            f.status = 'ready';
+            f.statusText = 'Dibatalkan';
+          }
+        });
+      } else if (res?.success) {
+        const convertedPaths = new Set((res.converted || []).map(c => (c.src || '').toLowerCase()));
+        selectedFiles.forEach((f) => {
+          if (convertedPaths.has(f.filePath.toLowerCase())) {
+            f.status = 'success';
+            f.statusText = 'Selesai (' + targetLabel + ')';
+          } else {
+            f.status = 'failed';
+            f.statusText = 'Gagal';
+          }
+        });
+
+        showToast(res.message || ('Berhasil menurunkan versi ' + (res.converted?.length || 0) + ' file CDR ke ' + targetLabel + '!'), true);
+
+        if (openAfter && window.corelAPI?.openFolder) {
+          const targetDir = outputFolder || selectedFiles[0].filePath.substring(0, selectedFiles[0].filePath.lastIndexOf('\\'));
+          if (targetDir) window.corelAPI.openFolder(targetDir);
+        }
+      } else {
+        selectedFiles.forEach((f) => {
+          f.status = 'failed';
+          f.statusText = 'Gagal';
+        });
+        showToast(res?.message || 'Gagal menurunkan versi file CDR.', false);
+      }
+    } catch (err) {
+      selectedFiles.forEach((f) => {
+        f.status = 'failed';
+        f.statusText = 'Error';
+      });
+      showToast('Error: ' + err.message, false);
+    } finally {
+      isDownsaving = false;
+      if (btnDownsaverCancel) btnDownsaverCancel.style.display = 'none';
+      if (btnDownsaverStart) {
+        btnDownsaverStart.disabled = false;
+        btnDownsaverStart.innerText = 'Mulai Konversi';
+      }
+      setTimeout(() => {
+        if (downsaverProgressBox) downsaverProgressBox.style.display = 'none';
+      }, 3000);
+      renderDownsaverFiles();
+    }
+  }
+
+  // Event Listeners for Downsaver
+  if (btnDownsaverAddFiles) {
+    btnDownsaverAddFiles.addEventListener('click', async () => {
+      if (window.corelAPI?.openFiles) {
+        const res = await window.corelAPI.openFiles({
+          title: 'Pilih File CDR',
+          filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
+        });
+        if (res?.success && res?.files?.length) {
+          await addDownsaverFiles(res.files);
+        }
+      }
+    });
+  }
+
+  if (btnDownsaverAddFolder) {
+    btnDownsaverAddFolder.addEventListener('click', async () => {
+      if (window.corelAPI?.openDirectory) {
+        const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Berisi File CDR' });
+        if (res?.success && res?.path) {
+          if (window.corelAPI?.scanCdrDirectory) {
+            const scanRes = await window.corelAPI.scanCdrDirectory(res.path, true);
+            if (scanRes?.success && scanRes?.files?.length) {
+              await addDownsaverFiles(scanRes.files);
+            } else {
+              showToast('Tidak ditemukan file .cdr di folder tersebut.');
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (btnDownsaverClear) {
+    btnDownsaverClear.addEventListener('click', () => {
+      if (downsaverFiles.length === 0) return;
+      downsaverFiles = [];
+      renderDownsaverFiles();
+      showToast('Daftar file CDR telah dikosongkan.');
+    });
+  }
+
+  if (chkDownsaverSelectAll) {
+    chkDownsaverSelectAll.addEventListener('change', () => {
+      const state = chkDownsaverSelectAll.checked;
+      downsaverFiles.forEach(f => { f.selected = state; });
+      renderDownsaverFiles();
+    });
+  }
+
+  if (selDownsaverTargetVersion) {
+    selDownsaverTargetVersion.addEventListener('change', () => {
+      const val = parseInt(selDownsaverTargetVersion.value, 10) || 14;
+      if (txtDownsaverSuffix) {
+        if (val === 14) txtDownsaverSuffix.value = '_X4';
+        else if (val === 17) txtDownsaverSuffix.value = '_X7';
+        else if (val === 15) txtDownsaverSuffix.value = '_X5';
+        else if (val === 16) txtDownsaverSuffix.value = '_X6';
+        else if (val === 18) txtDownsaverSuffix.value = '_X8';
+        else if (val === 20) txtDownsaverSuffix.value = '_2018';
+        else if (val === 21) txtDownsaverSuffix.value = '_2019';
+        else if (val === 22) txtDownsaverSuffix.value = '_2020';
+        else if (val === 23) txtDownsaverSuffix.value = '_2021';
+      }
+      renderDownsaverFiles();
+    });
+  }
+
+  if (selDownsaverLocationMode && groupDownsaverCustomFolder) {
+    selDownsaverLocationMode.addEventListener('change', () => {
+      groupDownsaverCustomFolder.style.display = selDownsaverLocationMode.value === 'custom' ? 'block' : 'none';
+    });
+  }
+
+  if (btnDownsaverBrowseFolder && txtDownsaverCustomFolder) {
+    btnDownsaverBrowseFolder.addEventListener('click', async () => {
+      if (window.corelAPI?.openDirectory) {
+        const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Tujuan Output' });
+        if (res?.success && res?.path) {
+          txtDownsaverCustomFolder.value = res.path;
+        }
+      }
+    });
+  }
+
+  if (btnDownsaverStart) {
+    btnDownsaverStart.addEventListener('click', () => {
+      startDownsaverConversion();
+    });
+  }
+
+  if (btnDownsaverCancel) {
+    btnDownsaverCancel.addEventListener('click', async () => {
+      if (window.corelAPI?.cancelOperation) {
+        await window.corelAPI.cancelOperation();
+      }
+    });
+  }
+
+  if (btnDownsaverQuickX4) {
+    btnDownsaverQuickX4.addEventListener('click', async () => {
+      if (selDownsaverTargetVersion) selDownsaverTargetVersion.value = '14';
+      if (txtDownsaverSuffix) txtDownsaverSuffix.value = '_X4';
+      renderDownsaverFiles();
+      if (downsaverFiles.length === 0) {
+        if (window.corelAPI?.openFiles) {
+          const res = await window.corelAPI.openFiles({
+            title: 'Pilih File CDR untuk Diturunkan ke X4',
+            filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
+          });
+          if (res?.success && res?.files?.length) {
+            await addDownsaverFiles(res.files);
+            startDownsaverConversion();
+          }
+        }
+      } else {
+        startDownsaverConversion();
+      }
+    });
+  }
+
+  if (btnDownsaverQuickX7) {
+    btnDownsaverQuickX7.addEventListener('click', async () => {
+      if (selDownsaverTargetVersion) selDownsaverTargetVersion.value = '17';
+      if (txtDownsaverSuffix) txtDownsaverSuffix.value = '_X7';
+      renderDownsaverFiles();
+      if (downsaverFiles.length === 0) {
+        if (window.corelAPI?.openFiles) {
+          const res = await window.corelAPI.openFiles({
+            title: 'Pilih File CDR untuk Diturunkan ke X7',
+            filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
+          });
+          if (res?.success && res?.files?.length) {
+            await addDownsaverFiles(res.files);
+            startDownsaverConversion();
+          }
+        }
+      } else {
+        startDownsaverConversion();
+      }
+    });
+  }
+
+  // Drag and drop onto downsaver table / dropzone
+  if (downsaverTableWrapper) {
+    downsaverTableWrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (downsaverEmptyDropzone) downsaverEmptyDropzone.classList.add('dragover');
+    });
+    downsaverTableWrapper.addEventListener('dragleave', () => {
+      if (downsaverEmptyDropzone) downsaverEmptyDropzone.classList.remove('dragover');
+    });
+    downsaverTableWrapper.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      if (downsaverEmptyDropzone) downsaverEmptyDropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const paths = [];
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          const f = e.dataTransfer.files[i];
+          const p = window.corelAPI?.getPathForFile ? window.corelAPI.getPathForFile(f) : f.path;
+          if (p && p.toLowerCase().endsWith('.cdr')) {
+            paths.push(p);
+          }
+        }
+        if (paths.length > 0) {
+          await addDownsaverFiles(paths);
+        } else {
+          showToast('Hanya file berformat .cdr yang didukung.', false);
+        }
+      }
+    });
+  }
+
+  if (downsaverEmptyDropzone) {
+    downsaverEmptyDropzone.addEventListener('click', () => {
+      if (btnDownsaverAddFiles) btnDownsaverAddFiles.click();
+    });
+  }
+
+
+  // ==========================================
+  // Panduan Penggunaan (User Guide) Controller
+  // ==========================================
+  const guideListContainer = document.getElementById('guideListContainer');
+  const guideDetailContainer = document.getElementById('guideDetailContainer');
+  const txtSearchGuide = document.getElementById('txtSearchGuide');
+  const guideCategoryBar = document.getElementById('guideCategoryBar');
+  const btnTitlebarPanduan = document.getElementById('btnTitlebarPanduan');
+  const modalFirstRunGuide = document.getElementById('modalFirstRunGuide');
+  const btnOpenFirstRunGuide = document.getElementById('btnOpenFirstRunGuide');
+  const btnSkipFirstRunGuide = document.getElementById('btnSkipFirstRunGuide');
+
+  let activeGuideCategory = 'all';
+  let activeGuideSearch = '';
+
+  function getGuideItems() {
+    if (typeof GUIDE_DATA !== 'undefined' && Array.isArray(GUIDE_DATA)) {
+      return GUIDE_DATA;
+    }
+    if (typeof window !== 'undefined' && Array.isArray(window.GUIDE_DATA)) {
+      return window.GUIDE_DATA;
+    }
+    if (typeof globalThis !== 'undefined' && Array.isArray(globalThis.GUIDE_DATA)) {
+      return globalThis.GUIDE_DATA;
+    }
+    return [];
+  }
+
+  function renderGuideList() {
+    if (!guideListContainer) return;
+
+    const items = getGuideItems();
+    const q = (activeGuideSearch || '').toLowerCase().trim();
+
+    const filtered = items.filter(item => {
+      const matchCat = (activeGuideCategory === 'all' || item.category === activeGuideCategory);
+      const matchText = !q || (
+        item.name.toLowerCase().includes(q) ||
+        item.shortDesc.toLowerCase().includes(q) ||
+        item.fungsi.toLowerCase().includes(q) ||
+        item.kapanDigunakan.toLowerCase().includes(q)
+      );
+      return matchCat && matchText;
+    });
+
+    if (filtered.length === 0) {
+      guideListContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-dim); padding: 40px 20px;">Tidak ditemukan panduan yang sesuai dengan kata kunci "' + q + '". Coba kata kunci lain.</div>';
+      return;
+    }
+
+    guideListContainer.innerHTML = '';
+    filtered.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'guide-card-item';
+      card.innerHTML = '<div class="guide-card-top">' +
+        '<div class="guide-card-icon">' + item.icon + '</div>' +
+        '<div>' +
+          '<span class="guide-card-badge">' + item.badge + '</span>' +
+          '<div class="guide-card-title">' + item.name + '</div>' +
+          '<div class="guide-card-desc">' + item.shortDesc + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="guide-card-footer">' +
+        '<span>' + item.categoryLabel + '</span>' +
+        '<span>Buka Panduan ➔</span>' +
+      '</div>';
+
+      card.addEventListener('click', () => {
+        openGuideDetail(item);
+      });
+
+      guideListContainer.appendChild(card);
+    });
+  }
+
+  function openGuideDetail(item) {
+    if (!guideDetailContainer || !guideListContainer) return;
+
+    guideListContainer.style.display = 'none';
+    guideDetailContainer.style.display = 'block';
+
+    let stepsHtml = '';
+    if (item.langkah && item.langkah.length) {
+      stepsHtml = '<ol class="guide-step-list">' + item.langkah.map(s => '<li>' + s + '</li>').join('') + '</ol>';
+    }
+
+    let settingsHtml = '';
+    if (item.pengaturan && item.pengaturan.length) {
+      settingsHtml = '<table class="guide-table-settings">' +
+        '<thead><tr><th style="width: 35%;">Opsi / Pengaturan</th><th>Fungsi & Penjelasan</th></tr></thead>' +
+        '<tbody>' +
+        item.pengaturan.map(p => '<tr><td><strong>' + p.opsi + '</strong></td><td>' + p.arti + '</td></tr>').join('') +
+        '</tbody></table>';
+    }
+
+    let persiapanHtml = '';
+    if (item.persiapan && item.persiapan.length) {
+      persiapanHtml = '<ul class="guide-step-list" style="list-style-type: disc;">' + item.persiapan.map(p => '<li>' + p + '</li>').join('') + '</ul>';
+    }
+
+    guideDetailContainer.innerHTML = '<div class="guide-detail-header">' +
+      '<button class="btn-secondary" id="btnBackToGuideList">← Kembali ke Daftar Panduan</button>' +
+      (item.viewId ? '<button class="btn-primary" id="btnLaunchFeatureFromGuide">🚀 Langsung Buka Fitur Ini</button>' : '') +
+    '</div>' +
+    '<div style="margin-bottom: 16px;">' +
+      '<span class="guide-card-badge">' + item.badge + '</span>' +
+      '<h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 4px; margin-bottom: 6px;">' + item.name + '</h2>' +
+      '<p style="font-size: 13px; color: #94a3b8;">' + item.shortDesc + '</p>' +
+    '</div>' +
+
+    '<div class="guide-detail-section">' +
+      '<div class="guide-section-title">🎯 Fungsi & Kegunaan</div>' +
+      '<div class="guide-section-text">' + item.fungsi + '</div>' +
+    '</div>' +
+
+    '<div class="guide-detail-section">' +
+      '<div class="guide-section-title">💡 Kapan Digunakan</div>' +
+      '<div class="guide-section-text">' + item.kapanDigunakan + '</div>' +
+    '</div>' +
+
+    (persiapanHtml ? '<div class="guide-detail-section"><div class="guide-section-title">📋 Persiapan Sebelum Pakai</div>' + persiapanHtml + '</div>' : '') +
+
+    '<div class="guide-detail-section">' +
+      '<div class="guide-section-title">🚀 Langkah-Langkah Penggunaan</div>' +
+      stepsHtml +
+    '</div>' +
+
+    (settingsHtml ? '<div class="guide-detail-section"><div class="guide-section-title">⚙️ Penjelasan Opsi & Pengaturan</div>' + settingsHtml + '</div>' : '') +
+
+    '<div class="guide-detail-section">' +
+      '<div class="guide-section-title">✅ Hasil yang Diharapkan</div>' +
+      '<div class="guide-section-text">' + item.hasil + '</div>' +
+    '</div>' +
+
+    '<div class="guide-detail-section" style="margin-bottom: 0;">' +
+      '<div class="guide-section-title">⚠️ Catatan Penting</div>' +
+      '<div class="guide-section-text">' + item.catatan + '</div>' +
+    '</div>';
+
+    const btnBack = document.getElementById('btnBackToGuideList');
+    if (btnBack) {
+      btnBack.addEventListener('click', () => {
+        guideDetailContainer.style.display = 'none';
+        guideListContainer.style.display = 'grid';
+      });
+    }
+
+    const btnLaunch = document.getElementById('btnLaunchFeatureFromGuide');
+    if (btnLaunch && item.viewId) {
+      btnLaunch.addEventListener('click', () => {
+        switchView(item.viewId);
+      });
+    }
+  }
+
+  // Category Filter clicks
+  if (guideCategoryBar) {
+    guideCategoryBar.querySelectorAll('.guide-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        guideCategoryBar.querySelectorAll('.guide-cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeGuideCategory = btn.getAttribute('data-cat') || 'all';
+        if (guideDetailContainer) guideDetailContainer.style.display = 'none';
+        if (guideListContainer) guideListContainer.style.display = 'grid';
+        renderGuideList();
+      });
+    });
+  }
+
+  // Search input
+  if (txtSearchGuide) {
+    txtSearchGuide.addEventListener('input', (e) => {
+      activeGuideSearch = e.target.value;
+      if (guideDetailContainer) guideDetailContainer.style.display = 'none';
+      if (guideListContainer) guideListContainer.style.display = 'grid';
+      renderGuideList();
+    });
+  }
+
+  // Titlebar button
+  if (btnTitlebarPanduan) {
+    btnTitlebarPanduan.addEventListener('click', () => {
+      switchView('panduan');
+      if (guideDetailContainer) guideDetailContainer.style.display = 'none';
+      if (guideListContainer) guideListContainer.style.display = 'grid';
+      renderGuideList();
+    });
+  }
+
+  // First-run experience
+  try {
+    const hasSeenGuide = localStorage.getItem('cts_has_seen_guide_v1');
+    if (!hasSeenGuide && modalFirstRunGuide) {
+      setTimeout(() => {
+        modalFirstRunGuide.style.display = 'flex';
+      }, 800);
+    }
+  } catch (e) {}
+
+  if (btnOpenFirstRunGuide) {
+    btnOpenFirstRunGuide.addEventListener('click', () => {
+      try { localStorage.setItem('cts_has_seen_guide_v1', '1'); } catch (e) {}
+      if (modalFirstRunGuide) modalFirstRunGuide.style.display = 'none';
+      switchView('panduan');
+      renderGuideList();
+    });
+  }
+
+  if (btnSkipFirstRunGuide) {
+    btnSkipFirstRunGuide.addEventListener('click', () => {
+      try { localStorage.setItem('cts_has_seen_guide_v1', '1'); } catch (e) {}
+      if (modalFirstRunGuide) modalFirstRunGuide.style.display = 'none';
+    });
+  }
+
+  // Initial render when view becomes active
+  renderGuideList();
+
+  // ==========================================
+  // 13. Keyboard Shortcuts (Native Desktop)
   // ==========================================
   window.addEventListener('keydown', (e) => {
-    // Esc: close Change Case modal if open, else return to Beranda
+    // Esc: cancel active automation task, close modals if open, else return to Beranda
     if (e.key === 'Escape') {
+      if (btnGlobalCancelTask && btnGlobalCancelTask.style.display !== 'none') {
+        triggerCancelOperation();
+        e.preventDefault();
+        return;
+      }
+      if (modalOrderComparison && modalOrderComparison.classList.contains('open')) {
+        closeOrderComparisonModal();
+        e.preventDefault();
+        return;
+      }
       if (mainChangeCaseModal && mainChangeCaseModal.classList.contains('active')) {
         closeMainChangeCaseModal();
         e.preventDefault();

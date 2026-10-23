@@ -5,16 +5,37 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win nsis portable"
+    "prebuild": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "prebuild:portable": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "prebuild:setup": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "build": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win",
+    "build:portable": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win portable",
+    "build:setup": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win nsis",
+    "build:fast": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win dir",
+    "build:keygen": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" -c keygen-builder.json --win portable",
+    "keygen": "node keygen/generate-key.js",
+    "publish:github": "node publish/uploader.js"
+  },
+  "devDependencies": {
+    "electron": "34.5.8"
   },
   "author": "GFX GRAPHIC",
   "license": "ISC",
   "build": {
+    "electronVersion": "34.5.8",
     "appId": "com.gfx.coreltoolssuite",
     "productName": "Corel Tools Suite",
+    "compression": "normal",
     "directories": {
       "output": "dist-release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "GFX-GRAPHIC",
+        "repo": "corel-tools-suite"
+      }
+    ],
     "files": [
       "src/**/*",
       "electron/**/*",
@@ -49,5 +70,12 @@
       "shortcutName": "Corel Tools Suite",
       "artifactName": "${productName} Setup ${version}.${ext}"
     }
+  },
+  "dependencies": {
+    "chrome-lens-ocr": "^4.1.1",
+    "electron-updater": "^6.8.9",
+    "google-protobuf": "^3.21.4",
+    "image-dimensions": "^2.2.0",
+    "set-cookie-parser": "^2.7.1"
   }
 }
