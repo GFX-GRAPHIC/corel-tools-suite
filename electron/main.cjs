@@ -4774,3 +4774,262 @@ $result | ConvertTo-Json -Compress
     try { if (fs.existsSync(cancelMarker)) fs.unlinkSync(cancelMarker); } catch {}
   }
 });
+
+// ==========================================
+// Layout Pola (Auto-Nesting Lembar Cetak) IPC Handlers
+// ==========================================
+ipcMain.handle('corel:get-layout-pola-selection', async () => {
+  const ps = `
+$ErrorActionPreference = 'SilentlyContinue'
+$result = @{ success = $false; message = ''; count = 0; items = @(); containerDetected = $null }
+
+try {
+${COREL_CONNECT_PS}
+    if (-not $doc) { throw "Tidak ada dokumen terbuka di CorelDRAW." }
+
+    $origDocUnit = Com-Get $doc 'Unit'
+    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
+
+    $sel = Com-Get $corel 'ActiveSelection'
+    if (-not $sel -or [int](Com-Get $sel.Shapes 'Count') -eq 0) {
+        $sel = Com-Get $doc 'Selection'
+    }
+
+    $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
+    $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
+
+    if ($cnt -eq 0) {
+        throw "Silakan seleksi (blok) objek-objek pola di CorelDRAW terlebih dahulu."
+    }
+
+    $rawItems = @()
+    for ($i = 1; $i -le $cnt; $i++) {
+        $s = Com-Get $shps 'Item' @($i)
+        if (-not $s) { continue }
+        $sId = [int](Com-Get $s 'StaticID')
+        $w = [math]::Round([double](Com-Get $s 'SizeWidth'), 2)
+        $h = [math]::Round([double](Com-Get $s 'SizeHeight'), 2)
+        $left = [math]::Round([double](Com-Get $s 'Left'), 2)
+        $top = [math]::Round([double](Com-Get $s 'Top'), 2)
+        $name = [string](Com-Get $s 'Name')
+        $type = [int](Com-Get $s 'Type')
+
+        $rawItems += [PSCustomObject]@{
+            index = $i
+            staticId = $sId
+            widthCm = $w
+            heightCm = $h
+            leftCm = $left
+            topCm = $top
+            name = if ($name) { $name } else { "Pola $i" }
+            type = $type
+        }
+    }
+
+    $filteredItems = @()
+    if ($rawItems.Count -gt 1) {
+        $sortedByArea = $rawItems | Sort-Object { $_.widthCm * $_.heightCm } -Descending
+        $largest = $sortedByArea[0]
+        $secondLargest = $sortedByArea[1]
+        if (($largest.widthCm * $largest.heightCm) -gt (($secondLargest.widthCm * $secondLargest.heightCm) * 2.5) -and ($largest.widthCm -gt 60 -or $largest.heightCm -gt 100)) {
+            $result.containerDetected = @{
+                staticId = $largest.staticId
+                widthCm = $largest.widthCm
+                heightCm = $largest.heightCm
+                leftCm = $largest.leftCm
+                topCm = $largest.topCm
+            }
+            $filteredItems = $rawItems | Where-Object { $_.staticId -ne $largest.staticId }
+        } else {
+            $filteredItems = $rawItems
+        }
+    } else {
+        $filteredItems = $rawItems
+    }
+
+    $result.success = $true
+    $result.count = $filteredItems.Count
+    $result.items = $filteredItems
+    $result.message = "Berhasil mendeteksi $($filteredItems.Count) pola di CorelDRAW."
+
+    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
+}
+catch {
+    $result.success = $false
+    $result.message = "$($_.Exception.Message)"
+}
+
+$result | ConvertTo-Json -Depth 4 -Compress
+`;
+  return runPowerShellScript(ps);
+});
+
+ipcMain.handle('corel:execute-layout-pola', async (_event, payload) => {
+  const {
+    boxWidthCm = 100,
+    boxHeightCm = 500,
+    createBox = true,
+    gapCm = 1.0,
+    marginCm = 1.0,
+    items = []
+  } = payload || {};
+
+  if (!items || items.length === 0) {
+    return { success: false, message: 'Tidak ada data posisi pola yang dikirim.' };
+  }
+
+  const tempDir = app.getPath('temp');
+  const tempJson = path.join(tempDir, `cts_layout_pola_${Date.now()}.json`);
+  fs.writeFileSync(tempJson, JSON.stringify(payload, null, 2), 'utf8');
+
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$result = @{ success = $false; message = ''; movedCount = 0 }
+
+try {
+${COREL_CONNECT_PS}
+    if (-not $doc) { throw "Tidak ada dokumen terbuka di CorelDRAW." }
+
+    $jsonFile = '${tempJson.replace(/\\/g, '\\\\')}'
+    if (-not (Test-Path $jsonFile)) { throw "File data layout tidak ditemukan." }
+    $data = Get-Content -Path $jsonFile -Raw -Encoding UTF8 | ConvertFrom-Json
+
+    $boxW = [double]$data.boxWidthCm
+    $boxH = [double]$data.boxHeightCm
+    $createBox = [bool]$data.createBox
+    $gap = [double]$data.gapCm
+    $margin = [double]$data.marginCm
+    $itemList = $data.items
+
+    $origDocUnit = Com-Get $doc 'Unit'
+    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
+
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
+    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
+
+    # Build shape map of all shapes on active page by StaticID
+    $shapeMap = @{}
+    $allShapes = Com-Get $doc.ActivePage 'Shapes'
+    $totalPageShapes = if ($allShapes) { [int](Com-Get $allShapes 'Count') } else { 0 }
+    for ($sIdx = 1; $sIdx -le $totalPageShapes; $sIdx++) {
+        $curShp = Com-Get $allShapes 'Item' @($sIdx)
+        if ($curShp) {
+            $sId = [int](Com-Get $curShp 'StaticID')
+            $shapeMap[$sId] = $curShp
+        }
+    }
+
+    # Determine reference box origin (Left, Top)
+    $minLeft = 999999.0
+    $maxRight = -999999.0
+    $maxTop = -999999.0
+    $minBottom = 999999.0
+    $foundAny = $false
+
+    foreach ($it in $itemList) {
+        $id = [int]$it.staticId
+        if ($shapeMap.ContainsKey($id)) {
+            $s = $shapeMap[$id]
+            $sl = [double](Com-Get $s 'Left')
+            $st = [double](Com-Get $s 'Top')
+            $sw = [double](Com-Get $s 'SizeWidth')
+            $sh = [double](Com-Get $s 'SizeHeight')
+            $sr = $sl + $sw
+            $sb = $st - $sh
+            $minLeft = [math]::Min($minLeft, $sl)
+            $maxRight = [math]::Max($maxRight, $sr)
+            $maxTop = [math]::Max($maxTop, $st)
+            $minBottom = [math]::Min($minBottom, $sb)
+            $foundAny = $true
+        }
+    }
+
+    if (-not $foundAny) {
+        $minLeft = 0.0
+        $maxRight = 0.0
+        $maxTop = 0.0
+    }
+
+    # Position container box to the right of original shapes
+    $boxLeft = $maxRight + 15.0
+    $boxTop = if ($foundAny) { $maxTop } else { 0.0 }
+
+    # If createBox is requested, draw rectangle in CorelDRAW
+    if ($createBox) {
+        $right = $boxLeft + $boxW
+        $bottom = $boxTop - $boxH
+        $rect = Com-Call $doc.ActiveLayer 'CreateRectangle' @([double]$boxLeft, [double]$boxTop, [double]$right, [double]$bottom)
+        if ($rect) {
+            try {
+                $outline = Com-Get $rect 'Outline'
+                if ($outline) {
+                    Com-Call $outline 'SetProperties' @([double]0.05)
+                }
+            } catch {}
+        }
+    }
+
+    # Move each pattern shape into its calculated nested position
+    $moved = 0
+    foreach ($it in $itemList) {
+        $id = [int]$it.staticId
+        if ($shapeMap.ContainsKey($id)) {
+            $shp = $shapeMap[$id]
+
+            # Apply rotation if specified (e.g. 180 degrees)
+            if ($it.rotate -and [double]$it.rotate -ne 0) {
+                try {
+                    Com-Call $shp 'Rotate' @([double]$it.rotate)
+                } catch {}
+            }
+
+            # Set new position: targetLeft = boxLeft + item.x, targetTop = boxTop - item.y
+            $targetLeft = $boxLeft + [double]$it.xCm
+            $targetTop = $boxTop - [double]$it.yCm
+
+            try {
+                Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
+                $moved++
+            } catch {
+                try {
+                    Com-Set $shp 'Left' $targetLeft
+                    Com-Set $shp 'Top' $targetTop
+                    $moved++
+                } catch {}
+            }
+        }
+    }
+
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $doc 'EndCommandGroup' @()) } catch {}
+    try { [void](Com-Call $corel 'Refresh' @()) } catch {}
+
+    $result.success = $true
+    $result.movedCount = $moved
+    $result.message = "Berhasil menata $moved pola ke dalam kotak ($boxW cm x $boxH cm)."
+
+    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
+}
+catch {
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup' @()) } } catch {}
+    $result.success = $false
+    $result.message = "$($_.Exception.Message)"
+}
+finally {
+    if (Test-Path $jsonFile) { try { Remove-Item -Path $jsonFile -Force } catch {} }
+}
+
+$result | ConvertTo-Json -Compress
+`;
+
+  try {
+    const res = await runPowerShellScript(ps, 60000);
+    return res;
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+});

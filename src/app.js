@@ -6728,6 +6728,868 @@ Catatan: Lengan Panjang
   // Initial render when view becomes active
   renderGuideList();
 
+  // ========================================================
+  // 14. LAYOUT POLA (AUTO-NESTING LEMBAR CETAK) CONTROLLER
+  // ========================================================
+  const btnLayoutPolaFetchCorel = document.getElementById('btnLayoutPolaFetchCorel');
+  const btnLayoutPolaExecute = document.getElementById('btnLayoutPolaExecute');
+  const btnLayoutPolaLoadSample = document.getElementById('btnLayoutPolaLoadSample');
+  const btnLayoutPolaClear = document.getElementById('btnLayoutPolaClear');
+  const badgeLayoutPolaCount = document.getElementById('badgeLayoutPolaCount');
+  const lblLayoutPolaStatusText = document.getElementById('lblLayoutPolaStatusText');
+
+  const numLayoutPolaBoxWidth = document.getElementById('numLayoutPolaBoxWidth');
+  const numLayoutPolaBoxHeight = document.getElementById('numLayoutPolaBoxHeight');
+  const selLayoutPolaUnitW = document.getElementById('selLayoutPolaUnitW');
+  const selLayoutPolaUnitH = document.getElementById('selLayoutPolaUnitH');
+  const btnPresetBox1x5 = document.getElementById('btnPresetBox1x5');
+  const chkLayoutPolaCreateBox = document.getElementById('chkLayoutPolaCreateBox');
+
+  const numLayoutPolaGap = document.getElementById('numLayoutPolaGap');
+  const numLayoutPolaMargin = document.getElementById('numLayoutPolaMargin');
+  const chkLayoutPolaAllowRotation = document.getElementById('chkLayoutPolaAllowRotation');
+
+  const badgeLayoutVariantIndex = document.getElementById('badgeLayoutVariantIndex');
+  const lblLayoutVariantName = document.getElementById('lblLayoutVariantName');
+  const lblLayoutVariantDesc = document.getElementById('lblLayoutVariantDesc');
+  const btnLayoutPolaPrev = document.getElementById('btnLayoutPolaPrev');
+  const btnLayoutPolaNext = document.getElementById('btnLayoutPolaNext');
+  const btnLayoutPolaQuickNext = document.getElementById('btnLayoutPolaQuickNext');
+
+  const lblLayoutStatUsedHeight = document.getElementById('lblLayoutStatUsedHeight');
+  const lblLayoutStatEfficiency = document.getElementById('lblLayoutStatEfficiency');
+  const lblLayoutStatFitStatus = document.getElementById('lblLayoutStatFitStatus');
+
+  const layoutPolaCanvas = document.getElementById('layoutPolaCanvas');
+  const layoutPolaCanvasContainer = document.getElementById('layoutPolaCanvasContainer');
+  const layoutPolaTooltip = document.getElementById('layoutPolaTooltip');
+  const btnLayoutPreviewFit = document.getElementById('btnLayoutPreviewFit');
+  const btnLayoutPreviewZoomIn = document.getElementById('btnLayoutPreviewZoomIn');
+  const btnLayoutPreviewZoomOut = document.getElementById('btnLayoutPreviewZoomOut');
+  const lblLayoutPolaZoomLevel = document.getElementById('lblLayoutPolaZoomLevel');
+  const lblLayoutPolaDimensionsPreview = document.getElementById('lblLayoutPolaDimensionsPreview');
+
+  // State
+  let layoutPolaItems = [];
+  let layoutPolaVariants = [];
+  let layoutPolaCurrentVariantIndex = 0;
+  let layoutPolaZoomScale = 1.0;
+  let layoutPolaAutoFit = true;
+  let layoutPolaHoveredIndex = -1;
+
+  // Preset sample patterns (matches Image 1 and Image 2 from user request)
+  const SAMPLE_JERSEY_PATTERNS = [
+    { index: 1, staticId: 101, widthCm: 47.0, heightCm: 74.5, name: 'Jersey #18 (Depan)' },
+    { index: 2, staticId: 102, widthCm: 47.5, heightCm: 75.0, name: 'Jersey #18 (Belakang)' },
+    { index: 3, staticId: 103, widthCm: 48.0, heightCm: 75.5, name: 'Jersey #33 (Depan)' },
+    { index: 4, staticId: 104, widthCm: 48.5, heightCm: 76.0, name: 'Jersey #33 (Belakang)' },
+    { index: 5, staticId: 105, widthCm: 46.0, heightCm: 73.5, name: 'Jersey #11 (Depan)' },
+    { index: 6, staticId: 106, widthCm: 46.5, heightCm: 74.0, name: 'Jersey #11 (Belakang)' },
+    { index: 7, staticId: 107, widthCm: 45.0, heightCm: 72.0, name: 'Jersey #9 (Depan)' },
+    { index: 8, staticId: 108, widthCm: 45.5, heightCm: 72.5, name: 'Jersey #9 (Belakang)' },
+    { index: 9, staticId: 109, widthCm: 47.5, heightCm: 74.0, name: 'Jersey #23 (Depan)' }
+  ];
+
+  function getLayoutBoxDimensionsCm() {
+    let w = parseFloat(numLayoutPolaBoxWidth?.value) || 100;
+    let h = parseFloat(numLayoutPolaBoxHeight?.value) || 500;
+    const unitW = selLayoutPolaUnitW?.value || 'cm';
+    const unitH = selLayoutPolaUnitH?.value || 'cm';
+
+    if (unitW === 'm') w = w * 100;
+    else if (unitW === 'mm') w = w / 10;
+
+    if (unitH === 'm') h = h * 100;
+    else if (unitH === 'mm') h = h / 10;
+
+    return {
+      boxW: Math.max(10, Math.round(w * 100) / 100),
+      boxH: Math.max(10, Math.round(h * 100) / 100)
+    };
+  }
+
+  function getLayoutGapAndMarginCm() {
+    const gap = Math.max(0, parseFloat(numLayoutPolaGap?.value) || 1.0);
+    const margin = Math.max(0, parseFloat(numLayoutPolaMargin?.value) || 1.0);
+    const allowRotation = !!chkLayoutPolaAllowRotation?.checked;
+    return { gap, margin, allowRotation };
+  }
+
+  function updateLayoutStatsAndUI() {
+    if (!layoutPolaVariants || layoutPolaVariants.length === 0) {
+      if (badgeLayoutVariantIndex) badgeLayoutVariantIndex.innerText = 'Variasi 0 / 0';
+      if (lblLayoutVariantName) lblLayoutVariantName.innerText = 'Belum Ada Pola';
+      if (lblLayoutVariantDesc) lblLayoutVariantDesc.innerText = 'Ambil pola dari CorelDRAW atau klik "Muat Contoh" untuk memulai kalkulasi layout.';
+      if (lblLayoutStatUsedHeight) lblLayoutStatUsedHeight.innerText = '0 cm';
+      if (lblLayoutStatEfficiency) lblLayoutStatEfficiency.innerText = '0%';
+      if (lblLayoutStatFitStatus) {
+        lblLayoutStatFitStatus.innerText = '-';
+        lblLayoutStatFitStatus.style.color = 'var(--text-muted)';
+      }
+      return;
+    }
+
+    const cur = layoutPolaVariants[layoutPolaCurrentVariantIndex];
+    if (!cur) return;
+
+    if (badgeLayoutVariantIndex) {
+      badgeLayoutVariantIndex.innerText = `Variasi ${layoutPolaCurrentVariantIndex + 1} / ${layoutPolaVariants.length}`;
+    }
+    if (lblLayoutVariantName) lblLayoutVariantName.innerText = cur.name;
+    if (lblLayoutVariantDesc) lblLayoutVariantDesc.innerText = cur.desc;
+
+    if (lblLayoutStatUsedHeight) {
+      lblLayoutStatUsedHeight.innerText = `${cur.usedHeight} cm (dari ${cur.boxH} cm)`;
+    }
+    if (lblLayoutStatEfficiency) {
+      lblLayoutStatEfficiency.innerText = `${cur.efficiency}%`;
+    }
+    if (lblLayoutStatFitStatus) {
+      if (cur.allFit) {
+        lblLayoutStatFitStatus.innerText = `Semua Muat ✓ (${cur.positions.length} Pola)`;
+        lblLayoutStatFitStatus.style.color = '#10b981';
+      } else {
+        lblLayoutStatFitStatus.innerText = `Sebagian Melebihi Kotak ⚠️`;
+        lblLayoutStatFitStatus.style.color = '#ef4444';
+      }
+    }
+
+    const { boxW, boxH } = getLayoutBoxDimensionsCm();
+    if (lblLayoutPolaDimensionsPreview) {
+      lblLayoutPolaDimensionsPreview.innerText = `Kotak: ${boxW} cm × ${boxH} cm (${(boxW / 100).toFixed(1)}m × ${(boxH / 100).toFixed(1)}m)`;
+    }
+  }
+
+  function computeAllLayoutVariants() {
+    if (!layoutPolaItems || layoutPolaItems.length === 0) {
+      layoutPolaVariants = [];
+      layoutPolaCurrentVariantIndex = 0;
+      updateLayoutStatsAndUI();
+      renderLayoutPolaCanvas();
+      return;
+    }
+
+    const { boxW, boxH } = getLayoutBoxDimensionsCm();
+    const { gap, margin, allowRotation } = getLayoutGapAndMarginCm();
+    const usableW = Math.max(1, boxW - 2 * margin);
+    const usableH = Math.max(1, boxH - 2 * margin);
+
+    const variants = [];
+
+    // VARIANT 1: Rapi Sejajar Kolom Roll (Sesuai Gambar 1)
+    {
+      const items = [...layoutPolaItems];
+      const maxItemW = Math.max(...items.map(it => it.widthCm));
+      const colWidth = maxItemW;
+      const numCols = Math.max(1, Math.floor((usableW + gap) / (colWidth + gap)));
+      const colSpacing = numCols > 1 ? (usableW - (numCols * colWidth)) / (numCols - 1) : gap;
+      const actualGapX = Math.max(gap, colSpacing);
+      const colY = new Array(numCols).fill(margin);
+      const positions = [];
+
+      items.forEach((it, idx) => {
+        const col = idx % numCols;
+        const x = margin + col * (colWidth + actualGapX) + (colWidth - it.widthCm) / 2;
+        const y = colY[col];
+        positions.push({
+          index: it.index || idx + 1,
+          staticId: it.staticId,
+          name: it.name,
+          xCm: Math.round(x * 100) / 100,
+          yCm: Math.round(y * 100) / 100,
+          wCm: it.widthCm,
+          hCm: it.heightCm,
+          rotate: 0
+        });
+        colY[col] += it.heightCm + gap;
+      });
+
+      const usedHeight = Math.max(...colY) - gap + margin;
+      variants.push({
+        id: 'column_roll',
+        name: `Rapi Sejajar Kolom Roll (${numCols} Kolom)`,
+        desc: `Menata ${items.length} pola seragam ke dalam ${numCols} kolom vertikal. Susunan sejajar rapi persis seperti kain roll sublimasi.`,
+        positions,
+        usedHeight: Math.round(usedHeight * 10) / 10,
+        boxW,
+        boxH
+      });
+    }
+
+    // VARIANT 2: Sejajar Baris / Shelf (Urut Tinggi Menurun)
+    {
+      const items = [...layoutPolaItems].sort((a, b) => b.heightCm - a.heightCm);
+      const positions = [];
+      let curX = margin;
+      let curY = margin;
+      let shelfH = 0;
+
+      items.forEach((it, idx) => {
+        if (curX + it.widthCm > boxW - margin && curX > margin) {
+          curY += shelfH + gap;
+          curX = margin;
+          shelfH = 0;
+        }
+        positions.push({
+          index: it.index || idx + 1,
+          staticId: it.staticId,
+          name: it.name,
+          xCm: Math.round(curX * 100) / 100,
+          yCm: Math.round(curY * 100) / 100,
+          wCm: it.widthCm,
+          hCm: it.heightCm,
+          rotate: 0
+        });
+        shelfH = Math.max(shelfH, it.heightCm);
+        curX += it.widthCm + gap;
+      });
+
+      const usedHeight = curY + shelfH + margin;
+      variants.push({
+        id: 'shelf_packing',
+        name: 'Sejajar Baris / Shelf (Urut Tinggi)',
+        desc: 'Menata pola dari kiri ke kanan baris demi baris, diurutkan dari pola tertinggi untuk efisiensi ruang horizontal.',
+        positions,
+        usedHeight: Math.round(usedHeight * 10) / 10,
+        boxW,
+        boxH
+      });
+    }
+
+    // VARIANT 3: Kolom Seimbang Rata Bawah (Waterfall Min-Height)
+    {
+      const items = [...layoutPolaItems].sort((a, b) => b.heightCm - a.heightCm);
+      const maxItemW = Math.max(...items.map(it => it.widthCm));
+      const numCols = Math.max(1, Math.floor((usableW + gap) / (maxItemW + gap)));
+      const colSpacing = numCols > 1 ? (usableW - (numCols * maxItemW)) / (numCols - 1) : gap;
+      const actualGapX = Math.max(gap, colSpacing);
+      const colY = new Array(numCols).fill(margin);
+      const positions = [];
+
+      items.forEach((it, idx) => {
+        let minCol = 0;
+        for (let c = 1; c < numCols; c++) {
+          if (colY[c] < colY[minCol]) minCol = c;
+        }
+        const x = margin + minCol * (maxItemW + actualGapX) + (maxItemW - it.widthCm) / 2;
+        const y = colY[minCol];
+        positions.push({
+          index: it.index || idx + 1,
+          staticId: it.staticId,
+          name: it.name,
+          xCm: Math.round(x * 100) / 100,
+          yCm: Math.round(y * 100) / 100,
+          wCm: it.widthCm,
+          hCm: it.heightCm,
+          rotate: 0
+        });
+        colY[minCol] += it.heightCm + gap;
+      });
+
+      const usedHeight = Math.max(...colY) - gap + margin;
+      variants.push({
+        id: 'waterfall_balanced',
+        name: `Kolom Seimbang Rata Bawah (${numCols} Kolom)`,
+        desc: `Menyeimbangkan tinggi akhir antar kolom sehingga ujung bawah kain rata dan sisa potongan bahan kain minimal.`,
+        positions,
+        usedHeight: Math.round(usedHeight * 10) / 10,
+        boxW,
+        boxH
+      });
+    }
+
+    // VARIANT 4: Pola Selang-Seling / Interlocking 180°
+    {
+      const items = [...layoutPolaItems];
+      const maxItemW = Math.max(...items.map(it => it.widthCm));
+      const numCols = Math.max(1, Math.floor((usableW + gap) / (maxItemW + gap)));
+      const colSpacing = numCols > 1 ? (usableW - (numCols * maxItemW)) / (numCols - 1) : gap;
+      const actualGapX = Math.max(gap, colSpacing);
+      const colY = new Array(numCols).fill(margin);
+      const positions = [];
+
+      items.forEach((it, idx) => {
+        const col = idx % numCols;
+        const isFlipped = (col % 2 === 1) || (Math.floor(idx / numCols) % 2 === 1);
+        const rot = allowRotation || isFlipped ? 180 : 0;
+        const x = margin + col * (maxItemW + actualGapX) + (maxItemW - it.widthCm) / 2;
+        const y = colY[col];
+
+        positions.push({
+          index: it.index || idx + 1,
+          staticId: it.staticId,
+          name: it.name,
+          xCm: Math.round(x * 100) / 100,
+          yCm: Math.round(y * 100) / 100,
+          wCm: it.widthCm,
+          hCm: it.heightCm,
+          rotate: rot
+        });
+        colY[col] += it.heightCm + gap;
+      });
+
+      const usedHeight = Math.max(...colY) - gap + margin;
+      variants.push({
+        id: 'interlocking_180',
+        name: 'Pola Selang-Seling (Interlocking 180°)',
+        desc: 'Memutar sebagian pola 180° agar bahu dan pinggang jersey saling mengunci, sangat efisien menghemat panjang kain roll.',
+        positions,
+        usedHeight: Math.round(usedHeight * 10) / 10,
+        boxW,
+        boxH
+      });
+    }
+
+    // VARIANT 5: MaxRects Bin-Packing (Nesting Kompak Area)
+    {
+      const items = [...layoutPolaItems].sort((a, b) => (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm));
+      const freeRects = [{ x: margin, y: margin, w: usableW, h: usableH }];
+      const positions = [];
+      let maxBottom = margin;
+
+      items.forEach((it, idx) => {
+        let bestIdx = -1;
+        let bestShortSide = 999999;
+
+        for (let r = 0; r < freeRects.length; r++) {
+          const fr = freeRects[r];
+          if (fr.w >= it.widthCm && fr.h >= it.heightCm) {
+            const leftoverW = fr.w - it.widthCm;
+            const leftoverH = fr.h - it.heightCm;
+            const shortSide = Math.min(leftoverW, leftoverH);
+            if (shortSide < bestShortSide) {
+              bestShortSide = shortSide;
+              bestIdx = r;
+            }
+          }
+        }
+
+        if (bestIdx >= 0) {
+          const chosen = freeRects[bestIdx];
+          const px = chosen.x;
+          const py = chosen.y;
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: Math.round(px * 100) / 100,
+            yCm: Math.round(py * 100) / 100,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: 0
+          });
+          maxBottom = Math.max(maxBottom, py + it.heightCm);
+
+          const rightRect = {
+            x: px + it.widthCm + gap,
+            y: py,
+            w: Math.max(0, chosen.w - it.widthCm - gap),
+            h: it.heightCm
+          };
+          const bottomRect = {
+            x: px,
+            y: py + it.heightCm + gap,
+            w: chosen.w,
+            h: Math.max(0, chosen.h - it.heightCm - gap)
+          };
+
+          freeRects.splice(bestIdx, 1);
+          if (rightRect.w > 5 && rightRect.h > 5) freeRects.push(rightRect);
+          if (bottomRect.w > 5 && bottomRect.h > 5) freeRects.push(bottomRect);
+        } else {
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: margin,
+            yCm: maxBottom + gap,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: 0
+          });
+          maxBottom += it.heightCm + gap;
+        }
+      });
+
+      const usedHeight = maxBottom + margin;
+      variants.push({
+        id: 'maxrects_compact',
+        name: 'Nesting Kompak Otomatis (MaxRects 2D)',
+        desc: 'Algoritma bin-packing 2D mengisi celah kosong dengan bagian kecil untuk meminimalkan sisa bahan.',
+        positions,
+        usedHeight: Math.round(usedHeight * 10) / 10,
+        boxW,
+        boxH
+      });
+    }
+
+    const totalPatternArea = layoutPolaItems.reduce((acc, it) => acc + (it.widthCm * it.heightCm), 0);
+    variants.forEach(v => {
+      const boundingArea = boxW * Math.max(1, v.usedHeight);
+      v.efficiency = Math.min(100, Math.round((totalPatternArea / boundingArea) * 100));
+      v.allFit = v.positions.every(p => (p.xCm + p.wCm <= boxW + 0.5) && (p.yCm + p.hCm <= boxH + 0.5));
+    });
+
+    layoutPolaVariants = variants;
+    if (layoutPolaCurrentVariantIndex >= variants.length) {
+      layoutPolaCurrentVariantIndex = 0;
+    }
+
+    updateLayoutStatsAndUI();
+    renderLayoutPolaCanvas();
+  }
+
+  // Render High-DPI Visualizer Canvas
+  function renderLayoutPolaCanvas() {
+    if (!layoutPolaCanvas) return;
+    const ctx = layoutPolaCanvas.getContext('2d');
+    if (!ctx) return;
+
+    const canvasW = layoutPolaCanvas.width;
+    const canvasH = layoutPolaCanvas.height;
+
+    // Clear background
+    ctx.fillStyle = '#0b0f19';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Subtle background grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvasW; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvasH);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvasH; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvasW, y);
+      ctx.stroke();
+    }
+
+    if (!layoutPolaVariants || layoutPolaVariants.length === 0) {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Belum ada data pola. Klik "Ambil Pola dari CorelDRAW" atau "Muat Contoh".', canvasW / 2, canvasH / 2);
+      return;
+    }
+
+    const cur = layoutPolaVariants[layoutPolaCurrentVariantIndex];
+    if (!cur) return;
+
+    const { boxW, boxH } = getLayoutBoxDimensionsCm();
+
+    // Determine scale to fit container box comfortably on canvas
+    const marginPadX = 60;
+    const marginPadY = 60;
+    const availW = canvasW - marginPadX * 2;
+    const availH = canvasH - marginPadY * 2;
+
+    const baseScale = Math.min(availW / boxW, availH / boxH);
+    const scale = layoutPolaAutoFit ? baseScale : baseScale * layoutPolaZoomScale;
+
+    const renderBoxW = boxW * scale;
+    const renderBoxH = boxH * scale;
+    const originX = (canvasW - renderBoxW) / 2;
+    const originY = marginPadY / 2;
+
+    // 1. Draw Container Box Background & Border
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(originX, originY, renderBoxW, renderBoxH);
+
+    // Container border
+    ctx.strokeStyle = '#2563eb';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(originX, originY, renderBoxW, renderBoxH);
+
+    // Box dimensions labels
+    ctx.fillStyle = '#60a5fa';
+    ctx.font = 'bold 11px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${boxW} cm (Lebar Kotak)`, originX + renderBoxW / 2, originY - 8);
+
+    ctx.save();
+    ctx.translate(originX - 10, originY + renderBoxH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText(`${boxH} cm (Tinggi Kotak)`, 0, 0);
+    ctx.restore();
+
+    // 2. Draw Used Height / Cutline Marker
+    const usedY = originY + cur.usedHeight * scale;
+    if (cur.usedHeight > 0 && cur.usedHeight <= boxH) {
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(originX - 15, usedY);
+      ctx.lineTo(originX + renderBoxW + 15, usedY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = 'bold 10px Segoe UI, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`Panjang Terpakai: ${cur.usedHeight} cm`, originX + renderBoxW + 20, usedY + 3);
+      ctx.restore();
+    }
+
+    // 3. Draw Pattern Cards
+    cur.positions.forEach((p, idx) => {
+      const px = originX + p.xCm * scale;
+      const py = originY + p.yCm * scale;
+      const pw = p.wCm * scale;
+      const ph = p.hCm * scale;
+
+      const isHovered = (idx === layoutPolaHoveredIndex);
+      const isOutOfBounds = (p.xCm + p.wCm > boxW + 0.1) || (p.yCm + p.hCm > boxH + 0.1);
+
+      // Card Body
+      ctx.fillStyle = isOutOfBounds
+        ? 'rgba(239, 68, 68, 0.25)'
+        : (isHovered ? '#334155' : '#1e293b');
+      ctx.strokeStyle = isOutOfBounds
+        ? '#ef4444'
+        : (isHovered ? '#60a5fa' : '#38bdf8');
+      ctx.lineWidth = isHovered ? 2.5 : 1.5;
+
+      // Rounded rectangle
+      const radius = Math.min(6, pw / 6, ph / 6);
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, radius);
+      ctx.fill();
+      ctx.stroke();
+
+      // Jersey Silhouette / Icon
+      ctx.save();
+      ctx.translate(px + pw / 2, py + ph / 2);
+      ctx.fillStyle = isHovered ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.08)';
+      const iconSize = Math.min(pw * 0.5, ph * 0.4);
+      if (iconSize > 15) {
+        ctx.beginPath();
+        ctx.arc(0, -iconSize * 0.2, iconSize * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(-iconSize * 0.4, -iconSize * 0.1, iconSize * 0.8, iconSize * 0.7);
+      }
+      ctx.restore();
+
+      // Card Text Label (Pola Name & Dimensions)
+      ctx.fillStyle = isOutOfBounds ? '#fca5a5' : '#ffffff';
+      ctx.textAlign = 'center';
+      
+      const fontSize = Math.max(9, Math.min(13, pw / 6));
+      ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+      
+      if (ph > 35) {
+        ctx.fillText(p.name || `Pola ${idx + 1}`, px + pw / 2, py + ph / 2 - 2);
+        ctx.font = `${Math.max(8, fontSize - 2)}px Segoe UI, sans-serif`;
+        ctx.fillStyle = isOutOfBounds ? '#fecaca' : '#94a3b8';
+        ctx.fillText(`${p.wCm} × ${p.hCm} cm`, px + pw / 2, py + ph / 2 + fontSize);
+      } else {
+        ctx.fillText(`${p.name || idx + 1} (${p.wCm}×${p.hCm})`, px + pw / 2, py + ph / 2 + 3);
+      }
+
+      // If Rotated 180° Badge
+      if (p.rotate === 180) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 9px Segoe UI, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('180° ↻', px + pw - 4, py + 12);
+      }
+    });
+  }
+
+  // Next / Previous Layout Variant Handlers
+  function nextLayoutVariant() {
+    if (!layoutPolaVariants || layoutPolaVariants.length === 0) return;
+    layoutPolaCurrentVariantIndex = (layoutPolaCurrentVariantIndex + 1) % layoutPolaVariants.length;
+    updateLayoutStatsAndUI();
+    renderLayoutPolaCanvas();
+  }
+
+  function prevLayoutVariant() {
+    if (!layoutPolaVariants || layoutPolaVariants.length === 0) return;
+    layoutPolaCurrentVariantIndex = (layoutPolaCurrentVariantIndex - 1 + layoutPolaVariants.length) % layoutPolaVariants.length;
+    updateLayoutStatsAndUI();
+    renderLayoutPolaCanvas();
+  }
+
+  if (btnLayoutPolaNext) btnLayoutPolaNext.addEventListener('click', nextLayoutVariant);
+  if (btnLayoutPolaQuickNext) btnLayoutPolaQuickNext.addEventListener('click', nextLayoutVariant);
+  if (btnLayoutPolaPrev) btnLayoutPolaPrev.addEventListener('click', prevLayoutVariant);
+
+  // Form Inputs Auto-Recalculate
+  [numLayoutPolaBoxWidth, numLayoutPolaBoxHeight, selLayoutPolaUnitW, selLayoutPolaUnitH, numLayoutPolaGap, numLayoutPolaMargin, chkLayoutPolaAllowRotation].forEach(el => {
+    if (el) {
+      el.addEventListener('input', () => computeAllLayoutVariants());
+      el.addEventListener('change', () => computeAllLayoutVariants());
+    }
+  });
+
+  // Preset Chips
+  document.querySelectorAll('.btn-preset-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = btn.getAttribute('data-w');
+      const h = btn.getAttribute('data-h');
+      if (w && numLayoutPolaBoxWidth) numLayoutPolaBoxWidth.value = w;
+      if (h && numLayoutPolaBoxHeight) numLayoutPolaBoxHeight.value = h;
+      if (selLayoutPolaUnitW) selLayoutPolaUnitW.value = 'cm';
+      if (selLayoutPolaUnitH) selLayoutPolaUnitH.value = 'cm';
+      computeAllLayoutVariants();
+    });
+  });
+
+  if (btnPresetBox1x5) {
+    btnPresetBox1x5.addEventListener('click', () => {
+      if (numLayoutPolaBoxWidth) numLayoutPolaBoxWidth.value = '100';
+      if (numLayoutPolaBoxHeight) numLayoutPolaBoxHeight.value = '500';
+      if (selLayoutPolaUnitW) selLayoutPolaUnitW.value = 'cm';
+      if (selLayoutPolaUnitH) selLayoutPolaUnitH.value = 'cm';
+      computeAllLayoutVariants();
+    });
+  }
+
+  // Load Sample Patterns Button
+  if (btnLayoutPolaLoadSample) {
+    btnLayoutPolaLoadSample.addEventListener('click', () => {
+      layoutPolaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEY_PATTERNS));
+      if (badgeLayoutPolaCount) badgeLayoutPolaCount.innerText = `${layoutPolaItems.length} Pola`;
+      if (lblLayoutPolaStatusText) {
+        lblLayoutPolaStatusText.innerText = `Memuat contoh simulasi ${layoutPolaItems.length} pola jersey lengkap (depan, belakang, nomor).`;
+      }
+      computeAllLayoutVariants();
+      showToast(`Berhasil memuat contoh ${layoutPolaItems.length} pola jersey!`);
+    });
+  }
+
+  // Clear / Reset Button
+  if (btnLayoutPolaClear) {
+    btnLayoutPolaClear.addEventListener('click', () => {
+      layoutPolaItems = [];
+      layoutPolaVariants = [];
+      layoutPolaCurrentVariantIndex = 0;
+      if (badgeLayoutPolaCount) badgeLayoutPolaCount.innerText = '0 Pola';
+      if (lblLayoutPolaStatusText) {
+        lblLayoutPolaStatusText.innerText = 'Pola di-reset. Silakan ambil dari CorelDRAW atau klik "Muat Contoh".';
+      }
+      updateLayoutStatsAndUI();
+      renderLayoutPolaCanvas();
+    });
+  }
+
+  // Fetch Selection from CorelDRAW
+  if (btnLayoutPolaFetchCorel) {
+    btnLayoutPolaFetchCorel.addEventListener('click', async () => {
+      try {
+        if (!window.corelAPI?.layoutPolaGetSelection) {
+          showToast('API CorelDRAW tidak tersedia.', false);
+          return;
+        }
+
+        btnLayoutPolaFetchCorel.disabled = true;
+        btnLayoutPolaFetchCorel.innerText = 'Memeriksa CorelDRAW...';
+
+        const res = await window.corelAPI.layoutPolaGetSelection();
+        btnLayoutPolaFetchCorel.disabled = false;
+        btnLayoutPolaFetchCorel.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+          Ambil Pola dari CorelDRAW
+        `;
+
+        if (res && res.success && res.items && res.items.length > 0) {
+          layoutPolaItems = res.items;
+          if (badgeLayoutPolaCount) badgeLayoutPolaCount.innerText = `${layoutPolaItems.length} Pola`;
+          if (lblLayoutPolaStatusText) {
+            lblLayoutPolaStatusText.innerText = `Berhasil mendeteksi ${layoutPolaItems.length} pola aktif dari dokumen CorelDRAW.`;
+          }
+
+          if (res.containerDetected) {
+            if (numLayoutPolaBoxWidth) numLayoutPolaBoxWidth.value = res.containerDetected.widthCm;
+            if (numLayoutPolaBoxHeight) numLayoutPolaBoxHeight.value = res.containerDetected.heightCm;
+            if (selLayoutPolaUnitW) selLayoutPolaUnitW.value = 'cm';
+            if (selLayoutPolaUnitH) selLayoutPolaUnitH.value = 'cm';
+            showToast(`Kotak terdeteksi dari CorelDRAW: ${res.containerDetected.widthCm} × ${res.containerDetected.heightCm} cm`);
+          }
+
+          computeAllLayoutVariants();
+          showToast(`Berhasil mendeteksi ${layoutPolaItems.length} pola dari CorelDRAW!`);
+        } else {
+          showToast(res?.message || 'Tidak ada objek pola yang diseleksi di CorelDRAW.', false);
+        }
+      } catch (err) {
+        if (btnLayoutPolaFetchCorel) {
+          btnLayoutPolaFetchCorel.disabled = false;
+          btnLayoutPolaFetchCorel.innerText = 'Ambil Pola dari CorelDRAW';
+        }
+        showToast(`Gagal membaca CorelDRAW: ${err.message}`, false);
+      }
+    });
+  }
+
+  // Execute Layout in CorelDRAW
+  if (btnLayoutPolaExecute) {
+    btnLayoutPolaExecute.addEventListener('click', async () => {
+      try {
+        if (!layoutPolaVariants || layoutPolaVariants.length === 0) {
+          showToast('Belum ada pola untuk ditata. Silakan ambil pola terlebih dahulu.', false);
+          return;
+        }
+
+        const curVariant = layoutPolaVariants[layoutPolaCurrentVariantIndex];
+        if (!curVariant || !curVariant.positions || curVariant.positions.length === 0) {
+          showToast('Data susunan tidak valid.', false);
+          return;
+        }
+
+        const { boxW, boxH } = getLayoutBoxDimensionsCm();
+        const { gap, margin } = getLayoutGapAndMarginCm();
+        const createBox = !!chkLayoutPolaCreateBox?.checked;
+
+        btnLayoutPolaExecute.disabled = true;
+        btnLayoutPolaExecute.innerText = 'Menata di CorelDRAW...';
+
+        const payload = {
+          boxWidthCm: boxW,
+          boxHeightCm: boxH,
+          createBox,
+          gapCm: gap,
+          marginCm: margin,
+          items: curVariant.positions
+        };
+
+        const res = await window.corelAPI.layoutPolaExecute(payload);
+        btnLayoutPolaExecute.disabled = false;
+        btnLayoutPolaExecute.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg>
+          Terapkan ke CorelDRAW
+        `;
+
+        if (res && res.success) {
+          showToast(res.message || `Sukses menata ${curVariant.positions.length} pola di CorelDRAW!`);
+        } else {
+          showToast(res?.message || 'Gagal menata pola di CorelDRAW.', false);
+        }
+      } catch (err) {
+        if (btnLayoutPolaExecute) {
+          btnLayoutPolaExecute.disabled = false;
+          btnLayoutPolaExecute.innerText = 'Terapkan ke CorelDRAW';
+        }
+        showToast(`Error eksekusi: ${err.message}`, false);
+      }
+    });
+  }
+
+  // Canvas Zoom & Fit Controls
+  if (btnLayoutPreviewFit) {
+    btnLayoutPreviewFit.addEventListener('click', () => {
+      layoutPolaAutoFit = true;
+      layoutPolaZoomScale = 1.0;
+      if (lblLayoutPolaZoomLevel) lblLayoutPolaZoomLevel.innerText = 'Fit to Screen';
+      renderLayoutPolaCanvas();
+    });
+  }
+
+  if (btnLayoutPreviewZoomIn) {
+    btnLayoutPreviewZoomIn.addEventListener('click', () => {
+      layoutPolaAutoFit = false;
+      layoutPolaZoomScale = Math.min(3.0, layoutPolaZoomScale + 0.2);
+      if (lblLayoutPolaZoomLevel) lblLayoutPolaZoomLevel.innerText = `${Math.round(layoutPolaZoomScale * 100)}%`;
+      renderLayoutPolaCanvas();
+    });
+  }
+
+  if (btnLayoutPreviewZoomOut) {
+    btnLayoutPreviewZoomOut.addEventListener('click', () => {
+      layoutPolaAutoFit = false;
+      layoutPolaZoomScale = Math.max(0.4, layoutPolaZoomScale - 0.2);
+      if (lblLayoutPolaZoomLevel) lblLayoutPolaZoomLevel.innerText = `${Math.round(layoutPolaZoomScale * 100)}%`;
+      renderLayoutPolaCanvas();
+    });
+  }
+
+  // Interactive Hover Tooltip on Canvas
+  if (layoutPolaCanvas) {
+    layoutPolaCanvas.addEventListener('mousemove', (e) => {
+      if (!layoutPolaVariants || layoutPolaVariants.length === 0) return;
+      const cur = layoutPolaVariants[layoutPolaCurrentVariantIndex];
+      if (!cur) return;
+
+      const rect = layoutPolaCanvas.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left) * (layoutPolaCanvas.width / rect.width);
+      const mouseY = (e.clientY - rect.top) * (layoutPolaCanvas.height / rect.height);
+
+      const { boxW, boxH } = getLayoutBoxDimensionsCm();
+      const marginPadX = 60;
+      const marginPadY = 60;
+      const availW = layoutPolaCanvas.width - marginPadX * 2;
+      const availH = layoutPolaCanvas.height - marginPadY * 2;
+      const baseScale = Math.min(availW / boxW, availH / boxH);
+      const scale = layoutPolaAutoFit ? baseScale : baseScale * layoutPolaZoomScale;
+      const renderBoxW = boxW * scale;
+      const originX = (layoutPolaCanvas.width - renderBoxW) / 2;
+      const originY = marginPadY / 2;
+
+      let foundIdx = -1;
+      for (let i = 0; i < cur.positions.length; i++) {
+        const p = cur.positions[i];
+        const px = originX + p.xCm * scale;
+        const py = originY + p.yCm * scale;
+        const pw = p.wCm * scale;
+        const ph = p.hCm * scale;
+        if (mouseX >= px && mouseX <= px + pw && mouseY >= py && mouseY <= py + ph) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      if (foundIdx !== layoutPolaHoveredIndex) {
+        layoutPolaHoveredIndex = foundIdx;
+        renderLayoutPolaCanvas();
+      }
+
+      if (foundIdx >= 0 && layoutPolaTooltip) {
+        const item = cur.positions[foundIdx];
+        layoutPolaTooltip.style.display = 'block';
+        layoutPolaTooltip.style.left = `${e.clientX - rect.left + 15}px`;
+        layoutPolaTooltip.style.top = `${e.clientY - rect.top + 15}px`;
+        layoutPolaTooltip.innerHTML = `
+          <strong>${item.name || 'Pola ' + (foundIdx + 1)}</strong><br/>
+          Ukuran: ${item.wCm} cm × ${item.hCm} cm<br/>
+          Posisi: X=${item.xCm} cm, Y=${item.yCm} cm
+          ${item.rotate ? '<br/><span style="color:#f59e0b">Diputar: 180°</span>' : ''}
+        `;
+      } else if (layoutPolaTooltip) {
+        layoutPolaTooltip.style.display = 'none';
+      }
+    });
+
+    layoutPolaCanvas.addEventListener('mouseleave', () => {
+      layoutPolaHoveredIndex = -1;
+      if (layoutPolaTooltip) layoutPolaTooltip.style.display = 'none';
+      renderLayoutPolaCanvas();
+    });
+  }
+
+  // Keyboard shortcut when inside view-layout-pola: Left/Right arrow to cycle layouts
+  window.addEventListener('keydown', (e) => {
+    if (activeView === 'layout-pola') {
+      if (e.key === 'ArrowRight') {
+        nextLayoutVariant();
+        e.preventDefault();
+      } else if (e.key === 'ArrowLeft') {
+        prevLayoutVariant();
+        e.preventDefault();
+      }
+    }
+  });
+
+  // Auto-init with sample on first load
+  layoutPolaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEY_PATTERNS));
+  if (badgeLayoutPolaCount) badgeLayoutPolaCount.innerText = `${layoutPolaItems.length} Pola`;
+  computeAllLayoutVariants();
+
   // ==========================================
   // 13. Keyboard Shortcuts (Native Desktop)
   // ==========================================

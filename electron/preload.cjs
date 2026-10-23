@@ -141,6 +141,10 @@ const api = {
 
   // Application Info
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+
+  // Layout Pola (Auto-Nesting Lembar Cetak) APIs
+  layoutPolaGetSelection: () => ipcRenderer.invoke('corel:get-layout-pola-selection'),
+  layoutPolaExecute: (payload) => ipcRenderer.invoke('corel:execute-layout-pola', payload),
 };
 
 // Expose on both names for full backward & forward compatibility
