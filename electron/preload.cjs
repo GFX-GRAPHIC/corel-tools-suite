@@ -50,6 +50,7 @@ const api = {
   corelOpenNumeratorTool: () => ipcRenderer.invoke('corel:open-numerator-tool'),
   corelOpenCertMergerTool: () => ipcRenderer.invoke('corel:open-cert-merger-tool'),
   corelOpenAiTracerTool: () => ipcRenderer.invoke('corel:open-ai-tracer-tool'),
+  corelOpenLayoutPolaTool: () => ipcRenderer.invoke('corel:open-layout-pola-tool'),
 
   // Automation Handlers
   executeNumerator: (payload) => ipcRenderer.invoke('corel:execute-numerator', payload),

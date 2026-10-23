@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corel Tools Suite - Layout Pola</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: "Segoe UI", -apple-system, system-ui, BlinkMacSystemFont, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: #0b0f19;
+      color: #f8fafc;
+      font-size: 11.5px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #334155;
+    }
+
+    /* Windows Native Custom Titlebar */
+    .titlebar {
+      height: 30px;
+      background-color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      border-bottom: 1px solid #1e293b;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .titlebar-icon {
+      width: 18px;
+      height: 18px;
+      background-color: #0d9488;
+      color: #ffffff;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      -webkit-app-region: no-drag;
+    }
+
+    .titlebar-btn {
+      width: 26px;
+      height: 22px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 3px;
+      font-size: 11px;
+      transition: all 0.15s ease;
+    }
+
+    .titlebar-btn:hover {
+      background-color: #1e293b;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.close:hover {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.pin.active {
+      background-color: #0d9488;
+      color: #ffffff;
+    }
+
+    /* CorelDRAW Status Bar */
+    .status-bar-top {
+      height: 24px;
+      background-color: #111827;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 10.5px;
+      flex-shrink: 0;
+    }
+
+    .status-corel-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #64748b;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .status-corel-dot.connected {
+      background-color: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    /* Main Scrollable Body */
+    .content-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Section Boxes */
+    .section-box {
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Form Inputs */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field-label {
+      font-size: 10.5px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .input-text {
+      height: 26px;
+      background-color: #0f172a;
+      border: 1px solid #334155;
+      color: #ffffff;
+      padding: 0 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      outline: none;
+      width: 100%;
+    }
+
+    .input-text:focus {
+      border-color: #3b82f6;
+    }
+
+    .select-native {
+      height: 26px;
+      background-color: #0f172a;
+      border: 1px solid #334155;
+      color: #ffffff;
+      padding: 0 4px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      outline: none;
+    }
+
+    .btn-preset-chip {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #334155;
+      color: #94a3b8;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 9.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-preset-chip:hover {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+
+    /* Buttons */
+    .btn {
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 0 10px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+
+    .btn-success {
+      background-color: #10b981;
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background-color: #059669;
+    }
+
+    .btn-secondary {
+      background-color: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .btn-secondary:hover {
+      background-color: #334155;
+      color: #ffffff;
+    }
+
+    /* Visualizer Card */
+    .preview-box {
+      background: #0b0f19;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-header {
+      background: #111827;
+      padding: 6px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1e293b;
+      font-size: 10.5px;
+    }
+
+    .canvas-container {
+      height: 230px;
+      position: relative;
+      background: radial-gradient(circle at center, #131b2e 0%, #0b0f19 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #compCanvas {
+      max-width: 95%;
+      max-height: 95%;
+      border-radius: 3px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Bottom Pinned Bar */
+    .dock-bottom {
+      padding: 8px 10px;
+      background-color: #0f172a;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Toast */
+    .toast-msg {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      color: #ffffff;
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      display: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Native Custom Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="titlebar-icon">⊞</div>
+      <span>Corel Tools Suite - Layout Pola</span>
+    </div>
+    <div class="titlebar-controls">
+      <button type="button" class="titlebar-btn pin active" id="btnPin" title="Kunci selalu di atas (Always On Top)">📌</button>
+      <button type="button" class="titlebar-btn" id="btnMinimize" title="Minimize">─</button>
+      <button type="button" class="titlebar-btn close" id="btnClose" title="Tutup Jendela">✕</button>
+    </div>
+  </div>
+
+  <!-- 2. Corel Status Bar -->
+  <div class="status-bar-top">
+    <div style="display: flex; align-items: center;">
+      <span class="status-corel-dot" id="corelDot"></span>
+      <span id="lblCorelStatus">CorelDRAW: Memeriksa...</span>
+    </div>
+    <div style="color: #38bdf8; cursor: pointer; font-weight: 600;" id="btnRefreshStatus">Refresh</div>
+  </div>
+
+  <!-- 3. Scrollable Controls Body -->
+  <div class="content-body">
+    
+    <!-- Box: Deteksi Pola -->
+    <div class="section-box">
+      <div class="section-title">
+        <span>1. Deteksi Pola di CorelDRAW</span>
+        <span id="lblPolaCountBadge" style="background: #0284c7; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">0 Pola</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button type="button" class="btn btn-secondary" id="btnFetchCorel" style="flex: 1.4;">
+          Ambil Pola dari CorelDRAW
+        </button>
+        <button type="button" class="btn btn-secondary" id="btnLoadSample" style="flex: 1;">
+          Muat Contoh
+        </button>
+        <button type="button" class="btn btn-secondary" id="btnClear" style="padding: 0 8px;">
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Box: Ukuran Kotak (Lembar Cetak) -->
+    <div class="section-box">
+      <div class="section-title">
+        <span>2. Ukuran Kotak (Lembar Cetak)</span>
+        <span id="btnPreset1x5" style="color: #38bdf8; font-size: 10px; cursor: pointer;">1m x 5m</span>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="field-group">
+          <label class="field-label">Lebar Kotak (Width):</label>
+          <div style="display: flex; gap: 4px;">
+            <input type="number" id="numBoxW" class="input-text" value="100" min="10" step="1" />
+            <select id="selUnitW" class="select-native" style="width: 55px;">
+              <option value="cm" selected>cm</option>
+              <option value="m">meter</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Tinggi Kotak (Height):</label>
+          <div style="display: flex; gap: 4px;">
+            <input type="number" id="numBoxH" class="input-text" value="500" min="10" step="1" />
+            <select id="selUnitH" class="select-native" style="width: 55px;">
+              <option value="cm" selected>cm</option>
+              <option value="m">meter</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Preset Chips -->
+      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+        <button type="button" class="btn-preset-chip" data-w="100" data-h="500">100 x 500 cm</button>
+        <button type="button" class="btn-preset-chip" data-w="115" data-h="500">115 x 500 cm</button>
+        <button type="button" class="btn-preset-chip" data-w="150" data-h="500">150 x 500 cm</button>
+        <button type="button" class="btn-preset-chip" data-w="100" data-h="300">100 x 300 cm</button>
+        <button type="button" class="btn-preset-chip" data-w="100" data-h="1000">1 x 10 m</button>
+      </div>
+
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer; margin-top: 2px;">
+        <input type="checkbox" id="chkCreateBox" checked />
+        <span>Buat kotak pembatas di CorelDRAW</span>
+      </label>
+    </div>
+
+    <!-- Box: Atur Jarak & Margin -->
+    <div class="section-box">
+      <div class="section-title">
+        <span>3. Jarak &amp; Margin</span>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="field-group">
+          <label class="field-label">Jarak Antar Pola (cm):</label>
+          <input type="number" id="numGap" class="input-text" value="1.0" min="0" step="0.1" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Margin Tepi (cm):</label>
+          <input type="number" id="numMargin" class="input-text" value="1.0" min="0" step="0.1" />
+        </div>
+      </div>
+
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer;">
+        <input type="checkbox" id="chkAllowRotate" />
+        <span>Izinkan Rotasi 180&deg; (Pola Selang-Seling)</span>
+      </label>
+    </div>
+
+    <!-- Box: Variasi Susunan (THE NEXT BUTTON) -->
+    <div class="section-box" style="background: rgba(30, 41, 59, 0.85); border-color: #3b82f6;">
+      <div class="section-title">
+        <span style="color: #60a5fa;">4. Variasi Susunan (Layout)</span>
+        <span id="lblVariantBadge" style="background: #2563eb; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px;">Variasi 1 / 5</span>
+      </div>
+
+      <div id="lblVariantTitle" style="font-size: 12px; font-weight: 700; color: #ffffff;">
+        Rapi Sejajar Kolom Roll
+      </div>
+      <div id="lblVariantDesc" style="font-size: 10.5px; color: #94a3b8; line-height: 1.35;">
+        Menata pola seragam vertikal ke bawah dalam kolom rapi sejajar.
+      </div>
+
+      <!-- Next & Prev Controls -->
+      <div style="display: flex; gap: 6px; margin-top: 2px;">
+        <button type="button" class="btn btn-secondary" id="btnPrev" style="flex: 1;">
+          &larr; Sebelumnya
+        </button>
+        <button type="button" class="btn btn-primary" id="btnNext" style="flex: 1.5; font-weight: 700;">
+          Susunan Berikutnya (Next) &rarr;
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Preview Visualizer -->
+    <div class="preview-box">
+      <div class="preview-header">
+        <span style="font-weight: 700;">Live Preview Susunan</span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          <button type="button" class="btn-preset-chip" id="btnFit">Fit</button>
+          <button type="button" class="btn-preset-chip" id="btnZoomIn">+</button>
+          <button type="button" class="btn-preset-chip" id="btnZoomOut">-</button>
+          <button type="button" class="btn btn-primary" id="btnQuickNext" style="height: 20px; font-size: 10px; padding: 0 8px;">
+            Next &rarr;
+          </button>
+        </div>
+      </div>
+      <div class="canvas-container">
+        <canvas id="compCanvas" width="600" height="320"></canvas>
+      </div>
+      <div style="padding: 4px 8px; background: #111827; border-top: 1px solid #1e293b; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;">
+        <span id="lblUsedHeightStat">Tinggi: 0 cm</span>
+        <span id="lblEfficiencyStat">Efisiensi: 0%</span>
+        <span id="lblFitStat" style="color: #10b981;">Semua Muat ✓</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 4. Pinned Bottom Action Dock -->
+  <div class="dock-bottom">
+    <button type="button" class="btn btn-success" id="btnExecute" style="height: 36px; font-size: 12.5px; font-weight: 700;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      Terapkan Layout ke CorelDRAW
+    </button>
+  </div>
+
+  <div class="toast-msg" id="toast">Notifikasi</div>
+
+  <script>
+    const api = window.electronAPI || window.corelAPI;
+
+    // Titlebar controls
+    const btnPin = document.getElementById('btnPin');
+    const btnMinimize = document.getElementById('btnMinimize');
+    const btnClose = document.getElementById('btnClose');
+    let isPinned = true;
+
+    btnMinimize.addEventListener('click', () => {
+      if (api?.minimizeWindow) api.minimizeWindow();
+    });
+    btnClose.addEventListener('click', () => window.close());
+    btnPin.addEventListener('click', async () => {
+      if (api?.toggleAlwaysOnTop) {
+        const res = await api.toggleAlwaysOnTop();
+        isPinned = res?.isAlwaysOnTop !== false;
+        btnPin.classList.toggle('active', isPinned);
+      }
+    });
+
+    // Elements
+    const corelDot = document.getElementById('corelDot');
+    const lblCorelStatus = document.getElementById('lblCorelStatus');
+    const btnRefreshStatus = document.getElementById('btnRefreshStatus');
+
+    const btnFetchCorel = document.getElementById('btnFetchCorel');
+    const btnLoadSample = document.getElementById('btnLoadSample');
+    const btnClear = document.getElementById('btnClear');
+    const lblPolaCountBadge = document.getElementById('lblPolaCountBadge');
+
+    const numBoxW = document.getElementById('numBoxW');
+    const numBoxH = document.getElementById('numBoxH');
+    const selUnitW = document.getElementById('selUnitW');
+    const selUnitH = document.getElementById('selUnitH');
+    const btnPreset1x5 = document.getElementById('btnPreset1x5');
+    const chkCreateBox = document.getElementById('chkCreateBox');
+
+    const numGap = document.getElementById('numGap');
+    const numMargin = document.getElementById('numMargin');
+    const chkAllowRotate = document.getElementById('chkAllowRotate');
+
+    const lblVariantBadge = document.getElementById('lblVariantBadge');
+    const lblVariantTitle = document.getElementById('lblVariantTitle');
+    const lblVariantDesc = document.getElementById('lblVariantDesc');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnQuickNext = document.getElementById('btnQuickNext');
+
+    const compCanvas = document.getElementById('compCanvas');
+    const lblUsedHeightStat = document.getElementById('lblUsedHeightStat');
+    const lblEfficiencyStat = document.getElementById('lblEfficiencyStat');
+    const lblFitStat = document.getElementById('lblFitStat');
+    const btnFit = document.getElementById('btnFit');
+    const btnZoomIn = document.getElementById('btnZoomIn');
+    const btnZoomOut = document.getElementById('btnZoomOut');
+    const btnExecute = document.getElementById('btnExecute');
+    const toast = document.getElementById('toast');
+
+    // State
+    let polaItems = [];
+    let variants = [];
+    let currentVariantIdx = 0;
+    let zoomScale = 1.0;
+    let autoFit = true;
+
+    const SAMPLE_JERSEYS = [
+      { index: 1, staticId: 101, widthCm: 47.0, heightCm: 74.5, name: 'Jersey #18 (Depan)' },
+      { index: 2, staticId: 102, widthCm: 47.5, heightCm: 75.0, name: 'Jersey #18 (Belakang)' },
+      { index: 3, staticId: 103, widthCm: 48.0, heightCm: 75.5, name: 'Jersey #33 (Depan)' },
+      { index: 4, staticId: 104, widthCm: 48.5, heightCm: 76.0, name: 'Jersey #33 (Belakang)' },
+      { index: 5, staticId: 105, widthCm: 46.0, heightCm: 73.5, name: 'Jersey #11 (Depan)' },
+      { index: 6, staticId: 106, widthCm: 46.5, heightCm: 74.0, name: 'Jersey #11 (Belakang)' },
+      { index: 7, staticId: 107, widthCm: 45.0, heightCm: 72.0, name: 'Jersey #9 (Depan)' },
+      { index: 8, staticId: 108, widthCm: 45.5, heightCm: 72.5, name: 'Jersey #9 (Belakang)' },
+      { index: 9, staticId: 109, widthCm: 47.5, heightCm: 74.0, name: 'Jersey #23 (Depan)' }
+    ];
+
+    function showToast(msg) {
+      if (!toast) return;
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    async function checkCorelStatus() {
+      try {
+        if (!api?.checkStatus) return;
+        const st = await api.checkStatus();
+        if (st && st.connected) {
+          corelDot.classList.add('connected');
+          lblCorelStatus.innerText = `CorelDRAW: Terhubung (${st.activeDocName || 'Ada Dokumen'})`;
+        } else {
+          corelDot.classList.remove('connected');
+          lblCorelStatus.innerText = 'CorelDRAW: Tidak terhubung';
+        }
+      } catch {
+        corelDot.classList.remove('connected');
+        lblCorelStatus.innerText = 'CorelDRAW: Offline';
+      }
+    }
+
+    function getBoxDims() {
+      let w = parseFloat(numBoxW.value) || 100;
+      let h = parseFloat(numBoxH.value) || 500;
+      if (selUnitW.value === 'm') w *= 100; else if (selUnitW.value === 'mm') w /= 10;
+      if (selUnitH.value === 'm') h *= 100; else if (selUnitH.value === 'mm') h /= 10;
+      return { boxW: Math.max(10, Math.round(w * 100) / 100), boxH: Math.max(10, Math.round(h * 100) / 100) };
+    }
+
+    function getGapMargin() {
+      return {
+        gap: Math.max(0, parseFloat(numGap.value) || 1.0),
+        margin: Math.max(0, parseFloat(numMargin.value) || 1.0),
+        allowRotate: !!chkAllowRotate.checked
+      };
+    }
+
+    function computeVariants() {
+      if (!polaItems || polaItems.length === 0) {
+        variants = [];
+        currentVariantIdx = 0;
+        updateUI();
+        renderCanvas();
+        return;
+      }
+
+      const { boxW, boxH } = getBoxDims();
+      const { gap, margin, allowRotate } = getGapMargin();
+      const usableW = Math.max(1, boxW - 2 * margin);
+      const usableH = Math.max(1, boxH - 2 * margin);
+
+      const list = [];
+
+      // VARIANT 1: Sejajar Kolom Roll
+      {
+        const items = [...polaItems];
+        const maxW = Math.max(...items.map(it => it.widthCm));
+        const numCols = Math.max(1, Math.floor((usableW + gap) / (maxW + gap)));
+        const colSpacing = numCols > 1 ? (usableW - (numCols * maxW)) / (numCols - 1) : gap;
+        const actualGapX = Math.max(gap, colSpacing);
+        const colY = new Array(numCols).fill(margin);
+        const positions = [];
+
+        items.forEach((it, idx) => {
+          const col = idx % numCols;
+          const x = margin + col * (maxW + actualGapX) + (maxW - it.widthCm) / 2;
+          const y = colY[col];
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: Math.round(x * 100) / 100,
+            yCm: Math.round(y * 100) / 100,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: 0
+          });
+          colY[col] += it.heightCm + gap;
+        });
+
+        list.push({
+          id: 'col_roll',
+          name: `Rapi Sejajar Kolom Roll (${numCols} Kolom)`,
+          desc: `Menata ${items.length} pola seragam dalam ${numCols} kolom vertikal rapi sejajar.`,
+          positions,
+          usedHeight: Math.round((Math.max(...colY) - gap + margin) * 10) / 10,
+          boxW,
+          boxH
+        });
+      }
+
+      // VARIANT 2: Sejajar Baris / Shelf
+      {
+        const items = [...polaItems].sort((a, b) => b.heightCm - a.heightCm);
+        const positions = [];
+        let curX = margin;
+        let curY = margin;
+        let shelfH = 0;
+
+        items.forEach((it, idx) => {
+          if (curX + it.widthCm > boxW - margin && curX > margin) {
+            curY += shelfH + gap;
+            curX = margin;
+            shelfH = 0;
+          }
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: Math.round(curX * 100) / 100,
+            yCm: Math.round(curY * 100) / 100,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: 0
+          });
+          shelfH = Math.max(shelfH, it.heightCm);
+          curX += it.widthCm + gap;
+        });
+
+        list.push({
+          id: 'shelf',
+          name: 'Sejajar Baris / Shelf (Urut Tinggi)',
+          desc: 'Menata dari kiri ke kanan baris demi baris, diurutkan dari pola tertinggi.',
+          positions,
+          usedHeight: Math.round((curY + shelfH + margin) * 10) / 10,
+          boxW,
+          boxH
+        });
+      }
+
+      // VARIANT 3: Kolom Seimbang Rata Bawah
+      {
+        const items = [...polaItems].sort((a, b) => b.heightCm - a.heightCm);
+        const maxW = Math.max(...items.map(it => it.widthCm));
+        const numCols = Math.max(1, Math.floor((usableW + gap) / (maxW + gap)));
+        const colSpacing = numCols > 1 ? (usableW - (numCols * maxW)) / (numCols - 1) : gap;
+        const actualGapX = Math.max(gap, colSpacing);
+        const colY = new Array(numCols).fill(margin);
+        const positions = [];
+
+        items.forEach((it, idx) => {
+          let minCol = 0;
+          for (let c = 1; c < numCols; c++) {
+            if (colY[c] < colY[minCol]) minCol = c;
+          }
+          const x = margin + minCol * (maxW + actualGapX) + (maxW - it.widthCm) / 2;
+          const y = colY[minCol];
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: Math.round(x * 100) / 100,
+            yCm: Math.round(y * 100) / 100,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: 0
+          });
+          colY[minCol] += it.heightCm + gap;
+        });
+
+        list.push({
+          id: 'waterfall',
+          name: `Kolom Seimbang Rata Bawah (${numCols} Kolom)`,
+          desc: 'Menyeimbangkan tinggi antar kolom agar batas potong kain di bawah benar-benar rata.',
+          positions,
+          usedHeight: Math.round((Math.max(...colY) - gap + margin) * 10) / 10,
+          boxW,
+          boxH
+        });
+      }
+
+      // VARIANT 4: Pola Selang-Seling (Interlocking 180°)
+      {
+        const items = [...polaItems];
+        const maxW = Math.max(...items.map(it => it.widthCm));
+        const numCols = Math.max(1, Math.floor((usableW + gap) / (maxW + gap)));
+        const colSpacing = numCols > 1 ? (usableW - (numCols * maxW)) / (numCols - 1) : gap;
+        const actualGapX = Math.max(gap, colSpacing);
+        const colY = new Array(numCols).fill(margin);
+        const positions = [];
+
+        items.forEach((it, idx) => {
+          const col = idx % numCols;
+          const isFlipped = (col % 2 === 1) || (Math.floor(idx / numCols) % 2 === 1);
+          const rot = allowRotate || isFlipped ? 180 : 0;
+          const x = margin + col * (maxW + actualGapX) + (maxW - it.widthCm) / 2;
+          const y = colY[col];
+          positions.push({
+            index: it.index || idx + 1,
+            staticId: it.staticId,
+            name: it.name,
+            xCm: Math.round(x * 100) / 100,
+            yCm: Math.round(y * 100) / 100,
+            wCm: it.widthCm,
+            hCm: it.heightCm,
+            rotate: rot
+          });
+          colY[col] += it.heightCm + gap;
+        });
+
+        list.push({
+          id: 'interlock',
+          name: 'Pola Selang-Seling (Interlocking 180°)',
+          desc: 'Memutar pola 180° agar bahu dan pinggang jersey saling mengunci dan hemat bahan.',
+          positions,
+          usedHeight: Math.round((Math.max(...colY) - gap + margin) * 10) / 10,
+          boxW,
+          boxH
+        });
+      }
+
+      // VARIANT 5: MaxRects Kompak
+      {
+        const items = [...polaItems].sort((a, b) => (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm));
+        const freeRects = [{ x: margin, y: margin, w: usableW, h: usableH }];
+        const positions = [];
+        let maxBottom = margin;
+
+        items.forEach((it, idx) => {
+          let bestIdx = -1;
+          let bestShort = 999999;
+          for (let r = 0; r < freeRects.length; r++) {
+            const fr = freeRects[r];
+            if (fr.w >= it.widthCm && fr.h >= it.heightCm) {
+              const short = Math.min(fr.w - it.widthCm, fr.h - it.heightCm);
+              if (short < bestShort) {
+                bestShort = short;
+                bestIdx = r;
+              }
+            }
+          }
+
+          if (bestIdx >= 0) {
+            const chosen = freeRects[bestIdx];
+            const px = chosen.x;
+            const py = chosen.y;
+            positions.push({
+              index: it.index || idx + 1,
+              staticId: it.staticId,
+              name: it.name,
+              xCm: Math.round(px * 100) / 100,
+              yCm: Math.round(py * 100) / 100,
+              wCm: it.widthCm,
+              hCm: it.heightCm,
+              rotate: 0
+            });
+            maxBottom = Math.max(maxBottom, py + it.heightCm);
+
+            const rRect = { x: px + it.widthCm + gap, y: py, w: Math.max(0, chosen.w - it.widthCm - gap), h: it.heightCm };
+            const bRect = { x: px, y: py + it.heightCm + gap, w: chosen.w, h: Math.max(0, chosen.h - it.heightCm - gap) };
+            freeRects.splice(bestIdx, 1);
+            if (rRect.w > 5 && rRect.h > 5) freeRects.push(rRect);
+            if (bRect.w > 5 && bRect.h > 5) freeRects.push(bRect);
+          } else {
+            positions.push({
+              index: it.index || idx + 1,
+              staticId: it.staticId,
+              name: it.name,
+              xCm: margin,
+              yCm: maxBottom + gap,
+              wCm: it.widthCm,
+              hCm: it.heightCm,
+              rotate: 0
+            });
+            maxBottom += it.heightCm + gap;
+          }
+        });
+
+        list.push({
+          id: 'maxrects',
+          name: 'Nesting Kompak Otomatis (MaxRects 2D)',
+          desc: 'Mengisi celah kosong secara otomatis untuk meminimalkan sisa potongan kain.',
+          positions,
+          usedHeight: Math.round((maxBottom + margin) * 10) / 10,
+          boxW,
+          boxH
+        });
+      }
+
+      const totalArea = polaItems.reduce((acc, it) => acc + (it.widthCm * it.heightCm), 0);
+      list.forEach(v => {
+        const boundArea = boxW * Math.max(1, v.usedHeight);
+        v.efficiency = Math.min(100, Math.round((totalArea / boundArea) * 100));
+        v.allFit = v.positions.every(p => (p.xCm + p.wCm <= boxW + 0.5) && (p.yCm + p.hCm <= boxH + 0.5));
+      });
+
+      variants = list;
+      if (currentVariantIdx >= variants.length) currentVariantIdx = 0;
+      updateUI();
+      renderCanvas();
+    }
+
+    function updateUI() {
+      if (!variants || variants.length === 0) {
+        lblVariantBadge.innerText = 'Variasi 0 / 0';
+        lblVariantTitle.innerText = 'Belum Ada Pola';
+        lblVariantDesc.innerText = 'Klik "Ambil Pola" atau "Muat Contoh" untuk memulai kalkulasi.';
+        lblUsedHeightStat.innerText = 'Tinggi: 0 cm';
+        lblEfficiencyStat.innerText = 'Efisiensi: 0%';
+        lblFitStat.innerText = '-';
+        return;
+      }
+
+      const cur = variants[currentVariantIdx];
+      lblVariantBadge.innerText = `Variasi ${currentVariantIdx + 1} / ${variants.length}`;
+      lblVariantTitle.innerText = cur.name;
+      lblVariantDesc.innerText = cur.desc;
+
+      lblUsedHeightStat.innerText = `Tinggi: ${cur.usedHeight} cm (${cur.boxH} cm)`;
+      lblEfficiencyStat.innerText = `Efisiensi: ${cur.efficiency}%`;
+      if (cur.allFit) {
+        lblFitStat.innerText = `Semua Muat ✓ (${cur.positions.length} Pola)`;
+        lblFitStat.style.color = '#10b981';
+      } else {
+        lblFitStat.innerText = `Melebihi Kotak ⚠️`;
+        lblFitStat.style.color = '#ef4444';
+      }
+    }
+
+    function renderCanvas() {
+      if (!compCanvas) return;
+      const ctx = compCanvas.getContext('2d');
+      const cw = compCanvas.width;
+      const ch = compCanvas.height;
+
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(0, 0, cw, ch);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < cw; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke(); }
+      for (let y = 0; y < ch; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); }
+
+      if (!variants || variants.length === 0) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Belum ada pola. Klik "Ambil Pola" atau "Muat Contoh".', cw / 2, ch / 2);
+        return;
+      }
+
+      const cur = variants[currentVariantIdx];
+      const { boxW, boxH } = getBoxDims();
+
+      const padX = 40;
+      const padY = 40;
+      const availW = cw - padX * 2;
+      const availH = ch - padY * 2;
+      const baseScale = Math.min(availW / boxW, availH / boxH);
+      const scale = autoFit ? baseScale : baseScale * zoomScale;
+
+      const rw = boxW * scale;
+      const rh = boxH * scale;
+      const ox = (cw - rw) / 2;
+      const oy = padY / 2;
+
+      // Container Box
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(ox, oy, rw, rh);
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ox, oy, rw, rh);
+
+      // Dimension labels
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 9.5px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${boxW} cm`, ox + rw / 2, oy - 4);
+
+      ctx.save();
+      ctx.translate(ox - 6, oy + rh / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText(`${boxH} cm`, 0, 0);
+      ctx.restore();
+
+      // Used Cutline
+      const uy = oy + cur.usedHeight * scale;
+      if (cur.usedHeight > 0 && cur.usedHeight <= boxH) {
+        ctx.save();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(ox - 10, uy);
+        ctx.lineTo(ox + rw + 10, uy);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Cards
+      cur.positions.forEach((p, idx) => {
+        const px = ox + p.xCm * scale;
+        const py = oy + p.yCm * scale;
+        const pw = p.wCm * scale;
+        const ph = p.hCm * scale;
+        const isOutOfBounds = (p.xCm + p.wCm > boxW + 0.1) || (p.yCm + p.hCm > boxH + 0.1);
+
+        ctx.fillStyle = isOutOfBounds ? 'rgba(239, 68, 68, 0.25)' : '#1e293b';
+        ctx.strokeStyle = isOutOfBounds ? '#ef4444' : '#38bdf8';
+        ctx.lineWidth = 1.2;
+
+        const rad = Math.min(4, pw / 6, ph / 6);
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, rad);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isOutOfBounds ? '#fca5a5' : '#ffffff';
+        ctx.textAlign = 'center';
+        const fontSize = Math.max(7.5, Math.min(10.5, pw / 6));
+        ctx.font = `bold ${fontSize}px Segoe UI, sans-serif`;
+
+        if (ph > 22) {
+          ctx.fillText(`Pola ${idx + 1}`, px + pw / 2, py + ph / 2 - 1);
+          ctx.font = `${Math.max(6.5, fontSize - 1.5)}px Segoe UI, sans-serif`;
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(`${p.wCm}×${p.hCm}`, px + pw / 2, py + ph / 2 + fontSize);
+        } else {
+          ctx.fillText(`${idx + 1} (${p.wCm}×${p.hCm})`, px + pw / 2, py + ph / 2 + 2);
+        }
+
+        if (p.rotate === 180) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = 'bold 8px Segoe UI, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText('180°', px + pw - 2, py + 9);
+        }
+      });
+    }
+
+    function nextVar() {
+      if (!variants || variants.length === 0) return;
+      currentVariantIdx = (currentVariantIdx + 1) % variants.length;
+      updateUI();
+      renderCanvas();
+    }
+
+    function prevVar() {
+      if (!variants || variants.length === 0) return;
+      currentVariantIdx = (currentVariantIdx - 1 + variants.length) % variants.length;
+      updateUI();
+      renderCanvas();
+    }
+
+    btnNext.addEventListener('click', nextVar);
+    btnQuickNext.addEventListener('click', nextVar);
+    btnPrev.addEventListener('click', prevVar);
+
+    // Form inputs listeners
+    [numBoxW, numBoxH, selUnitW, selUnitH, numGap, numMargin, chkAllowRotate].forEach(el => {
+      el.addEventListener('input', computeVariants);
+      el.addEventListener('change', computeVariants);
+    });
+
+    document.querySelectorAll('.btn-preset-chip[data-w]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        numBoxW.value = chip.getAttribute('data-w');
+        numBoxH.value = chip.getAttribute('data-h');
+        selUnitW.value = 'cm';
+        selUnitH.value = 'cm';
+        computeVariants();
+      });
+    });
+
+    btnPreset1x5.addEventListener('click', () => {
+      numBoxW.value = '100';
+      numBoxH.value = '500';
+      selUnitW.value = 'cm';
+      selUnitH.value = 'cm';
+      computeVariants();
+    });
+
+    btnLoadSample.addEventListener('click', () => {
+      polaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEYS));
+      lblPolaCountBadge.innerText = `${polaItems.length} Pola`;
+      computeVariants();
+      showToast(`Memuat contoh ${polaItems.length} pola jersey!`);
+    });
+
+    btnClear.addEventListener('click', () => {
+      polaItems = [];
+      variants = [];
+      currentVariantIdx = 0;
+      lblPolaCountBadge.innerText = '0 Pola';
+      updateUI();
+      renderCanvas();
+    });
+
+    btnFetchCorel.addEventListener('click', async () => {
+      try {
+        if (!api?.layoutPolaGetSelection) {
+          showToast('API CorelDRAW tidak tersedia.');
+          return;
+        }
+        btnFetchCorel.innerText = 'Memeriksa...';
+        btnFetchCorel.disabled = true;
+
+        const res = await api.layoutPolaGetSelection();
+        btnFetchCorel.innerText = 'Ambil Pola dari CorelDRAW';
+        btnFetchCorel.disabled = false;
+
+        if (res && res.success && res.items && res.items.length > 0) {
+          polaItems = res.items;
+          lblPolaCountBadge.innerText = `${polaItems.length} Pola`;
+          if (res.containerDetected) {
+            numBoxW.value = res.containerDetected.widthCm;
+            numBoxH.value = res.containerDetected.heightCm;
+            selUnitW.value = 'cm';
+            selUnitH.value = 'cm';
+          }
+          computeVariants();
+          showToast(`Berhasil mendeteksi ${polaItems.length} pola!`);
+        } else {
+          showToast(res?.message || 'Tidak ada pola yang diseleksi.');
+        }
+      } catch (err) {
+        btnFetchCorel.innerText = 'Ambil Pola dari CorelDRAW';
+        btnFetchCorel.disabled = false;
+        showToast('Error: ' + err.message);
+      }
+    });
+
+    btnExecute.addEventListener('click', async () => {
+      try {
+        if (!variants || variants.length === 0) {
+          showToast('Belum ada susunan pola.');
+          return;
+        }
+        const cur = variants[currentVariantIdx];
+        if (!cur || !cur.positions) return;
+
+        const { boxW, boxH } = getBoxDims();
+        const { gap, margin } = getGapMargin();
+        const createBox = !!chkCreateBox.checked;
+
+        btnExecute.disabled = true;
+        btnExecute.innerText = 'Menata di CorelDRAW...';
+
+        const payload = {
+          boxWidthCm: boxW,
+          boxHeightCm: boxH,
+          createBox,
+          gapCm: gap,
+          marginCm: margin,
+          items: cur.positions
+        };
+
+        const res = await api.layoutPolaExecute(payload);
+        btnExecute.disabled = false;
+        btnExecute.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terapkan Layout ke CorelDRAW`;
+
+        if (res && res.success) {
+          showToast(res.message || `Sukses menata ${cur.positions.length} pola!`);
+        } else {
+          showToast(res?.message || 'Gagal menata di CorelDRAW.');
+        }
+      } catch (err) {
+        btnExecute.disabled = false;
+        btnExecute.innerText = 'Terapkan Layout ke CorelDRAW';
+        showToast('Error: ' + err.message);
+      }
+    });
+
+    btnFit.addEventListener('click', () => { autoFit = true; zoomScale = 1.0; renderCanvas(); });
+    btnZoomIn.addEventListener('click', () => { autoFit = false; zoomScale = Math.min(3.0, zoomScale + 0.2); renderCanvas(); });
+    btnZoomOut.addEventListener('click', () => { autoFit = false; zoomScale = Math.max(0.4, zoomScale - 0.2); renderCanvas(); });
+
+    btnRefreshStatus.addEventListener('click', checkCorelStatus);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { nextVar(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { prevVar(); e.preventDefault(); }
+    });
+
+    // Init
+    checkCorelStatus();
+    polaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEYS));
+    lblPolaCountBadge.innerText = `${polaItems.length} Pola`;
+    computeVariants();
+  </script>
+</body>
+</html>

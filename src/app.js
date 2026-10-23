@@ -7481,6 +7481,17 @@ Catatan: Lengan Panjang
     });
   }
 
+  // Open Companion Floating Window
+  const btnLayoutPolaOpenCompanion = document.getElementById('btnLayoutPolaOpenCompanion');
+  if (btnLayoutPolaOpenCompanion) {
+    btnLayoutPolaOpenCompanion.addEventListener('click', () => {
+      const api = window.electronAPI || window.corelAPI;
+      if (api?.corelOpenLayoutPolaTool) {
+        api.corelOpenLayoutPolaTool();
+      }
+    });
+  }
+
   // Canvas Zoom & Fit Controls
   if (btnLayoutPreviewFit) {
     btnLayoutPreviewFit.addEventListener('click', () => {

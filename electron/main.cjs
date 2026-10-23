@@ -16,6 +16,7 @@ let corelCompanionWindow = null;
 let corelNumeratorWindow = null;
 let corelAiTracerWindow = null;
 let corelCertMergerWindow = null;
+let corelLayoutPolaWindow = null;
 let activeJerseySessionData = null;
 
 
@@ -57,7 +58,7 @@ try {
 }
 
 function sendUpdaterStatus(status, data = {}) {
-  const windows = [mainWindow, corelCompanionWindow, corelNumeratorWindow, corelAiTracerWindow, corelCertMergerWindow];
+  const windows = [mainWindow, corelCompanionWindow, corelNumeratorWindow, corelAiTracerWindow, corelCertMergerWindow, corelLayoutPolaWindow];
   windows.forEach((win) => {
     if (win && !win.isDestroyed() && win.webContents) {
       try {
@@ -202,6 +203,34 @@ function createCorelCertMergerWindow() {
   corelCertMergerWindow.loadFile(path.join(__dirname, 'corel-cert-merger.html'));
   corelCertMergerWindow.on('closed', () => { corelCertMergerWindow = null; });
   return corelCertMergerWindow;
+}
+
+function createCorelLayoutPolaWindow() {
+  if (corelLayoutPolaWindow && !corelLayoutPolaWindow.isDestroyed()) {
+    corelLayoutPolaWindow.focus();
+    return corelLayoutPolaWindow;
+  }
+  corelLayoutPolaWindow = new BrowserWindow({
+    width: 580,
+    height: 820,
+    minWidth: 480,
+    minHeight: 600,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0f172a',
+    title: 'Corel Tools Suite - Layout Pola',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+  corelLayoutPolaWindow.loadFile(path.join(__dirname, 'corel-layout-pola.html'));
+  corelLayoutPolaWindow.on('closed', () => { corelLayoutPolaWindow = null; });
+  return corelLayoutPolaWindow;
 }
 
 function createWindow() {
@@ -400,6 +429,15 @@ ipcMain.handle('corel:open-cert-merger-tool', async () => {
 
 ipcMain.handle('corel:open-ai-tracer-tool', async () => {
   const win = createCorelAiTracerWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:open-layout-pola-tool', async () => {
+  const win = createCorelLayoutPolaWindow();
   if (win) {
     win.show();
     win.focus();
