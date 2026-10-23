@@ -274,16 +274,18 @@ async function main() {
         console.log(`   - ${f} (${sz} MB)`);
       });
       console.log('\nPilihan Tindakan:');
-      console.log('  [1] LANGSUNG UPLOAD KE GITHUB (Cepat 10 detik, tanpa build ulang) [Tekan ENTER / Rekomendasi]');
-      console.log('  [2] Build ulang installer dari awal (hanya jika Anda ingin compile ulang)');
-      console.log('  [3] Naikkan versi baru dulu, lalu build & upload');
+      console.log('  [1] LANGSUNG UPLOAD file yang sudah jadi (Cepat 10 detik, tanpa build ulang)');
+      console.log('      -> Tekan ENTER jika installer versi ini sudah di-build sebelumnya.');
+      console.log('  [2] NAIKKAN VERSI BARU (Misal: 1.0.1) + BUILD OTOMATIS + UPLOAD KE GITHUB');
+      console.log('      -> Pilih ini jika Anda baru saja menambahkan fitur baru ke kodingan.');
+      console.log('  [3] Build ulang versi saat ini dari awal, lalu upload');
 
       const action = await askQuestion('\nPilihan Anda [1/2/3] (Default: 1): ');
 
       if (action === '2') {
+        appVersion = await promptVersionChange(appVersion);
         await runBuildProcess();
       } else if (action === '3') {
-        appVersion = await promptVersionChange(appVersion);
         await runBuildProcess();
       } else {
         console.log('\n[OK] Memilih opsi 1: Mengunggah file yang sudah siap tanpa perlu build ulang.\n');
