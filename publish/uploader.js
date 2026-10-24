@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Otomatis Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan:\n- Penataan Pola Jersey Sublimasi & Sablon Presisi\n- Mesin Nomorator Tiket / Nota Multi-Posisi\n- Merger Sertifikat & ID Card Massal\n- AI Vector Tracer & OCR\n- Peningkatan Performa, Mulus Tanpa Glitch Zooming\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Pembaruan v1.0.5:\n- Layout Pola: Dual-Mode Live Preview (Pop-out Window Mandiri Always on Top & Side-by-Side Split-View)\n- Layout Pola: Navigasi Varian Susunan (Next/Prev) langsung dari jendela monitor preview\n- Layout Pola: Fitur Pan & Zoom interaktif untuk inspeksi tata letak roll panjang hingga 28+ meter\n- Layout Pola: Tombol Satukan Kembali (Dock) dengan 1 klik tanpa kehilangan data kalkulasi\n- Integrasi Cerdas Layanan Online CDR Converter untuk file CorelDRAW versi 2024-2026\n- Penanganan 500+ pola massal super cepat dengan Optimization mode aktif\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),

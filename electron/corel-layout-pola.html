@@ -123,7 +123,7 @@
       box-shadow: 0 0 6px #10b981;
     }
 
-    /* Main Scrollable Body */
+    /* Main Layout Viewport */
     .content-body {
       flex: 1;
       overflow-y: auto;
@@ -131,6 +131,133 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      min-height: 0;
+    }
+
+    .controls-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .preview-col {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Side-by-Side Split View Mode */
+    body.expanded-side-by-side .content-body {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 12px;
+      overflow: hidden;
+      padding: 10px;
+    }
+
+    body.expanded-side-by-side .controls-col {
+      overflow-y: auto;
+      padding-right: 6px;
+      height: 100%;
+    }
+
+    body.expanded-side-by-side .preview-col {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body.expanded-side-by-side .preview-box {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body.expanded-side-by-side .canvas-container {
+      flex: 1;
+      height: 100% !important;
+      min-height: 380px;
+      max-height: none !important;
+    }
+
+    /* Detached Preview Placeholder */
+    .detached-placeholder {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(11, 15, 25, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .detached-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 1.5px solid #0284c7;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    .detached-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .detached-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      max-width: 320px;
+      line-height: 1.4;
+    }
+
+    .btn-tool-chip {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-tool-chip:hover {
+      background: #334155;
+      color: #ffffff;
+      border-color: #475569;
+    }
+
+    .btn-tool-chip.primary {
+      background: #0284c7;
+      border-color: #0369a1;
+      color: #ffffff;
+    }
+
+    .btn-tool-chip.primary:hover {
+      background: #0369a1;
+    }
+
+    .btn-tool-chip.active {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
     }
 
     /* Section Boxes */
@@ -521,146 +648,172 @@
   <!-- 3. Scrollable Controls Body -->
   <div class="content-body">
     
-    <!-- Box: Deteksi Pola -->
-    <div class="section-box">
-      <div class="section-title">
-        <span>1. Deteksi Pola di CorelDRAW</span>
-        <span id="lblPolaCountBadge" style="background: #0284c7; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">0 Pola</span>
-      </div>
-      <div style="display: flex; gap: 6px;">
-        <button type="button" class="btn btn-secondary" id="btnFetchCorel" style="flex: 1.4;">
-          Ambil Pola dari CorelDRAW
-        </button>
-        <button type="button" class="btn btn-secondary" id="btnLoadSample" style="flex: 1;">
-          Muat Contoh
-        </button>
-        <button type="button" class="btn btn-secondary" id="btnClear" style="padding: 0 8px;">
-          Reset
-        </button>
-      </div>
-    </div>
-
-    <!-- Box: Ukuran Kotak (Lembar Cetak) -->
-    <div class="section-box">
-      <div class="section-title">
-        <span>2. Ukuran Kotak (Lembar Cetak)</span>
-        <span id="btnPreset1x5" style="color: #38bdf8; font-size: 10px; cursor: pointer;">1m x 5m</span>
-      </div>
-
-      <div class="form-grid-2">
-        <div class="field-group">
-          <label class="field-label">Lebar Kotak (Width):</label>
-          <div style="display: flex; gap: 4px;">
-            <input type="number" id="numBoxW" class="input-text" value="100" min="10" step="1" />
-            <select id="selUnitW" class="select-native" style="width: 55px;">
-              <option value="cm" selected>cm</option>
-              <option value="m">meter</option>
-              <option value="mm">mm</option>
-            </select>
-          </div>
+    <div class="controls-col" id="controlsCol">
+      <!-- Box: Deteksi Pola -->
+      <div class="section-box">
+        <div class="section-title">
+          <span>1. Deteksi Pola di CorelDRAW</span>
+          <span id="lblPolaCountBadge" style="background: #0284c7; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">0 Pola</span>
         </div>
-        <div class="field-group">
-          <label class="field-label">Tinggi Kotak (Height):</label>
-          <div style="display: flex; gap: 4px;">
-            <input type="number" id="numBoxH" class="input-text" value="500" min="10" step="1" />
-            <select id="selUnitH" class="select-native" style="width: 55px;">
-              <option value="cm" selected>cm</option>
-              <option value="m">meter</option>
-              <option value="mm">mm</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Preset Chips -->
-      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-        <button type="button" class="btn-preset-chip" data-w="100" data-h="500">100 x 500 cm</button>
-        <button type="button" class="btn-preset-chip" data-w="115" data-h="500">115 x 500 cm</button>
-        <button type="button" class="btn-preset-chip" data-w="150" data-h="500">150 x 500 cm</button>
-        <button type="button" class="btn-preset-chip" data-w="100" data-h="300">100 x 300 cm</button>
-        <button type="button" class="btn-preset-chip" data-w="100" data-h="1000">1 x 10 m</button>
-      </div>
-
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer; margin-top: 2px;">
-        <input type="checkbox" id="chkCreateBox" checked />
-        <span>Buat kotak pembatas di CorelDRAW</span>
-      </label>
-    </div>
-
-    <!-- Box: Atur Jarak & Margin -->
-    <div class="section-box">
-      <div class="section-title">
-        <span>3. Jarak &amp; Margin</span>
-      </div>
-
-      <div class="form-grid-2">
-        <div class="field-group">
-          <label class="field-label">Jarak Antar Pola (cm):</label>
-          <input type="number" id="numGap" class="input-text" value="1.0" min="0" step="0.1" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Margin Tepi (cm):</label>
-          <input type="number" id="numMargin" class="input-text" value="1.0" min="0" step="0.1" />
-        </div>
-      </div>
-
-      <div style="display: flex; flex-direction: column; gap: 4px;">
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer;">
-          <input type="checkbox" id="chkAllowRotate" />
-          <span>Izinkan Rotasi 180&deg; (Pola Selang-Seling)</span>
-        </label>
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer;">
-          <input type="checkbox" id="chkAllowRotate90" checked />
-          <span>Izinkan Rotasi 90&deg; (Otomatis Berdiri Mengisi Space Kosong)</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Box: Variasi Susunan (THE NEXT BUTTON) -->
-    <div class="section-box" style="background: rgba(30, 41, 59, 0.85); border-color: #3b82f6;">
-      <div class="section-title">
-        <span style="color: #60a5fa;">4. Variasi Susunan (Layout)</span>
-        <span id="lblVariantBadge" style="background: #2563eb; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px;">Variasi 1 / 5</span>
-      </div>
-
-      <div id="lblVariantTitle" style="font-size: 12px; font-weight: 700; color: #ffffff;">
-        Rapi Sejajar Kolom Roll
-      </div>
-      <div id="lblVariantDesc" style="font-size: 10.5px; color: #94a3b8; line-height: 1.35;">
-        Menata pola seragam vertikal ke bawah dalam kolom rapi sejajar.
-      </div>
-
-      <!-- Next & Prev Controls -->
-      <div style="display: flex; gap: 6px; margin-top: 2px;">
-        <button type="button" class="btn btn-secondary" id="btnPrev" style="flex: 1;">
-          &larr; Sebelumnya
-        </button>
-        <button type="button" class="btn btn-primary" id="btnNext" style="flex: 1.5; font-weight: 700;">
-          Susunan Berikutnya (Next) &rarr;
-        </button>
-      </div>
-    </div>
-
-    <!-- Live Preview Visualizer -->
-    <div class="preview-box">
-      <div class="preview-header">
-        <span style="font-weight: 700;">Live Preview Susunan</span>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          <button type="button" class="btn-preset-chip" id="btnFit">Fit</button>
-          <button type="button" class="btn-preset-chip" id="btnZoomIn">+</button>
-          <button type="button" class="btn-preset-chip" id="btnZoomOut">-</button>
-          <button type="button" class="btn btn-primary" id="btnQuickNext" style="height: 20px; font-size: 10px; padding: 0 8px;">
-            Next &rarr;
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn btn-secondary" id="btnFetchCorel" style="flex: 1.4;">
+            Ambil Pola dari CorelDRAW
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnLoadSample" style="flex: 1;">
+            Muat Contoh
+          </button>
+          <button type="button" class="btn btn-secondary" id="btnClear" style="padding: 0 8px;">
+            Reset
           </button>
         </div>
       </div>
-      <div class="canvas-container">
-        <canvas id="compCanvas" width="600" height="320"></canvas>
+
+      <!-- Box: Ukuran Kotak (Lembar Cetak) -->
+      <div class="section-box">
+        <div class="section-title">
+          <span>2. Ukuran Kotak (Lembar Cetak)</span>
+          <span id="btnPreset1x5" style="color: #38bdf8; font-size: 10px; cursor: pointer;">1m x 5m</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label class="field-label">Lebar Kotak (Width):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" id="numBoxW" class="input-text" value="100" min="10" step="1" />
+              <select id="selUnitW" class="select-native" style="width: 55px;">
+                <option value="cm" selected>cm</option>
+                <option value="m">meter</option>
+                <option value="mm">mm</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Tinggi Kotak (Height):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" id="numBoxH" class="input-text" value="500" min="10" step="1" />
+              <select id="selUnitH" class="select-native" style="width: 55px;">
+                <option value="cm" selected>cm</option>
+                <option value="m">meter</option>
+                <option value="mm">mm</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Preset Chips -->
+        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+          <button type="button" class="btn-preset-chip" data-w="100" data-h="500">100 x 500 cm</button>
+          <button type="button" class="btn-preset-chip" data-w="115" data-h="500">115 x 500 cm</button>
+          <button type="button" class="btn-preset-chip" data-w="150" data-h="500">150 x 500 cm</button>
+          <button type="button" class="btn-preset-chip" data-w="100" data-h="300">100 x 300 cm</button>
+          <button type="button" class="btn-preset-chip" data-w="100" data-h="1000">1 x 10 m</button>
+        </div>
+
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer; margin-top: 2px;">
+          <input type="checkbox" id="chkCreateBox" checked />
+          <span>Buat kotak pembatas di CorelDRAW</span>
+        </label>
       </div>
-      <div style="padding: 4px 8px; background: #111827; border-top: 1px solid #1e293b; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;">
-        <span id="lblUsedHeightStat">Tinggi: 0 cm</span>
-        <span id="lblEfficiencyStat">Efisiensi: 0%</span>
-        <span id="lblFitStat" style="color: #10b981;">Semua Muat ✓</span>
+
+      <!-- Box: Atur Jarak & Margin -->
+      <div class="section-box">
+        <div class="section-title">
+          <span>3. Jarak &amp; Margin</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="field-group">
+            <label class="field-label">Jarak Antar Pola (cm):</label>
+            <input type="number" id="numGap" class="input-text" value="1.0" min="0" step="0.1" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Margin Tepi (cm):</label>
+            <input type="number" id="numMargin" class="input-text" value="1.0" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer;">
+            <input type="checkbox" id="chkAllowRotate" />
+            <span>Izinkan Rotasi 180&deg; (Pola Selang-Seling)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: #94a3b8; cursor: pointer;">
+            <input type="checkbox" id="chkAllowRotate90" checked />
+            <span>Izinkan Rotasi 90&deg; (Otomatis Berdiri Mengisi Space Kosong)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Box: Variasi Susunan (THE NEXT BUTTON) -->
+      <div class="section-box" style="background: rgba(30, 41, 59, 0.85); border-color: #3b82f6;">
+        <div class="section-title">
+          <span style="color: #60a5fa;">4. Variasi Susunan (Layout)</span>
+          <span id="lblVariantBadge" style="background: #2563eb; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px;">Variasi 1 / 5</span>
+        </div>
+
+        <div id="lblVariantTitle" style="font-size: 12px; font-weight: 700; color: #ffffff;">
+          Rapi Sejajar Kolom Roll
+        </div>
+        <div id="lblVariantDesc" style="font-size: 10.5px; color: #94a3b8; line-height: 1.35;">
+          Menata pola seragam vertikal ke bawah dalam kolom rapi sejajar.
+        </div>
+
+        <!-- Next & Prev Controls -->
+        <div style="display: flex; gap: 6px; margin-top: 2px;">
+          <button type="button" class="btn btn-secondary" id="btnPrev" style="flex: 1;">
+            &larr; Sebelumnya
+          </button>
+          <button type="button" class="btn btn-primary" id="btnNext" style="flex: 1.5; font-weight: 700;">
+            Susunan Berikutnya (Next) &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Preview Visualizer Column -->
+    <div class="preview-col" id="previewCol">
+      <div class="preview-box">
+        <div class="preview-header">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-weight: 700;">Live Preview Susunan</span>
+            <span id="lblPreviewModeBadge" style="font-size: 9.5px; background: #1e293b; color: #94a3b8; padding: 1px 6px; border-radius: 4px; border: 1px solid #334155;">Inline</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <button type="button" class="btn-tool-chip" id="btnToggleSideBySide" title="Perlebar jendela ke samping (Split-View)">
+              ⇥ Samping
+            </button>
+            <button type="button" class="btn-tool-chip primary" id="btnPopoutPreview" title="Pisahkan Live Preview ke Jendela Khusus (Always-on-Top)">
+              ⤢ Pisahkan
+            </button>
+            <button type="button" class="btn-preset-chip" id="btnFit" title="Fit ke layar">Fit</button>
+            <button type="button" class="btn-preset-chip" id="btnZoomIn" title="Zoom In">+</button>
+            <button type="button" class="btn-preset-chip" id="btnZoomOut" title="Zoom Out">-</button>
+            <button type="button" class="btn btn-primary" id="btnQuickNext" style="height: 22px; font-size: 10px; padding: 0 8px;">
+              Next &rarr;
+            </button>
+          </div>
+        </div>
+        <div class="canvas-container" id="canvasContainer">
+          <canvas id="compCanvas" width="600" height="320"></canvas>
+          <div class="detached-placeholder" id="detachedPlaceholder" style="display: none;">
+            <div class="detached-icon">⤢</div>
+            <div class="detached-title">Live Preview Sedang Terpisah</div>
+            <div class="detached-desc">Preview sedang berjalan di jendela monitor mandiri dengan fitur Always on Top, Zoom &amp; Pan leluasa, serta tombol Next varian.</div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button type="button" class="btn btn-secondary" id="btnFocusDetached">
+                🔍 Fokuskan Jendela Preview
+              </button>
+              <button type="button" class="btn btn-primary" id="btnDockBackFromPlaceholder">
+                ⤓ Satukan Kembali
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style="padding: 4px 8px; background: #111827; border-top: 1px solid #1e293b; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;">
+          <span id="lblUsedHeightStat">Tinggi: 0 cm</span>
+          <span id="lblEfficiencyStat">Efisiensi: 0%</span>
+          <span id="lblFitStat" style="color: #10b981;">Semua Muat ✓</span>
+        </div>
       </div>
     </div>
 
@@ -759,6 +912,16 @@
     const btnQuickNext = document.getElementById('btnQuickNext');
 
     const compCanvas = document.getElementById('compCanvas');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const lblPreviewModeBadge = document.getElementById('lblPreviewModeBadge');
+    const btnToggleSideBySide = document.getElementById('btnToggleSideBySide');
+    const btnPopoutPreview = document.getElementById('btnPopoutPreview');
+    const detachedPlaceholder = document.getElementById('detachedPlaceholder');
+    const btnFocusDetached = document.getElementById('btnFocusDetached');
+    const btnDockBackFromPlaceholder = document.getElementById('btnDockBackFromPlaceholder');
+
+    let isDetached = false;
+    let isSideBySide = false;
     const lblUsedHeightStat = document.getElementById('lblUsedHeightStat');
     const lblEfficiencyStat = document.getElementById('lblEfficiencyStat');
     const lblFitStat = document.getElementById('lblFitStat');
@@ -1269,6 +1432,14 @@
 
     function renderCanvas() {
       if (!compCanvas) return;
+      if (canvasContainer) {
+        const cwActual = canvasContainer.clientWidth || 600;
+        const chActual = canvasContainer.clientHeight || 320;
+        if (cwActual > 50 && chActual > 50 && (compCanvas.width !== cwActual || compCanvas.height !== chActual)) {
+          compCanvas.width = cwActual;
+          compCanvas.height = chActual;
+        }
+      }
       const ctx = compCanvas.getContext('2d');
       const cw = compCanvas.width;
       const ch = compCanvas.height;
@@ -1385,11 +1556,67 @@
       });
     }
 
+    function buildSyncState() {
+      const { boxW, boxH } = getBoxDims();
+      const cur = (variants && variants.length > 0) ? variants[currentVariantIdx] : null;
+      const normalizedVariant = cur ? {
+        ...cur,
+        usedH: cur.usedHeight,
+        overflowCount: cur.positions ? cur.positions.filter(p => (p.xCm + p.wCm > boxW + 0.1) || (p.yCm + p.hCm > boxH + 0.1)).length : 0
+      } : null;
+
+      return {
+        boxW,
+        boxH,
+        currentVariant: normalizedVariant,
+        variantIndex: currentVariantIdx,
+        totalVariants: variants ? variants.length : 0,
+        totalItems: polaItems ? polaItems.length : 0
+      };
+    }
+
+    function syncToDetachedPreview() {
+      if (!isDetached) return;
+      if (api?.layoutPolaSyncToPreview) {
+        api.layoutPolaSyncToPreview(buildSyncState());
+      }
+    }
+
+    function openDetachedPreview() {
+      isDetached = true;
+      if (api?.layoutPolaOpenDetachedPreview) {
+        api.layoutPolaOpenDetachedPreview(buildSyncState());
+      }
+      if (detachedPlaceholder) detachedPlaceholder.style.display = 'flex';
+      if (compCanvas) compCanvas.style.display = 'none';
+      if (lblPreviewModeBadge) {
+        lblPreviewModeBadge.innerText = 'Jendela Terpisah';
+        lblPreviewModeBadge.style.color = '#38bdf8';
+      }
+      showToast('Live Preview dipisahkan ke monitor khusus');
+    }
+
+    function dockBackInline() {
+      isDetached = false;
+      if (detachedPlaceholder) detachedPlaceholder.style.display = 'none';
+      if (compCanvas) compCanvas.style.display = 'block';
+      if (lblPreviewModeBadge) {
+        lblPreviewModeBadge.innerText = 'Inline';
+        lblPreviewModeBadge.style.color = '#94a3b8';
+      }
+      if (api?.layoutPolaCloseDetachedPreview) {
+        api.layoutPolaCloseDetachedPreview();
+      }
+      renderCanvas();
+      showToast('Live Preview disatukan kembali');
+    }
+
     function nextVar() {
       if (!variants || variants.length === 0) return;
       currentVariantIdx = (currentVariantIdx + 1) % variants.length;
       updateUI();
       renderCanvas();
+      syncToDetachedPreview();
     }
 
     function prevVar() {
@@ -1397,17 +1624,79 @@
       currentVariantIdx = (currentVariantIdx - 1 + variants.length) % variants.length;
       updateUI();
       renderCanvas();
+      syncToDetachedPreview();
     }
 
     btnNext.addEventListener('click', nextVar);
     btnQuickNext.addEventListener('click', nextVar);
     btnPrev.addEventListener('click', prevVar);
 
+    // Pop-out and Side-by-Side Viewport Handlers
+    if (btnToggleSideBySide) {
+      btnToggleSideBySide.addEventListener('click', async () => {
+        isSideBySide = !isSideBySide;
+        document.body.classList.toggle('expanded-side-by-side', isSideBySide);
+        btnToggleSideBySide.classList.toggle('active', isSideBySide);
+        btnToggleSideBySide.innerText = isSideBySide ? '⇤ Ciutkan' : '⇥ Samping';
+        if (api?.layoutPolaResizeCompanion) {
+          await api.layoutPolaResizeCompanion(isSideBySide);
+        }
+        setTimeout(() => {
+          renderCanvas();
+          syncToDetachedPreview();
+        }, 120);
+      });
+    }
+
+    if (btnPopoutPreview) {
+      btnPopoutPreview.addEventListener('click', openDetachedPreview);
+    }
+    if (btnFocusDetached) {
+      btnFocusDetached.addEventListener('click', openDetachedPreview);
+    }
+    if (btnDockBackFromPlaceholder) {
+      btnDockBackFromPlaceholder.addEventListener('click', dockBackInline);
+    }
+
+    // Two-way IPC Listeners from Pop-out Window
+    if (api?.onLayoutPolaPreviewClosed) {
+      api.onLayoutPolaPreviewClosed(() => {
+        if (isDetached) {
+          dockBackInline();
+        }
+      });
+    }
+
+    if (api?.onLayoutPolaPreviewAction) {
+      api.onLayoutPolaPreviewAction((msg) => {
+        const action = msg?.action || msg;
+        if (action === 'next-variant') {
+          nextVar();
+        } else if (action === 'prev-variant') {
+          prevVar();
+        } else if (action === 'execute-layout') {
+          btnExecute.click();
+        } else if (action === 'dock') {
+          dockBackInline();
+        }
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      renderCanvas();
+    });
+
     // Form inputs listeners
     [numBoxW, numBoxH, selUnitW, selUnitH, numGap, numMargin, chkAllowRotate, chkAllowRotate90].forEach(el => {
       if (!el) return;
-      el.addEventListener('input', computeVariants);
-      el.addEventListener('change', computeVariants);
+      el.addEventListener('input', () => {
+        computeVariants();
+        syncToDetachedPreview();
+      });
+      el.addEventListener('change', () => {
+        computeVariants();
+        syncToDetachedPreview();
+      });
     });
 
     document.querySelectorAll('.btn-preset-chip[data-w]').forEach(chip => {
@@ -1417,6 +1706,7 @@
         selUnitW.value = 'cm';
         selUnitH.value = 'cm';
         computeVariants();
+        syncToDetachedPreview();
       });
     });
 
@@ -1426,12 +1716,14 @@
       selUnitW.value = 'cm';
       selUnitH.value = 'cm';
       computeVariants();
+      syncToDetachedPreview();
     });
 
     btnLoadSample.addEventListener('click', () => {
       polaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEYS));
       lblPolaCountBadge.innerText = `${polaItems.length} Pola`;
       computeVariants();
+      syncToDetachedPreview();
       showToast(`Memuat contoh ${polaItems.length} pola jersey!`);
     });
 
@@ -1442,6 +1734,7 @@
       lblPolaCountBadge.innerText = '0 Pola';
       updateUI();
       renderCanvas();
+      syncToDetachedPreview();
     });
 
     btnFetchCorel.addEventListener('click', async () => {
@@ -1467,6 +1760,7 @@
             selUnitH.value = 'cm';
           }
           computeVariants();
+          syncToDetachedPreview();
           showToast(`Berhasil mendeteksi ${polaItems.length} pola!`);
         } else {
           showResultModal(false, 'Pola Tidak Ditemukan', res?.message || 'Pastikan Anda telah menyeleksi objek pola di CorelDRAW.');
@@ -1540,6 +1834,7 @@
     polaItems = JSON.parse(JSON.stringify(SAMPLE_JERSEYS));
     lblPolaCountBadge.innerText = `${polaItems.length} Pola`;
     computeVariants();
+    syncToDetachedPreview();
   </script>
 </body>
 </html>

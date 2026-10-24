@@ -20,6 +20,8 @@ let corelNumeratorWindow = null;
 let corelAiTracerWindow = null;
 let corelCertMergerWindow = null;
 let corelLayoutPolaWindow = null;
+let corelLayoutPolaPreviewWindow = null;
+let layoutPolaSharedState = null;
 let activeJerseySessionData = null;
 
 
@@ -70,7 +72,7 @@ try {
 }
 
 function sendUpdaterStatus(status, data = {}) {
-  const windows = [mainWindow, corelCompanionWindow, corelNumeratorWindow, corelAiTracerWindow, corelCertMergerWindow, corelLayoutPolaWindow];
+  const windows = [mainWindow, corelCompanionWindow, corelNumeratorWindow, corelAiTracerWindow, corelCertMergerWindow, corelLayoutPolaWindow, corelLayoutPolaPreviewWindow];
   windows.forEach((win) => {
     if (win && !win.isDestroyed() && win.webContents) {
       try {
@@ -374,8 +376,46 @@ function createCorelLayoutPolaWindow() {
     },
   });
   corelLayoutPolaWindow.loadFile(path.join(__dirname, 'corel-layout-pola.html'));
-  corelLayoutPolaWindow.on('closed', () => { corelLayoutPolaWindow = null; });
+  corelLayoutPolaWindow.on('closed', () => {
+    corelLayoutPolaWindow = null;
+    if (corelLayoutPolaPreviewWindow && !corelLayoutPolaPreviewWindow.isDestroyed()) {
+      corelLayoutPolaPreviewWindow.close();
+    }
+  });
   return corelLayoutPolaWindow;
+}
+
+function createCorelLayoutPolaPreviewWindow() {
+  if (corelLayoutPolaPreviewWindow && !corelLayoutPolaPreviewWindow.isDestroyed()) {
+    corelLayoutPolaPreviewWindow.focus();
+    return corelLayoutPolaPreviewWindow;
+  }
+  corelLayoutPolaPreviewWindow = new BrowserWindow({
+    width: 1050,
+    height: 780,
+    minWidth: 700,
+    minHeight: 520,
+    frame: false,
+    resizable: true,
+    alwaysOnTop: true,
+    backgroundColor: '#0b0f19',
+    title: 'Corel Tools Suite - Monitor Preview Layout Pola',
+    icon: getAppIcon(),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false,
+    },
+  });
+  corelLayoutPolaPreviewWindow.loadFile(path.join(__dirname, 'corel-layout-pola-preview.html'));
+  corelLayoutPolaPreviewWindow.on('closed', () => {
+    corelLayoutPolaPreviewWindow = null;
+    if (corelLayoutPolaWindow && !corelLayoutPolaWindow.isDestroyed()) {
+      try { corelLayoutPolaWindow.webContents.send('layout-pola:preview-closed'); } catch {}
+    }
+  });
+  return corelLayoutPolaPreviewWindow;
 }
 
 function createWindow() {
@@ -590,6 +630,53 @@ ipcMain.handle('corel:open-layout-pola-tool', async () => {
   if (win) {
     win.show();
     win.focus();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:layout-pola-open-detached-preview', (_event, state) => {
+  layoutPolaSharedState = state;
+  const win = createCorelLayoutPolaPreviewWindow();
+  win.show();
+  win.focus();
+  if (layoutPolaSharedState) {
+    win.webContents.once('did-finish-load', () => {
+      try { win.webContents.send('layout-pola:sync-from-companion', layoutPolaSharedState); } catch {}
+    });
+    if (!win.webContents.isLoading()) {
+      try { win.webContents.send('layout-pola:sync-from-companion', layoutPolaSharedState); } catch {}
+    }
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:layout-pola-close-detached-preview', () => {
+  if (corelLayoutPolaPreviewWindow && !corelLayoutPolaPreviewWindow.isDestroyed()) {
+    corelLayoutPolaPreviewWindow.close();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:layout-pola-sync-to-preview', (_event, data) => {
+  layoutPolaSharedState = data;
+  if (corelLayoutPolaPreviewWindow && !corelLayoutPolaPreviewWindow.isDestroyed()) {
+    try { corelLayoutPolaPreviewWindow.webContents.send('layout-pola:sync-from-companion', data); } catch {}
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:layout-pola-action-from-preview', (_event, action, data) => {
+  if (corelLayoutPolaWindow && !corelLayoutPolaWindow.isDestroyed()) {
+    try { corelLayoutPolaWindow.webContents.send('layout-pola:action-from-preview', { action, data }); } catch {}
+  }
+  return { success: true };
+});
+
+ipcMain.handle('corel:layout-pola-resize-companion', (_event, isExpanded) => {
+  if (corelLayoutPolaWindow && !corelLayoutPolaWindow.isDestroyed()) {
+    const [curW, curH] = corelLayoutPolaWindow.getSize();
+    const targetW = isExpanded ? 1160 : 580;
+    corelLayoutPolaWindow.setSize(targetW, curH);
   }
   return { success: true };
 });

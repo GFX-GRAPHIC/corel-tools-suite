@@ -146,6 +146,26 @@ const api = {
   // Layout Pola (Auto-Nesting Lembar Cetak) APIs
   layoutPolaGetSelection: () => ipcRenderer.invoke('corel:get-layout-pola-selection'),
   layoutPolaExecute: (payload) => ipcRenderer.invoke('corel:execute-layout-pola', payload),
+  layoutPolaResizeCompanion: (isExpanded) => ipcRenderer.invoke('corel:layout-pola-resize-companion', isExpanded),
+  layoutPolaOpenDetachedPreview: (state) => ipcRenderer.invoke('corel:layout-pola-open-detached-preview', state),
+  layoutPolaCloseDetachedPreview: () => ipcRenderer.invoke('corel:layout-pola-close-detached-preview'),
+  layoutPolaSyncToPreview: (data) => ipcRenderer.invoke('corel:layout-pola-sync-to-preview', data),
+  layoutPolaActionFromPreview: (action, data) => ipcRenderer.invoke('corel:layout-pola-action-from-preview', action, data),
+  onLayoutPolaPreviewAction: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('layout-pola:action-from-preview', handler);
+    return () => ipcRenderer.removeListener('layout-pola:action-from-preview', handler);
+  },
+  onLayoutPolaSyncFromCompanion: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('layout-pola:sync-from-companion', handler);
+    return () => ipcRenderer.removeListener('layout-pola:sync-from-companion', handler);
+  },
+  onLayoutPolaPreviewClosed: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('layout-pola:preview-closed', handler);
+    return () => ipcRenderer.removeListener('layout-pola:preview-closed', handler);
+  },
 };
 
 // Expose on both names for full backward & forward compatibility

@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corel Tools Suite - Monitor Preview Layout Pola</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Custom Titlebar */
+    .titlebar {
+      height: 34px;
+      background-color: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: 0.2px;
+    }
+
+    .titlebar-badge {
+      background: #0284c7;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .titlebar-controls {
+      display: flex;
+      align-items: center;
+      -webkit-app-region: no-drag;
+      gap: 2px;
+    }
+
+    .titlebar-btn {
+      width: 28px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s ease;
+    }
+
+    .titlebar-btn:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.pin.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    .titlebar-btn.close:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    /* Top Control Toolbar */
+    .preview-toolbar {
+      background: #111827;
+      border-bottom: 1px solid #1e293b;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+
+    .btn-success {
+      background: #059669;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #047857;
+    }
+
+    .variant-card-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 2px 8px;
+      height: 30px;
+    }
+
+    .variant-badge {
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .variant-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #ffffff;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .zoom-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
+
+    .zoom-btn {
+      height: 24px;
+      min-width: 26px;
+      padding: 0 6px;
+      background: transparent;
+      border: none;
+      color: #cbd5e1;
+      font-size: 10.5px;
+      font-weight: 600;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .zoom-btn:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .hint-chip {
+      font-size: 10px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 4px;
+    }
+
+    /* Main Canvas Visualizer Container */
+    .viewport {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at center, #131b2e 0%, #080c14 100%);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+    }
+
+    .viewport.grabbing {
+      cursor: grabbing;
+    }
+
+    #viewCanvas {
+      position: absolute;
+      border-radius: 4px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      transform-origin: center center;
+    }
+
+    /* Bottom HUD Floating Bar */
+    .hud-bar {
+      height: 38px;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .hud-col {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-lbl {
+      color: #94a3b8;
+    }
+
+    .hud-val {
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .hud-val.accent {
+      color: #38bdf8;
+    }
+
+    .hud-val.success {
+      color: #10b981;
+    }
+
+    .hud-badge-fit {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #10b981;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+    }
+
+    .hud-badge-overflow {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+    }
+
+    /* Toast Notification */
+    .toast-msg {
+      position: fixed;
+      bottom: 50px;
+      right: 20px;
+      background: #1e293b;
+      border: 1px solid #38bdf8;
+      color: #f8fafc;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Custom Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <span style="color: #38bdf8;">⤢</span>
+      <span>Corel Tools Suite - Monitor Preview Layout Pola</span>
+      <span class="titlebar-badge">Live Monitor</span>
+    </div>
+    <div class="titlebar-controls">
+      <button type="button" class="titlebar-btn pin active" id="btnPin" title="Kunci selalu di atas (Always On Top)">📌</button>
+      <button type="button" class="titlebar-btn" id="btnMinimize" title="Minimize">-</button>
+      <button type="button" class="titlebar-btn" id="btnMaximize" title="Maximize">□</button>
+      <button type="button" class="titlebar-btn close" id="btnClose" title="Tutup &amp; Satukan Kembali">✕</button>
+    </div>
+  </div>
+
+  <!-- 2. Control Toolbar -->
+  <div class="preview-toolbar">
+    <!-- Left: Variant Switcher -->
+    <div class="toolbar-section">
+      <button type="button" class="btn btn-secondary" id="btnPrevVar">
+        &larr; Sebelumnya
+      </button>
+      <div class="variant-card-box">
+        <span class="variant-badge" id="lblVarBadge">Variasi 1 / 5</span>
+        <span class="variant-name" id="lblVarTitle">Rapi Sejajar Kolom Roll</span>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnNextVar">
+        Susunan Berikutnya (Next) &rarr;
+      </button>
+    </div>
+
+    <!-- Center: Zoom & Pan Toolbar -->
+    <div class="toolbar-section">
+      <div class="zoom-toolbar">
+        <button type="button" class="zoom-btn" id="btnZoomFit">Fit</button>
+        <button type="button" class="zoom-btn" id="btnZoom100">100%</button>
+        <button type="button" class="zoom-btn" id="btnZoomIn">+</button>
+        <button type="button" class="zoom-btn" id="btnZoomOut">-</button>
+      </div>
+      <div class="hint-chip">
+        <span>💡</span>
+        <span>Scroll mouse untuk Zoom &bull; Drag untuk Geser</span>
+      </div>
+    </div>
+
+    <!-- Right: Dock & Execute Actions -->
+    <div class="toolbar-section">
+      <button type="button" class="btn btn-secondary" id="btnDockBack" title="Satukan kembali preview ke jendela kecil">
+        ⤓ Satukan Kembali
+      </button>
+      <button type="button" class="btn btn-success" id="btnExecuteCorel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Terapkan ke CorelDRAW
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. Interactive Viewport Canvas -->
+  <div class="viewport" id="viewport">
+    <canvas id="viewCanvas" width="800" height="600"></canvas>
+  </div>
+
+  <!-- 4. Bottom HUD Stats -->
+  <div class="hud-bar">
+    <div class="hud-col">
+      <span class="hud-lbl">Ukuran Lembar:</span>
+      <span class="hud-val" id="hudBoxSize">180 cm x 2800 cm</span>
+    </div>
+    <div class="hud-col">
+      <span class="hud-lbl">Tinggi Terpakai:</span>
+      <span class="hud-val accent" id="hudUsedHeight">0 cm</span>
+    </div>
+    <div class="hud-col">
+      <span class="hud-lbl">Jumlah Pola:</span>
+      <span class="hud-val" id="hudPolaCount">0 Pola</span>
+    </div>
+    <div class="hud-col">
+      <span class="hud-lbl">Efisiensi Bahan:</span>
+      <span class="hud-val success" id="hudEfficiency">0%</span>
+    </div>
+    <div class="hud-col">
+      <span class="hud-badge-fit" id="hudFitBadge">Semua Muat ✓</span>
+    </div>
+  </div>
+
+  <div class="toast-msg" id="toastMsg">Notifikasi</div>
+
+  <script>
+    const api = window.electronAPI || window.corelAPI;
+
+    // DOM Elements
+    const viewport = document.getElementById('viewport');
+    const canvas = document.getElementById('viewCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const btnPin = document.getElementById('btnPin');
+    const btnMinimize = document.getElementById('btnMinimize');
+    const btnMaximize = document.getElementById('btnMaximize');
+    const btnClose = document.getElementById('btnClose');
+
+    const btnPrevVar = document.getElementById('btnPrevVar');
+    const btnNextVar = document.getElementById('btnNextVar');
+    const lblVarBadge = document.getElementById('lblVarBadge');
+    const lblVarTitle = document.getElementById('lblVarTitle');
+
+    const btnZoomFit = document.getElementById('btnZoomFit');
+    const btnZoom100 = document.getElementById('btnZoom100');
+    const btnZoomIn = document.getElementById('btnZoomIn');
+    const btnZoomOut = document.getElementById('btnZoomOut');
+
+    const btnDockBack = document.getElementById('btnDockBack');
+    const btnExecuteCorel = document.getElementById('btnExecuteCorel');
+
+    const hudBoxSize = document.getElementById('hudBoxSize');
+    const hudUsedHeight = document.getElementById('hudUsedHeight');
+    const hudPolaCount = document.getElementById('hudPolaCount');
+    const hudEfficiency = document.getElementById('hudEfficiency');
+    const hudFitBadge = document.getElementById('hudFitBadge');
+    const toastMsg = document.getElementById('toastMsg');
+
+    // Pan & Zoom Camera State
+    let zoomScale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let autoFitMode = true;
+
+    // Layout Pola State
+    let sharedState = null;
+
+    function showToast(text) {
+      if (!toastMsg) return;
+      toastMsg.innerText = text;
+      toastMsg.classList.add('show');
+      setTimeout(() => toastMsg.classList.remove('show'), 2500);
+    }
+
+    // Titlebar Window Controls
+    if (btnMinimize) {
+      btnMinimize.addEventListener('click', () => {
+        if (api?.minimizeWindow) api.minimizeWindow();
+      });
+    }
+
+    if (btnMaximize) {
+      btnMaximize.addEventListener('click', () => {
+        if (api?.maximizeWindow) api.maximizeWindow();
+      });
+    }
+
+    if (btnPin) {
+      btnPin.addEventListener('click', async () => {
+        if (api?.toggleAlwaysOnTop) {
+          const res = await api.toggleAlwaysOnTop();
+          if (res?.isAlwaysOnTop) {
+            btnPin.classList.add('active');
+            showToast('Always on Top: Aktif');
+          } else {
+            btnPin.classList.remove('active');
+            showToast('Always on Top: Nonaktif');
+          }
+        }
+      });
+    }
+
+    function dockAndClose() {
+      if (api?.layoutPolaActionFromPreview) {
+        api.layoutPolaActionFromPreview('dock', {});
+      }
+      if (api?.closeWindow) {
+        api.closeWindow();
+      } else {
+        window.close();
+      }
+    }
+
+    if (btnClose) btnClose.addEventListener('click', dockAndClose);
+    if (btnDockBack) btnDockBack.addEventListener('click', dockAndClose);
+
+    // Variant Controls
+    if (btnNextVar) {
+      btnNextVar.addEventListener('click', () => {
+        if (api?.layoutPolaActionFromPreview) {
+          api.layoutPolaActionFromPreview('next-variant', {});
+        }
+      });
+    }
+
+    if (btnPrevVar) {
+      btnPrevVar.addEventListener('click', () => {
+        if (api?.layoutPolaActionFromPreview) {
+          api.layoutPolaActionFromPreview('prev-variant', {});
+        }
+      });
+    }
+
+    if (btnExecuteCorel) {
+      btnExecuteCorel.addEventListener('click', () => {
+        btnExecuteCorel.disabled = true;
+        btnExecuteCorel.innerText = 'Menata di Corel...';
+        if (api?.layoutPolaActionFromPreview) {
+          api.layoutPolaActionFromPreview('execute-layout', {});
+        }
+      });
+    }
+
+    // Render Engine
+    function render() {
+      if (!sharedState) return;
+
+      const { boxW, boxH, currentVariant, variantIndex, totalVariants, totalItems } = sharedState;
+      if (!currentVariant) return;
+
+      // Update HUD
+      if (lblVarBadge) lblVarBadge.innerText = `Variasi ${variantIndex + 1} / ${totalVariants || 5}`;
+      if (lblVarTitle) lblVarTitle.innerText = currentVariant.name || 'Layout Susunan';
+
+      if (hudBoxSize) hudBoxSize.innerText = `${boxW} cm x ${boxH} cm`;
+      if (hudUsedHeight) {
+        const hVal = currentVariant.usedH || 0;
+        const hMeter = (hVal / 100).toFixed(2);
+        hudUsedHeight.innerText = `${hVal.toFixed(1)} cm (${hMeter} m)`;
+      }
+      if (hudPolaCount) hudPolaCount.innerText = `${totalItems || 0} Pola`;
+      if (hudEfficiency) hudEfficiency.innerText = `${currentVariant.efficiency || 0}%`;
+
+      if (hudFitBadge) {
+        if (currentVariant.overflowCount > 0) {
+          hudFitBadge.className = 'hud-badge-overflow';
+          hudFitBadge.innerText = `${currentVariant.overflowCount} Pola Tidak Muat ✕`;
+        } else {
+          hudFitBadge.className = 'hud-badge-fit';
+          hudFitBadge.innerText = 'Semua Muat ✓';
+        }
+      }
+
+      // Calculate Canvas Dimensions
+      const vpW = viewport.clientWidth;
+      const vpH = viewport.clientHeight;
+
+      const scaleX = (vpW - 60) / boxW;
+      const scaleY = (vpH - 60) / boxH;
+      const baseScale = Math.min(scaleX, scaleY);
+
+      if (autoFitMode) {
+        zoomScale = baseScale;
+        panX = 0;
+        panY = 0;
+      }
+
+      const canvasW = Math.max(100, Math.round(boxW * zoomScale));
+      const canvasH = Math.max(100, Math.round(boxH * zoomScale));
+
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+
+      // Background Box
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      // Subtle millimeter/meter grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      const gridStepCm = 50; // every 50cm
+      const gridStepPx = gridStepCm * zoomScale;
+      for (let gx = gridStepPx; gx < canvasW; gx += gridStepPx) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, canvasH);
+        ctx.stroke();
+      }
+      for (let gy = gridStepPx; gy < canvasH; gy += gridStepPx) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(canvasW, gy);
+        ctx.stroke();
+      }
+
+      // Box Boundary Outline
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(0, 0, canvasW, canvasH);
+
+      // Used Height Marker Line
+      if (currentVariant.usedH && currentVariant.usedH < boxH) {
+        const usedY = currentVariant.usedH * zoomScale;
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, usedY);
+        ctx.lineTo(canvasW, usedY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`Batas Bahan Terpakai: ${currentVariant.usedH.toFixed(1)} cm`, 10, usedY - 6);
+      }
+
+      // Colors for items
+      const colorPalette = [
+        '#0284c7', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6',
+        '#06b6d4', '#84cc16', '#f97316', '#a855f7', '#14b8a6'
+      ];
+
+      // Draw Packed Items
+      const positions = currentVariant.positions || [];
+      positions.forEach((pos, idx) => {
+        const px = pos.xCm * zoomScale;
+        const py = pos.yCm * zoomScale;
+        const pw = pos.wCm * zoomScale;
+        const ph = pos.hCm * zoomScale;
+
+        const color = colorPalette[idx % colorPalette.length];
+        ctx.fillStyle = color;
+        ctx.fillRect(px, py, pw, ph);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px, py, pw, ph);
+
+        // Draw item label if size allows
+        if (pw > 18 && ph > 12) {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `${Math.min(11, Math.max(8, Math.round(ph * 0.4)))}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const label = pos.name || `${idx + 1}`;
+          ctx.fillText(label, px + pw / 2, py + ph / 2);
+        }
+      });
+    }
+
+    // Zoom Controls
+    if (btnZoomFit) {
+      btnZoomFit.addEventListener('click', () => {
+        autoFitMode = true;
+        render();
+        showToast('Zoom: Fit Layar');
+      });
+    }
+
+    if (btnZoom100) {
+      btnZoom100.addEventListener('click', () => {
+        autoFitMode = false;
+        zoomScale = 1.0;
+        panX = 0;
+        panY = 0;
+        render();
+        showToast('Zoom: Skala 100%');
+      });
+    }
+
+    if (btnZoomIn) {
+      btnZoomIn.addEventListener('click', () => {
+        autoFitMode = false;
+        zoomScale *= 1.25;
+        render();
+      });
+    }
+
+    if (btnZoomOut) {
+      btnZoomOut.addEventListener('click', () => {
+        autoFitMode = false;
+        zoomScale = Math.max(0.02, zoomScale / 1.25);
+        render();
+      });
+    }
+
+    // Interactive Mouse Wheel Zoom
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      autoFitMode = false;
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      zoomScale = Math.max(0.01, Math.min(20.0, zoomScale * zoomFactor));
+      render();
+    }, { passive: false });
+
+    // Interactive Drag to Pan (Crucial for 28-meter long layouts)
+    viewport.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      autoFitMode = false;
+      dragStartX = e.clientX - panX;
+      dragStartY = e.clientY - panY;
+      viewport.classList.add('grabbing');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - dragStartX;
+      panY = e.clientY - dragStartY;
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        viewport.classList.remove('grabbing');
+      }
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        if (api?.layoutPolaActionFromPreview) api.layoutPolaActionFromPreview('next-variant', {});
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (api?.layoutPolaActionFromPreview) api.layoutPolaActionFromPreview('prev-variant', {});
+      } else if (e.key === 'Escape') {
+        dockAndClose();
+      }
+    });
+
+    // Window Resize Handler
+    window.addEventListener('resize', () => {
+      if (autoFitMode) render();
+    });
+
+    // IPC Sync Handlers from Companion Window
+    if (api?.onLayoutPolaSyncFromCompanion) {
+      api.onLayoutPolaSyncFromCompanion((data) => {
+        sharedState = data;
+        if (btnExecuteCorel) {
+          btnExecuteCorel.disabled = false;
+          btnExecuteCorel.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terapkan ke CorelDRAW`;
+        }
+        render();
+      });
+    }
+  </script>
+</body>
+</html>
