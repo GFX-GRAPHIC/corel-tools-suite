@@ -131,6 +131,18 @@ function downloadPortableUpdate(version) {
         fileStream.on('finish', () => {
           fileStream.close(() => {
             isPortableDownloading = false;
+            if (total > 0 && received < total) {
+              console.error(`[PortableUpdate] Download belum selesai: ${received} / ${total} bytes.`);
+              try { fs.unlinkSync(tempPath); } catch {}
+              sendUpdaterStatus('portable-available', { version, error: 'Unduhan terputus di tengah jalan' });
+              return;
+            }
+            if (received < 50000000) {
+              console.error(`[PortableUpdate] Ukuran file tidak valid: ${received} bytes.`);
+              try { fs.unlinkSync(tempPath); } catch {}
+              sendUpdaterStatus('portable-available', { version, error: 'Ukuran file pembaruan tidak valid' });
+              return;
+            }
             portableDownloadedPath = tempPath;
             portableTargetVersion = version;
             sendUpdaterStatus('downloaded', { version, isPortable: true });
