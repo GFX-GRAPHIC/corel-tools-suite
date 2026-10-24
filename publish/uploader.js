@@ -296,13 +296,6 @@ async function main() {
       await runBuildProcess();
     }
 
-    // Refresh ready files
-    readyFiles = fs.readdirSync(PUBLISH_DIR).filter((f) => {
-      if (f === 'uploader.js' || f === 'UPLOAD_UPDATE.bat' || f.endsWith('.tmp')) return false;
-      if (f.toLowerCase().includes('keygen')) return false;
-      return f.endsWith('.exe') || f.endsWith('.yml') || f.endsWith('.blockmap');
-    });
-
     // Read latest.yml for expected URL
     const latestYmlPath = path.join(PUBLISH_DIR, 'latest.yml');
     let expectedSetupUrl = '';
@@ -313,6 +306,15 @@ async function main() {
       const urlMatch = ymlContent.match(/url:\s*([^\r\n]+)/m);
       if (urlMatch && urlMatch[1]) expectedSetupUrl = urlMatch[1].trim();
     }
+
+    // Refresh ready files strictly for this appVersion
+    readyFiles = fs.readdirSync(PUBLISH_DIR).filter((f) => {
+      if (f === 'uploader.js' || f === 'UPLOAD_UPDATE.bat' || f.endsWith('.tmp')) return false;
+      if (f.toLowerCase().includes('keygen')) return false;
+      if (f === 'latest.yml') return true;
+      if (f.includes(appVersion)) return true;
+      return false;
+    });
 
     const releaseTag = `v${appVersion}`;
 
@@ -378,7 +380,10 @@ async function main() {
         }
       }
 
-      const oldAsset = existingAssets.find((a) => a.name.toLowerCase() === remoteName.toLowerCase());
+      // Check and delete existing asset on GitHub
+      const currentReleaseRes = await githubApi(token, `/repos/${owner}/${repo}/releases/${targetRelease.id}`, 'GET');
+      const liveAssets = (currentReleaseRes.status === 200 && Array.isArray(currentReleaseRes.data.assets)) ? currentReleaseRes.data.assets : existingAssets;
+      const oldAsset = liveAssets.find((a) => a.name.toLowerCase() === remoteName.toLowerCase());
       if (oldAsset) {
         process.stdout.write(`    [*] Menghapus aset lama ${remoteName}... `);
         await githubApi(token, `/repos/${owner}/${repo}/releases/assets/${oldAsset.id}`, 'DELETE');

@@ -304,10 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (data.status === 'downloading') {
         btnTitlebarUpdate.style.display = 'inline-flex';
         btnTitlebarUpdate.style.background = '#0369a1';
-        if (lblUpdateBtnText) lblUpdateBtnText.innerText = `Downloading: ${data.percent || 0}%`;
+        if (lblUpdateBtnText) lblUpdateBtnText.innerText = `Mengunduh Update: ${data.percent || 0}%`;
       } else if (data.status === 'downloaded') {
         btnTitlebarUpdate.style.display = 'inline-flex';
-        btnTitlebarUpdate.style.background = '#0284c7';
+        btnTitlebarUpdate.style.background = '#059669';
         if (lblUpdateBtnText) lblUpdateBtnText.innerHTML = 'Restart to Update &rarr;';
         btnTitlebarUpdate.onclick = () => {
           const installFn = window.electronAPI?.updaterInstall || window.corelAPI?.updaterInstall;

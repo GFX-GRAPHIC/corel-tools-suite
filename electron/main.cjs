@@ -1,7 +1,10 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, clipboard, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { exec, execFile } = require('child_process');
+const { spawn, exec, execFile } = require('child_process');
+const https = require('https');
+const http = require('http');
+const { URL } = require('url');
 
 process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err);
@@ -47,9 +50,13 @@ try {
   console.log('aiTracerService note:', e.message);
 }
 
-// Auto-Updater Integration via electron-updater
+// Auto-Updater Integration via electron-updater & Native Portable Downloader
 const isPortableApp = !!process.env.PORTABLE_EXECUTABLE_FILE || !!process.env.PORTABLE_EXECUTABLE_DIR;
 let autoUpdater = null;
+let portableDownloadedPath = null;
+let portableTargetVersion = null;
+let isPortableDownloading = false;
+
 try {
   autoUpdater = require('electron-updater').autoUpdater;
   if (isPortableApp) {
@@ -73,11 +80,138 @@ function sendUpdaterStatus(status, data = {}) {
   });
 }
 
+function downloadPortableUpdate(version) {
+  if (isPortableDownloading) return;
+  isPortableDownloading = true;
+
+  const downloadUrl = `https://github.com/GFX-GRAPHIC/corel-tools-suite/releases/download/v${version}/Corel-Tools-Suite-${version}-Portable.exe`;
+  const tempPath = path.join(app.getPath('temp'), `Corel-Tools-Suite-${version}-Portable-Update.exe`);
+
+  sendUpdaterStatus('downloading', { percent: 0, transferred: 0, total: 0, version });
+
+  function doDownload(targetUrl, redirectCount = 0) {
+    if (redirectCount > 5) {
+      isPortableDownloading = false;
+      sendUpdaterStatus('portable-available', { version, error: 'Terlalu banyak pengalihan (redirect)' });
+      return;
+    }
+
+    try {
+      const parsed = new URL(targetUrl);
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0 CorelToolsSuite' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return doDownload(res.headers.location, redirectCount + 1);
+        }
+        if (res.statusCode !== 200) {
+          isPortableDownloading = false;
+          sendUpdaterStatus('portable-available', { version });
+          return;
+        }
+
+        const total = parseInt(res.headers['content-length'] || '0', 10);
+        let received = 0;
+        let lastReport = 0;
+        const fileStream = fs.createWriteStream(tempPath);
+
+        res.on('data', (chunk) => {
+          received += chunk.length;
+          const now = Date.now();
+          if (now - lastReport > 250 || received === total) {
+            lastReport = now;
+            const percent = total > 0 ? Math.round((received / total) * 100) : 0;
+            sendUpdaterStatus('downloading', { percent, transferred: received, total, version });
+          }
+        });
+
+        res.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          fileStream.close(() => {
+            isPortableDownloading = false;
+            portableDownloadedPath = tempPath;
+            portableTargetVersion = version;
+            sendUpdaterStatus('downloaded', { version, isPortable: true });
+          });
+        });
+
+        fileStream.on('error', () => {
+          isPortableDownloading = false;
+          try { fs.unlinkSync(tempPath); } catch {}
+          sendUpdaterStatus('portable-available', { version });
+        });
+      });
+
+      req.on('error', () => {
+        isPortableDownloading = false;
+        sendUpdaterStatus('portable-available', { version });
+      });
+    } catch {
+      isPortableDownloading = false;
+      sendUpdaterStatus('portable-available', { version });
+    }
+  }
+
+  doDownload(downloadUrl);
+}
+
+function installPortableUpdate() {
+  if (!portableDownloadedPath || !fs.existsSync(portableDownloadedPath)) {
+    return false;
+  }
+
+  const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+  const runnerScriptPath = path.join(app.getPath('temp'), 'corel-portable-update-runner.bat');
+
+  const runnerContent = [
+    '@echo off',
+    'chcp 65001 >nul',
+    `set "TARGET_EXE=${targetExe.replace(/"/g, '')}"`,
+    `set "NEW_EXE=${portableDownloadedPath.replace(/"/g, '')}"`,
+    `set "PARENT_PID=${process.pid}"`,
+    '',
+    ':wait_loop',
+    'tasklist /fi "PID eq %PARENT_PID%" 2>nul | find "%PARENT_PID%" >nul',
+    'if not errorlevel 1 (',
+    '    timeout /t 1 /nobreak >nul',
+    '    goto wait_loop',
+    ')',
+    '',
+    'timeout /t 1 /nobreak >nul',
+    '',
+    'copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul',
+    'if errorlevel 1 (',
+    '    move /y "%NEW_EXE%" "%TARGET_EXE%" >nul',
+    ') else (',
+    '    del /f /q "%NEW_EXE%" 2>nul',
+    ')',
+    '',
+    'start "" "%TARGET_EXE%"',
+    '(goto) 2>nul & del "%~f0"'
+  ].join('\r\n');
+
+  try {
+    fs.writeFileSync(runnerScriptPath, runnerContent, 'utf-8');
+    const child = spawn('cmd.exe', ['/c', runnerScriptPath], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.unref();
+    app.exit(0);
+    return true;
+  } catch (err) {
+    console.error('[PortableUpdate] Gagal mengeksekusi runner:', err);
+    return false;
+  }
+}
+
 if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => sendUpdaterStatus('checking'));
   autoUpdater.on('update-available', (info) => {
     if (isPortableApp) {
       sendUpdaterStatus('portable-available', { version: info.version });
+      downloadPortableUpdate(info.version);
     } else {
       sendUpdaterStatus('available', { version: info.version });
     }
@@ -389,6 +523,10 @@ ipcMain.handle('updater:check', async () => {
 });
 
 ipcMain.handle('updater:quit-and-install', () => {
+  if (isPortableApp && portableDownloadedPath && fs.existsSync(portableDownloadedPath)) {
+    installPortableUpdate();
+    return;
+  }
   if (autoUpdater) {
     autoUpdater.quitAndInstall(false, true);
   }
