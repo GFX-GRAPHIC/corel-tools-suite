@@ -1668,6 +1668,46 @@
               </div>
             </div>
           </div>
+
+          <!-- Loading Animation Overlay -->
+          <div class="layout-pola-overlay" id="layoutPolaLoadingOverlay" style="display: none;">
+            <div class="layout-pola-modal-card">
+              <div class="layout-pola-spinner"></div>
+              <div class="layout-pola-modal-title" id="layoutPolaLoadingTitle">Menata Pola di CorelDRAW...</div>
+              <div class="layout-pola-modal-subtitle" id="layoutPolaLoadingSubtitle">Mohon tunggu sebentar, sedang menyusun dan memindahkan pola secara presisi...</div>
+              <div class="layout-pola-progress-track">
+                <div class="layout-pola-progress-bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result / Notification Modal Dialog -->
+          <div class="layout-pola-overlay" id="layoutPolaResultModal" style="display: none;">
+            <div class="layout-pola-modal-card result" id="layoutPolaResultCard">
+              <div class="layout-pola-result-icon success" id="layoutPolaResultIcon">&check;</div>
+              <div class="layout-pola-modal-title" id="layoutPolaResultTitle">Berhasil Ditata ke CorelDRAW!</div>
+              <div class="layout-pola-modal-subtitle" id="layoutPolaResultDesc">
+                Pola berhasil disusun rapi ke dalam kotak pembatas.
+              </div>
+              <div class="layout-pola-stats-row" id="layoutPolaResultStatsRow">
+                <div class="stat-pill">
+                  <span class="stat-pill-label">Tinggi Terpakai</span>
+                  <span class="stat-pill-val" id="lblResultUsedHeight">0 cm</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-pill-label">Efisiensi Bahan</span>
+                  <span class="stat-pill-val" id="lblResultEfficiency">0%</span>
+                </div>
+                <div class="stat-pill">
+                  <span class="stat-pill-label">Status</span>
+                  <span class="stat-pill-val" id="lblResultFitStatus" style="color: #10b981;">Semua Muat &check;</span>
+                </div>
+              </div>
+              <button type="button" class="btn-primary layout-pola-modal-btn" id="btnLayoutPolaResultClose">
+                OK, Mengerti
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

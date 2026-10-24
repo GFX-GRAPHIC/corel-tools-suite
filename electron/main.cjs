@@ -4942,7 +4942,8 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    try { Com-Set $corel 'Optimization' $true } catch {}
+    # Optimization kept OFF during layout to ensure real-time glyph/clip metrics and prevent GPU tile desync
+    try { Com-Set $corel 'Optimization' $false } catch {}
     try { Com-Set $corel 'EventsEnabled' $false } catch {}
     try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
 
@@ -4989,12 +4990,22 @@ ${COREL_CONNECT_PS}
         $maxTop = 0.0
     }
 
-    # Position container box to the right of original shapes
-    $boxLeft = $maxRight + 15.0
-    $boxTop = if ($foundAny) { $maxTop } else { 0.0 }
+    $boxLeft = 0.0
+    $boxTop = 0.0
+    $hasExistingBox = $false
 
-    # If createBox is requested, draw rectangle in CorelDRAW
-    if ($createBox) {
+    if ($data.containerBoxId -and $shapeMap.ContainsKey([int]$data.containerBoxId)) {
+        $cBox = $shapeMap[[int]$data.containerBoxId]
+        $boxLeft = [double](Com-Get $cBox 'Left')
+        $boxTop = [double](Com-Get $cBox 'Top')
+        $hasExistingBox = $true
+    } elseif ($foundAny) {
+        $boxLeft = $maxRight + 12.0
+        $boxTop = $maxTop
+    }
+
+    # If createBox is requested and no existing box is used, draw rectangle in CorelDRAW
+    if ($createBox -and -not $hasExistingBox) {
         $right = $boxLeft + $boxW
         $bottom = $boxTop - $boxH
         $rect = Com-Call $doc.ActiveLayer 'CreateRectangle' @([double]$boxLeft, [double]$boxTop, [double]$right, [double]$bottom)
@@ -5015,36 +5026,74 @@ ${COREL_CONNECT_PS}
         if ($shapeMap.ContainsKey($id)) {
             $shp = $shapeMap[$id]
 
-            # Apply rotation if specified (e.g. 180 degrees)
-            if ($it.rotate -and [double]$it.rotate -ne 0) {
+            # 1. Handle rotation safely using relative delta from current angle
+            $targetRot = if ($it.rotate) { [double]$it.rotate } else { 0.0 }
+            $curRot = 0.0
+            try {
+                $rVal = Com-Get $shp 'RotationAngle'
+                if ($null -ne $rVal) { $curRot = [double]$rVal }
+            } catch {}
+            $diffRot = $targetRot - $curRot
+            while ($diffRot -gt 180.0) { $diffRot -= 360.0 }
+            while ($diffRot -lt -180.0) { $diffRot += 360.0 }
+
+            if ([math]::Abs($diffRot) -gt 0.5) {
                 try {
-                    Com-Call $shp 'Rotate' @([double]$it.rotate)
+                    Com-Call $shp 'Rotate' @([double]$diffRot)
                 } catch {}
             }
 
-            # Set new position: targetLeft = boxLeft + item.x, targetTop = boxTop - item.y
+            # 2. Re-measure shape top-left AFTER rotation to avoid rotation center displacement
+            $curLeft = [double](Com-Get $shp 'Left')
+            $curTop = [double](Com-Get $shp 'Top')
+
+            # Target position
             $targetLeft = $boxLeft + [double]$it.xCm
             $targetTop = $boxTop - [double]$it.yCm
 
+            $dx = $targetLeft - $curLeft
+            $dy = $targetTop - $curTop
+
+            # 3. Move via native Delta translation (glitch-free for nested groups and PowerClips)
+            $moveSuccess = $false
             try {
-                Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
-                $moved++
+                Com-Call $shp 'Move' @([double]$dx, [double]$dy)
+                $moveSuccess = $true
             } catch {
                 try {
-                    Com-Set $shp 'Left' $targetLeft
-                    Com-Set $shp 'Top' $targetTop
-                    $moved++
-                } catch {}
+                    Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
+                    $moveSuccess = $true
+                } catch {
+                    try {
+                        Com-Set $shp 'Left' $targetLeft
+                        Com-Set $shp 'Top' $targetTop
+                        $moveSuccess = $true
+                    } catch {}
+                }
             }
+
+            if ($moveSuccess) { $moved++ }
         }
     }
 
     try { Com-Set $corel 'Optimization' $false } catch {}
     try { Com-Set $corel 'EventsEnabled' $true } catch {}
     try { [void](Com-Call $doc 'EndCommandGroup' @()) } catch {}
+
+    # Comprehensive clean refresh without graphics tearing
+    try {
+        $win = Com-Get $corel 'ActiveWindow'
+        if ($win) {
+            try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            $view = Com-Get $win 'ActiveView'
+            if ($view) {
+                try { [void](Com-Call $view 'ToFitAllObjects' @()) } catch {}
+            }
+        }
+    } catch {}
     try { [void](Com-Call $corel 'Refresh' @()) } catch {}
 
-    $result.success = $true
+    $result.success = ($moved -gt 0)
     $result.movedCount = $moved
     $result.message = "Berhasil menata $moved pola ke dalam kotak ($boxW cm x $boxH cm)."
 
