@@ -6996,58 +6996,73 @@ Catatan: Lengan Panjang
     }
 
     placeRectangle(node) {
-      const numToProcess = this.freeRectangles.length;
-      for (let i = 0; i < numToProcess; i++) {
-        if (this.splitFreeNode(this.freeRectangles[i], node)) {
-          this.freeRectangles.splice(i, 1);
-          i--;
+      if (!node) return;
+      const nextFree = [];
+      for (let i = 0; i < this.freeRectangles.length; i++) {
+        const free = this.freeRectangles[i];
+        if (!free) continue;
+        if (this.splitFreeNode(free, node, nextFree)) {
+          // Overlapped: split sub-rectangles were pushed to nextFree
+        } else {
+          // Did not overlap: keep this free rectangle
+          nextFree.push(free);
         }
       }
+      this.freeRectangles = nextFree;
       this.pruneFreeList();
       this.usedRectangles.push(node);
     }
 
-    splitFreeNode(free, used) {
+    splitFreeNode(free, used, outList) {
+      if (!free || !used) return false;
       const usedW = used.wCm + this.gap;
       const usedH = used.hCm + this.gap;
 
-      if (used.xCm >= free.x + free.w || used.xCm + usedW <= free.x ||
-          used.yCm >= free.y + free.h || used.yCm + usedH <= free.y) {
+      // Check if used rectangle actually intersects with free rectangle
+      if (
+        used.xCm >= free.x + free.w ||
+        used.xCm + usedW <= free.x ||
+        used.yCm >= free.y + free.h ||
+        used.yCm + usedH <= free.y
+      ) {
         return false;
       }
 
+      // Subdivide free into up to 4 non-overlapping surrounding rectangles
       if (used.yCm > free.y && used.yCm < free.y + free.h) {
-        this.freeRectangles.push({ ...free, h: used.yCm - free.y });
+        const h = used.yCm - free.y;
+        if (h > 0.05) outList.push({ ...free, h });
       }
       if (used.yCm + usedH < free.y + free.h) {
         const newY = used.yCm + usedH;
-        this.freeRectangles.push({ ...free, y: newY, h: (free.y + free.h) - newY });
+        const h = (free.y + free.h) - newY;
+        if (h > 0.05) outList.push({ ...free, y: newY, h });
       }
       if (used.xCm > free.x && used.xCm < free.x + free.w) {
-        this.freeRectangles.push({ ...free, w: used.xCm - free.x });
+        const w = used.xCm - free.x;
+        if (w > 0.05) outList.push({ ...free, w });
       }
       if (used.xCm + usedW < free.x + free.w) {
         const newX = used.xCm + usedW;
-        this.freeRectangles.push({ ...free, x: newX, w: (free.x + free.w) - newX });
+        const w = (free.x + free.w) - newX;
+        if (w > 0.05) outList.push({ ...free, x: newX, w });
       }
       return true;
     }
 
     pruneFreeList() {
-      for (let i = 0; i < this.freeRectangles.length; i++) {
-        if (this.freeRectangles[i].w <= 0.1 || this.freeRectangles[i].h <= 0.1) {
-          this.freeRectangles.splice(i, 1);
-          i--;
-        }
-      }
+      this.freeRectangles = this.freeRectangles.filter(r => r && r.w > 0.1 && r.h > 0.1);
       for (let i = 0; i < this.freeRectangles.length; i++) {
         for (let j = i + 1; j < this.freeRectangles.length; j++) {
-          if (this.isContainedIn(this.freeRectangles[i], this.freeRectangles[j])) {
+          const a = this.freeRectangles[i];
+          const b = this.freeRectangles[j];
+          if (!a || !b) continue;
+          if (this.isContainedIn(a, b)) {
             this.freeRectangles.splice(i, 1);
             i--;
             break;
           }
-          if (this.isContainedIn(this.freeRectangles[j], this.freeRectangles[i])) {
+          if (this.isContainedIn(b, a)) {
             this.freeRectangles.splice(j, 1);
             j--;
           }
@@ -7056,6 +7071,7 @@ Catatan: Lengan Panjang
     }
 
     isContainedIn(a, b) {
+      if (!a || !b) return false;
       return a.x >= b.x - 0.01 && a.y >= b.y - 0.01 &&
              a.x + a.w <= b.x + b.w + 0.01 &&
              a.y + a.h <= b.y + b.h + 0.01;
