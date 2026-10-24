@@ -1,8 +1,8 @@
-version: 1.0.3
+version: 1.0.4
 files:
-  - url: Corel-Tools-Suite-Setup-1.0.3.exe
-    sha512: vz/pr239TFUyCsG/M3SEx/B8s0dc8AmHiMrBjmIeylNDn98HDhcHQXTPesIi3m3+8fPrxAn1nPR1O0j68dmZOQ==
-    size: 88406943
-path: Corel-Tools-Suite-Setup-1.0.3.exe
-sha512: vz/pr239TFUyCsG/M3SEx/B8s0dc8AmHiMrBjmIeylNDn98HDhcHQXTPesIi3m3+8fPrxAn1nPR1O0j68dmZOQ==
-releaseDate: '2026-10-24T09:03:02.607Z'
+  - url: Corel-Tools-Suite-Setup-1.0.4.exe
+    sha512: utrtgzxj3M0hEHfhaisap2S/kz6AGZJF9h0v0d9Qs+xUSGvOCa2z3djWVnaTobX4HjUgoS7HJXG01hxFfEiNVw==
+    size: 88407085
+path: Corel-Tools-Suite-Setup-1.0.4.exe
+sha512: utrtgzxj3M0hEHfhaisap2S/kz6AGZJF9h0v0d9Qs+xUSGvOCa2z3djWVnaTobX4HjUgoS7HJXG01hxFfEiNVw==
+releaseDate: '2026-10-24T10:03:15.997Z'

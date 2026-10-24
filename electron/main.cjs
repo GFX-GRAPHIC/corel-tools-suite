@@ -5170,8 +5170,8 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    # Optimization kept OFF during layout to ensure real-time glyph/clip metrics and prevent GPU tile desync
-    try { Com-Set $corel 'Optimization' $false } catch {}
+    # Enable Optimization during layout placement to suspend screen redraws (enables moving 500+ shapes in seconds)
+    try { Com-Set $corel 'Optimization' $true } catch {}
     try { Com-Set $corel 'EventsEnabled' $false } catch {}
     try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
 
@@ -5270,9 +5270,11 @@ ${COREL_CONNECT_PS}
     $moved = 0
     foreach ($it in $itemList) {
         $id = [int]$it.staticId
-        if ($shapeMap.ContainsKey($id)) {
-            $shp = $shapeMap[$id]
+        if (-not $shapeMap.ContainsKey($id)) { continue }
+        $shp = $shapeMap[$id]
+        if ($null -eq $shp) { continue }
 
+        try {
             # 1. Handle rotation safely (supports 90° standing, 180° interlock, and 0° normal)
             $targetRot = if ($it.rotate) { [double]$it.rotate } else { 0.0 }
             $curW = [double](Com-Get $shp 'SizeWidth')
@@ -5334,7 +5336,7 @@ ${COREL_CONNECT_PS}
             }
 
             if ($moveSuccess) { $moved++ }
-        }
+        } catch {}
     }
 
     try { Com-Set $corel 'Optimization' $false } catch {}
@@ -5371,7 +5373,8 @@ $result | ConvertTo-Json -Compress
 `;
 
   try {
-    const res = await runPowerShellScript(ps, 60000);
+    const timeoutMs = Math.max(300000, items.length * 2000);
+    const res = await runPowerShellScript(ps, timeoutMs);
     return res;
   } catch (err) {
     return { success: false, message: err.message };
