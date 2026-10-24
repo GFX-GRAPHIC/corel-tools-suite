@@ -5060,21 +5060,41 @@ ${COREL_CONNECT_PS}
         if ($shapeMap.ContainsKey($id)) {
             $shp = $shapeMap[$id]
 
-            # 1. Handle rotation safely using relative delta from current angle
+            # 1. Handle rotation safely (supports 90° standing, 180° interlock, and 0° normal)
             $targetRot = if ($it.rotate) { [double]$it.rotate } else { 0.0 }
-            $curRot = 0.0
-            try {
-                $rVal = Com-Get $shp 'RotationAngle'
-                if ($null -ne $rVal) { $curRot = [double]$rVal }
-            } catch {}
-            $diffRot = $targetRot - $curRot
-            while ($diffRot -gt 180.0) { $diffRot -= 360.0 }
-            while ($diffRot -lt -180.0) { $diffRot += 360.0 }
+            $curW = [double](Com-Get $shp 'SizeWidth')
+            $curH = [double](Com-Get $shp 'SizeHeight')
+            $origW = if ($it.origWidthCm) { [double]$it.origWidthCm } else { $curW }
+            $origH = if ($it.origHeightCm) { [double]$it.origHeightCm } else { $curH }
 
-            if ([math]::Abs($diffRot) -gt 0.5) {
-                try {
-                    Com-Call $shp 'Rotate' @([double]$diffRot)
-                } catch {}
+            if ($targetRot -eq 90 -or $targetRot -eq 270) {
+                # Object should be standing (vertical)
+                if ($origW -gt $origH -and $curW -gt $curH) {
+                    try { Com-Call $shp 'Rotate' @([double]90.0) } catch {}
+                } elseif ($origW -lt $origH -and $curW -lt $curH) {
+                    try { Com-Call $shp 'Rotate' @([double]90.0) } catch {}
+                }
+            } else {
+                # Object should be in original orientation
+                if ($origW -gt $origH -and $curW -lt $curH) {
+                    try { Com-Call $shp 'Rotate' @([double]-90.0) } catch {}
+                } elseif ($origW -lt $origH -and $curW -gt $curH) {
+                    try { Com-Call $shp 'Rotate' @([double]-90.0) } catch {}
+                }
+
+                if ($targetRot -eq 180) {
+                    $curRot = 0.0
+                    try {
+                        $rVal = Com-Get $shp 'RotationAngle'
+                        if ($null -ne $rVal) { $curRot = [double]$rVal }
+                    } catch {}
+                    $diffRot = 180.0 - $curRot
+                    while ($diffRot -gt 180.0) { $diffRot -= 360.0 }
+                    while ($diffRot -lt -180.0) { $diffRot += 360.0 }
+                    if ([math]::Abs($diffRot) -gt 0.5) {
+                        try { Com-Call $shp 'Rotate' @([double]$diffRot) } catch {}
+                    }
+                }
             }
 
             # Target position

@@ -6752,6 +6752,7 @@ Catatan: Lengan Panjang
   const numLayoutPolaGap = document.getElementById('numLayoutPolaGap');
   const numLayoutPolaMargin = document.getElementById('numLayoutPolaMargin');
   const chkLayoutPolaAllowRotation = document.getElementById('chkLayoutPolaAllowRotation');
+  const chkLayoutPolaAllowRotation90 = document.getElementById('chkLayoutPolaAllowRotation90');
 
   const badgeLayoutVariantIndex = document.getElementById('badgeLayoutVariantIndex');
   const lblLayoutVariantName = document.getElementById('lblLayoutVariantName');
@@ -6787,11 +6788,14 @@ Catatan: Lengan Panjang
     { index: 2, staticId: 102, widthCm: 47.5, heightCm: 75.0, name: 'Jersey #18 (Belakang)' },
     { index: 3, staticId: 103, widthCm: 48.0, heightCm: 75.5, name: 'Jersey #33 (Depan)' },
     { index: 4, staticId: 104, widthCm: 48.5, heightCm: 76.0, name: 'Jersey #33 (Belakang)' },
-    { index: 5, staticId: 105, widthCm: 46.0, heightCm: 73.5, name: 'Jersey #11 (Depan)' },
-    { index: 6, staticId: 106, widthCm: 46.5, heightCm: 74.0, name: 'Jersey #11 (Belakang)' },
-    { index: 7, staticId: 107, widthCm: 45.0, heightCm: 72.0, name: 'Jersey #9 (Depan)' },
-    { index: 8, staticId: 108, widthCm: 45.5, heightCm: 72.5, name: 'Jersey #9 (Belakang)' },
-    { index: 9, staticId: 109, widthCm: 47.5, heightCm: 74.0, name: 'Jersey #23 (Depan)' }
+    { index: 5, staticId: 105, widthCm: 46.0, heightCm: 28.5, name: 'Lengan Kiri #18' },
+    { index: 6, staticId: 106, widthCm: 46.0, heightCm: 28.5, name: 'Lengan Kanan #18' },
+    { index: 7, staticId: 107, widthCm: 46.5, heightCm: 29.0, name: 'Lengan Kiri #33' },
+    { index: 8, staticId: 108, widthCm: 46.5, heightCm: 29.0, name: 'Lengan Kanan #33' },
+    { index: 9, staticId: 109, widthCm: 42.0, heightCm: 6.5, name: 'Kerah Leher V-Neck' },
+    { index: 10, staticId: 110, widthCm: 42.0, heightCm: 6.5, name: 'Kerah Leher #33' },
+    { index: 11, staticId: 111, widthCm: 38.0, heightCm: 11.5, name: 'Kotak Strip Manset A' },
+    { index: 12, staticId: 112, widthCm: 38.0, heightCm: 11.5, name: 'Kotak Strip Manset B' }
   ];
 
   function getLayoutBoxDimensionsCm() {
@@ -6813,10 +6817,13 @@ Catatan: Lengan Panjang
   }
 
   function getLayoutGapAndMarginCm() {
-    const gap = Math.max(0, parseFloat(numLayoutPolaGap?.value) || 1.0);
-    const margin = Math.max(0, parseFloat(numLayoutPolaMargin?.value) || 1.0);
+    const rawGap = parseFloat(numLayoutPolaGap?.value);
+    const gap = isNaN(rawGap) ? 0.0 : Math.max(0, rawGap);
+    const rawMargin = parseFloat(numLayoutPolaMargin?.value);
+    const margin = isNaN(rawMargin) ? 0.0 : Math.max(0, rawMargin);
     const allowRotation = !!chkLayoutPolaAllowRotation?.checked;
-    return { gap, margin, allowRotation };
+    const allowRotation90 = !chkLayoutPolaAllowRotation90 || !!chkLayoutPolaAllowRotation90.checked;
+    return { gap, margin, allowRotation, allowRotation90 };
   }
 
   function updateLayoutStatsAndUI() {
@@ -6864,6 +6871,197 @@ Catatan: Lengan Panjang
     }
   }
 
+  // High Performance 2D Bin Packer (MaxRects with 90° rotation and zero-waste cavity packing)
+  class LayoutPolaMaxRectsPacker {
+    constructor(binW, binH, gap, margin, allow180, allow90) {
+      this.binW = binW;
+      this.binH = binH;
+      this.gap = Math.max(0, gap);
+      this.margin = Math.max(0, margin);
+      this.allow180 = allow180;
+      this.allow90 = allow90;
+
+      const usableW = Math.max(1, this.binW - 2 * this.margin);
+      const usableH = Math.max(1, this.binH - 2 * this.margin);
+      this.usedRectangles = [];
+      this.freeRectangles = [{ x: this.margin, y: this.margin, w: usableW, h: usableH }];
+    }
+
+    insert(it, heuristic = 'BAF') {
+      let bestNode = null;
+      let bestScore1 = Infinity;
+      let bestScore2 = Infinity;
+
+      const isHorizontal = it.widthCm > it.heightCm;
+      const orientations = [{ w: it.widthCm, h: it.heightCm, rot: 0 }];
+
+      if (this.allow180) {
+        orientations.push({ w: it.widthCm, h: it.heightCm, rot: 180 });
+      }
+
+      // Test 90° rotation (standing up) if general 90° allowed OR if horizontal object fits better
+      if (this.allow90 || isHorizontal) {
+        orientations.push({ w: it.heightCm, h: it.widthCm, rot: 90 });
+      }
+
+      for (let r = 0; r < this.freeRectangles.length; r++) {
+        const free = this.freeRectangles[r];
+
+        for (let o = 0; o < orientations.length; o++) {
+          const { w, h, rot } = orientations[o];
+          if (free.w >= w && free.h >= h) {
+            let score1 = 0;
+            let score2 = 0;
+
+            if (heuristic === 'BSSF') {
+              const leftoverH = free.h - h;
+              const leftoverW = free.w - w;
+              score1 = Math.min(leftoverW, leftoverH);
+              score2 = Math.max(leftoverW, leftoverH);
+            } else if (heuristic === 'BAF') {
+              score1 = (free.w * free.h) - (w * h);
+              score2 = Math.min(free.w - w, free.h - h);
+            } else if (heuristic === 'BL') {
+              score1 = free.y + h;
+              score2 = free.x;
+            } else if (heuristic === 'CP') {
+              score1 = -(this.contactPerimeter(free.x, free.y, w, h));
+              score2 = free.y;
+            }
+
+            // Preference: keep upright jersey bodies upright unless rotated 90 saves space
+            if (!isHorizontal && rot === 90) {
+              score1 += 2.0;
+            }
+
+            if (score1 < bestScore1 || (score1 === bestScore1 && score2 < bestScore2)) {
+              bestScore1 = score1;
+              bestScore2 = score2;
+              bestNode = {
+                index: it.index,
+                staticId: it.staticId,
+                name: it.name,
+                xCm: Math.round(free.x * 100) / 100,
+                yCm: Math.round(free.y * 100) / 100,
+                wCm: Math.round(w * 100) / 100,
+                hCm: Math.round(h * 100) / 100,
+                origWidthCm: it.widthCm,
+                origHeightCm: it.heightCm,
+                rotate: rot
+              };
+            }
+          }
+        }
+      }
+
+      if (!bestNode) {
+        let maxBottom = this.margin;
+        for (const ur of this.usedRectangles) {
+          maxBottom = Math.max(maxBottom, ur.yCm + ur.hCm + this.gap);
+        }
+        bestNode = {
+          index: it.index,
+          staticId: it.staticId,
+          name: it.name,
+          xCm: this.margin,
+          yCm: Math.round(maxBottom * 100) / 100,
+          wCm: it.widthCm,
+          hCm: it.heightCm,
+          origWidthCm: it.widthCm,
+          origHeightCm: it.heightCm,
+          rotate: 0
+        };
+      }
+
+      this.placeRectangle(bestNode);
+      return bestNode;
+    }
+
+    contactPerimeter(x, y, w, h) {
+      let perim = 0;
+      if (x === this.margin || x + w >= this.binW - this.margin) perim += h;
+      if (y === this.margin || y + h >= this.binH - this.margin) perim += w;
+
+      for (const u of this.usedRectangles) {
+        if ((Math.abs(u.xCm - (x + w + this.gap)) < 0.05 || Math.abs(u.xCm + u.wCm + this.gap - x) < 0.05) &&
+            !(u.yCm >= y + h || u.yCm + u.hCm <= y)) {
+          perim += Math.min(y + h, u.yCm + u.hCm) - Math.max(y, u.yCm);
+        }
+        if ((Math.abs(u.yCm - (y + h + this.gap)) < 0.05 || Math.abs(u.yCm + u.hCm + this.gap - y) < 0.05) &&
+            !(u.xCm >= x + w || u.xCm + u.wCm <= x)) {
+          perim += Math.min(x + w, u.xCm + u.wCm) - Math.max(x, u.xCm);
+        }
+      }
+      return perim;
+    }
+
+    placeRectangle(node) {
+      const numToProcess = this.freeRectangles.length;
+      for (let i = 0; i < numToProcess; i++) {
+        if (this.splitFreeNode(this.freeRectangles[i], node)) {
+          this.freeRectangles.splice(i, 1);
+          i--;
+        }
+      }
+      this.pruneFreeList();
+      this.usedRectangles.push(node);
+    }
+
+    splitFreeNode(free, used) {
+      const usedW = used.wCm + this.gap;
+      const usedH = used.hCm + this.gap;
+
+      if (used.xCm >= free.x + free.w || used.xCm + usedW <= free.x ||
+          used.yCm >= free.y + free.h || used.yCm + usedH <= free.y) {
+        return false;
+      }
+
+      if (used.yCm > free.y && used.yCm < free.y + free.h) {
+        this.freeRectangles.push({ ...free, h: used.yCm - free.y });
+      }
+      if (used.yCm + usedH < free.y + free.h) {
+        const newY = used.yCm + usedH;
+        this.freeRectangles.push({ ...free, y: newY, h: (free.y + free.h) - newY });
+      }
+      if (used.xCm > free.x && used.xCm < free.x + free.w) {
+        this.freeRectangles.push({ ...free, w: used.xCm - free.x });
+      }
+      if (used.xCm + usedW < free.x + free.w) {
+        const newX = used.xCm + usedW;
+        this.freeRectangles.push({ ...free, x: newX, w: (free.x + free.w) - newX });
+      }
+      return true;
+    }
+
+    pruneFreeList() {
+      for (let i = 0; i < this.freeRectangles.length; i++) {
+        if (this.freeRectangles[i].w <= 0.1 || this.freeRectangles[i].h <= 0.1) {
+          this.freeRectangles.splice(i, 1);
+          i--;
+        }
+      }
+      for (let i = 0; i < this.freeRectangles.length; i++) {
+        for (let j = i + 1; j < this.freeRectangles.length; j++) {
+          if (this.isContainedIn(this.freeRectangles[i], this.freeRectangles[j])) {
+            this.freeRectangles.splice(i, 1);
+            i--;
+            break;
+          }
+          if (this.isContainedIn(this.freeRectangles[j], this.freeRectangles[i])) {
+            this.freeRectangles.splice(j, 1);
+            j--;
+          }
+        }
+      }
+    }
+
+    isContainedIn(a, b) {
+      return a.x >= b.x - 0.01 && a.y >= b.y - 0.01 &&
+             a.x + a.w <= b.x + b.w + 0.01 &&
+             a.y + a.h <= b.y + b.h + 0.01;
+    }
+  }
+
   function computeAllLayoutVariants() {
     if (!layoutPolaItems || layoutPolaItems.length === 0) {
       layoutPolaVariants = [];
@@ -6874,254 +7072,110 @@ Catatan: Lengan Panjang
     }
 
     const { boxW, boxH } = getLayoutBoxDimensionsCm();
-    const { gap, margin, allowRotation } = getLayoutGapAndMarginCm();
-    const usableW = Math.max(1, boxW - 2 * margin);
-    const usableH = Math.max(1, boxH - 2 * margin);
+    const { gap, margin, allowRotation, allowRotation90 } = getLayoutGapAndMarginCm();
 
     const variants = [];
 
-    // VARIANT 1: Rapi Sejajar Kolom Roll (Sesuai Gambar 1)
+    // VARIANT 1: Nesting Kompak Otomatis (MaxRects BAF + Rotasi 90° Cerdas)
     {
-      const items = [...layoutPolaItems];
-      const maxItemW = Math.max(...items.map(it => it.widthCm));
-      const colWidth = maxItemW;
-      const numCols = Math.max(1, Math.floor((usableW + gap) / (colWidth + gap)));
-      const colSpacing = numCols > 1 ? (usableW - (numCols * colWidth)) / (numCols - 1) : gap;
-      const actualGapX = Math.max(gap, colSpacing);
-      const colY = new Array(numCols).fill(margin);
-      const positions = [];
-
-      items.forEach((it, idx) => {
-        const col = idx % numCols;
-        const x = margin + col * (colWidth + actualGapX) + (colWidth - it.widthCm) / 2;
-        const y = colY[col];
-        positions.push({
-          index: it.index || idx + 1,
-          staticId: it.staticId,
-          name: it.name,
-          xCm: Math.round(x * 100) / 100,
-          yCm: Math.round(y * 100) / 100,
-          wCm: it.widthCm,
-          hCm: it.heightCm,
-          rotate: 0
-        });
-        colY[col] += it.heightCm + gap;
+      const sorted = [...layoutPolaItems].sort((a, b) => {
+        const aBody = a.heightCm > 50 ? 1 : 0;
+        const bBody = b.heightCm > 50 ? 1 : 0;
+        if (aBody !== bBody) return bBody - aBody;
+        return (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm);
       });
 
-      const usedHeight = Math.max(...colY) - gap + margin;
+      const packer = new LayoutPolaMaxRectsPacker(boxW, boxH, gap, margin, allowRotation, allowRotation90);
+      const positions = sorted.map(it => packer.insert(it, 'BAF'));
+      let usedH = 0;
+      positions.forEach(p => { usedH = Math.max(usedH, p.yCm + p.hCm); });
+
       variants.push({
-        id: 'column_roll',
-        name: `Rapi Sejajar Kolom Roll (${numCols} Kolom)`,
-        desc: `Menata ${items.length} pola seragam ke dalam ${numCols} kolom vertikal. Susunan sejajar rapi persis seperti kain roll sublimasi.`,
+        id: 'maxrects_baf',
+        name: 'Nesting Kompak Otomatis (MaxRects 2D + Rotasi 90°)',
+        desc: 'Mengisi celah dan ruang kosong secara otomatis, merotasi kotak/pola horizontal 90° agar berdiri di sisi lengan tanpa menyisakan space.',
         positions,
-        usedHeight: Math.round(usedHeight * 10) / 10,
+        usedHeight: Math.round((usedH + margin) * 10) / 10,
         boxW,
         boxH
       });
     }
 
-    // VARIANT 2: Sejajar Baris / Shelf (Urut Tinggi Menurun)
+    // VARIANT 2: Pengisi Celah Maksimal (Pocket-Filler 90°)
     {
-      const items = [...layoutPolaItems].sort((a, b) => b.heightCm - a.heightCm);
-      const positions = [];
-      let curX = margin;
-      let curY = margin;
-      let shelfH = 0;
+      const sorted = [...layoutPolaItems].sort((a, b) => (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm));
+      const packer = new LayoutPolaMaxRectsPacker(boxW, boxH, gap, margin, allowRotation, allowRotation90);
+      const positions = sorted.map(it => packer.insert(it, 'CP'));
+      let usedH = 0;
+      positions.forEach(p => { usedH = Math.max(usedH, p.yCm + p.hCm); });
 
-      items.forEach((it, idx) => {
-        if (curX + it.widthCm > boxW - margin && curX > margin) {
-          curY += shelfH + gap;
-          curX = margin;
-          shelfH = 0;
-        }
-        positions.push({
-          index: it.index || idx + 1,
-          staticId: it.staticId,
-          name: it.name,
-          xCm: Math.round(curX * 100) / 100,
-          yCm: Math.round(curY * 100) / 100,
-          wCm: it.widthCm,
-          hCm: it.heightCm,
-          rotate: 0
-        });
-        shelfH = Math.max(shelfH, it.heightCm);
-        curX += it.widthCm + gap;
-      });
-
-      const usedHeight = curY + shelfH + margin;
       variants.push({
-        id: 'shelf_packing',
-        name: 'Sejajar Baris / Shelf (Urut Tinggi)',
-        desc: 'Menata pola dari kiri ke kanan baris demi baris, diurutkan dari pola tertinggi untuk efisiensi ruang horizontal.',
+        id: 'pocket_filler',
+        name: 'Pengisi Celah Maksimal (Pocket-Filler 90°)',
+        desc: 'Menempelkan pola seketat mungkin ke tepi pola lain dan merapatkan kotak ke celah kosong samping.',
         positions,
-        usedHeight: Math.round(usedHeight * 10) / 10,
+        usedHeight: Math.round((usedH + margin) * 10) / 10,
         boxW,
         boxH
       });
     }
 
-    // VARIANT 3: Kolom Seimbang Rata Bawah (Waterfall Min-Height)
+    // VARIANT 3: Best Short Side Fit (BSSF) Sudut Padat
     {
-      const items = [...layoutPolaItems].sort((a, b) => b.heightCm - a.heightCm);
-      const maxItemW = Math.max(...items.map(it => it.widthCm));
-      const numCols = Math.max(1, Math.floor((usableW + gap) / (maxItemW + gap)));
-      const colSpacing = numCols > 1 ? (usableW - (numCols * maxItemW)) / (numCols - 1) : gap;
-      const actualGapX = Math.max(gap, colSpacing);
-      const colY = new Array(numCols).fill(margin);
-      const positions = [];
+      const sorted = [...layoutPolaItems].sort((a, b) => Math.max(b.widthCm, b.heightCm) - Math.max(a.widthCm, a.heightCm));
+      const packer = new LayoutPolaMaxRectsPacker(boxW, boxH, gap, margin, allowRotation, allowRotation90);
+      const positions = sorted.map(it => packer.insert(it, 'BSSF'));
+      let usedH = 0;
+      positions.forEach(p => { usedH = Math.max(usedH, p.yCm + p.hCm); });
 
-      items.forEach((it, idx) => {
-        let minCol = 0;
-        for (let c = 1; c < numCols; c++) {
-          if (colY[c] < colY[minCol]) minCol = c;
-        }
-        const x = margin + minCol * (maxItemW + actualGapX) + (maxItemW - it.widthCm) / 2;
-        const y = colY[minCol];
-        positions.push({
-          index: it.index || idx + 1,
-          staticId: it.staticId,
-          name: it.name,
-          xCm: Math.round(x * 100) / 100,
-          yCm: Math.round(y * 100) / 100,
-          wCm: it.widthCm,
-          hCm: it.heightCm,
-          rotate: 0
-        });
-        colY[minCol] += it.heightCm + gap;
-      });
-
-      const usedHeight = Math.max(...colY) - gap + margin;
       variants.push({
-        id: 'waterfall_balanced',
-        name: `Kolom Seimbang Rata Bawah (${numCols} Kolom)`,
-        desc: `Menyeimbangkan tinggi akhir antar kolom sehingga ujung bawah kain rata dan sisa potongan bahan kain minimal.`,
+        id: 'bssf_tight',
+        name: 'Best Short Side Fit (BSSF Sudut Padat)',
+        desc: 'Meminimalkan sisa sudut dan lekukan pendek, menghasilkan susunan balok yang sangat rapi dan padat.',
         positions,
-        usedHeight: Math.round(usedHeight * 10) / 10,
+        usedHeight: Math.round((usedH + margin) * 10) / 10,
         boxW,
         boxH
       });
     }
 
-    // VARIANT 4: Pola Selang-Seling / Interlocking 180°
+    // VARIANT 4: Sejajar Rapi & Pengisi Sisi (Sleeve & Strip Interlock)
     {
-      const items = [...layoutPolaItems];
-      const maxItemW = Math.max(...items.map(it => it.widthCm));
-      const numCols = Math.max(1, Math.floor((usableW + gap) / (maxItemW + gap)));
-      const colSpacing = numCols > 1 ? (usableW - (numCols * maxItemW)) / (numCols - 1) : gap;
-      const actualGapX = Math.max(gap, colSpacing);
-      const colY = new Array(numCols).fill(margin);
-      const positions = [];
-
-      items.forEach((it, idx) => {
-        const col = idx % numCols;
-        const isFlipped = (col % 2 === 1) || (Math.floor(idx / numCols) % 2 === 1);
-        const rot = allowRotation || isFlipped ? 180 : 0;
-        const x = margin + col * (maxItemW + actualGapX) + (maxItemW - it.widthCm) / 2;
-        const y = colY[col];
-
-        positions.push({
-          index: it.index || idx + 1,
-          staticId: it.staticId,
-          name: it.name,
-          xCm: Math.round(x * 100) / 100,
-          yCm: Math.round(y * 100) / 100,
-          wCm: it.widthCm,
-          hCm: it.heightCm,
-          rotate: rot
-        });
-        colY[col] += it.heightCm + gap;
+      const sorted = [...layoutPolaItems].sort((a, b) => {
+        if (Math.abs(b.heightCm - a.heightCm) > 5) return b.heightCm - a.heightCm;
+        return b.widthCm - a.widthCm;
       });
 
-      const usedHeight = Math.max(...colY) - gap + margin;
+      const packer = new LayoutPolaMaxRectsPacker(boxW, boxH, gap, margin, allowRotation, allowRotation90);
+      const positions = sorted.map(it => packer.insert(it, 'BAF'));
+      let usedH = 0;
+      positions.forEach(p => { usedH = Math.max(usedH, p.yCm + p.hCm); });
+
       variants.push({
-        id: 'interlocking_180',
-        name: 'Pola Selang-Seling (Interlocking 180°)',
-        desc: 'Memutar sebagian pola 180° agar bahu dan pinggang jersey saling mengunci, sangat efisien menghemat panjang kain roll.',
+        id: 'sleeve_interlock',
+        name: 'Sejajar Rapi & Pengisi Sisi (Sleeve & Strip Interlock)',
+        desc: 'Menata badan dan lengan secara teratur, lalu menyisipkan kotak dan kerah berdiri di sisa lebar roll.',
         positions,
-        usedHeight: Math.round(usedHeight * 10) / 10,
+        usedHeight: Math.round((usedH + margin) * 10) / 10,
         boxW,
         boxH
       });
     }
 
-    // VARIANT 5: MaxRects Bin-Packing (Nesting Kompak Area)
+    // VARIANT 5: Bottom-Left (BLD) Terpadat
     {
-      const items = [...layoutPolaItems].sort((a, b) => (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm));
-      const freeRects = [{ x: margin, y: margin, w: usableW, h: usableH }];
-      const positions = [];
-      let maxBottom = margin;
+      const sorted = [...layoutPolaItems].sort((a, b) => (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm));
+      const packer = new LayoutPolaMaxRectsPacker(boxW, boxH, gap, margin, allowRotation, allowRotation90);
+      const positions = sorted.map(it => packer.insert(it, 'BL'));
+      let usedH = 0;
+      positions.forEach(p => { usedH = Math.max(usedH, p.yCm + p.hCm); });
 
-      items.forEach((it, idx) => {
-        let bestIdx = -1;
-        let bestShortSide = 999999;
-
-        for (let r = 0; r < freeRects.length; r++) {
-          const fr = freeRects[r];
-          if (fr.w >= it.widthCm && fr.h >= it.heightCm) {
-            const leftoverW = fr.w - it.widthCm;
-            const leftoverH = fr.h - it.heightCm;
-            const shortSide = Math.min(leftoverW, leftoverH);
-            if (shortSide < bestShortSide) {
-              bestShortSide = shortSide;
-              bestIdx = r;
-            }
-          }
-        }
-
-        if (bestIdx >= 0) {
-          const chosen = freeRects[bestIdx];
-          const px = chosen.x;
-          const py = chosen.y;
-          positions.push({
-            index: it.index || idx + 1,
-            staticId: it.staticId,
-            name: it.name,
-            xCm: Math.round(px * 100) / 100,
-            yCm: Math.round(py * 100) / 100,
-            wCm: it.widthCm,
-            hCm: it.heightCm,
-            rotate: 0
-          });
-          maxBottom = Math.max(maxBottom, py + it.heightCm);
-
-          const rightRect = {
-            x: px + it.widthCm + gap,
-            y: py,
-            w: Math.max(0, chosen.w - it.widthCm - gap),
-            h: it.heightCm
-          };
-          const bottomRect = {
-            x: px,
-            y: py + it.heightCm + gap,
-            w: chosen.w,
-            h: Math.max(0, chosen.h - it.heightCm - gap)
-          };
-
-          freeRects.splice(bestIdx, 1);
-          if (rightRect.w > 5 && rightRect.h > 5) freeRects.push(rightRect);
-          if (bottomRect.w > 5 && bottomRect.h > 5) freeRects.push(bottomRect);
-        } else {
-          positions.push({
-            index: it.index || idx + 1,
-            staticId: it.staticId,
-            name: it.name,
-            xCm: margin,
-            yCm: maxBottom + gap,
-            wCm: it.widthCm,
-            hCm: it.heightCm,
-            rotate: 0
-          });
-          maxBottom += it.heightCm + gap;
-        }
-      });
-
-      const usedHeight = maxBottom + margin;
       variants.push({
-        id: 'maxrects_compact',
-        name: 'Nesting Kompak Otomatis (MaxRects 2D)',
-        desc: 'Algoritma bin-packing 2D mengisi celah kosong dengan bagian kecil untuk meminimalkan sisa bahan.',
+        id: 'bld_compact',
+        name: 'Bottom-Left (BLD) Paling Efisien',
+        desc: 'Menempatkan pola dari kiri atas ke bawah secara berurutan dengan rotasi 90° adaptif.',
         positions,
-        usedHeight: Math.round(usedHeight * 10) / 10,
+        usedHeight: Math.round((usedH + margin) * 10) / 10,
         boxW,
         boxH
       });
@@ -7295,12 +7349,17 @@ Catatan: Lengan Panjang
         ctx.fillText(`${p.name || idx + 1} (${p.wCm}×${p.hCm})`, px + pw / 2, py + ph / 2 + 3);
       }
 
-      // If Rotated 180° Badge
+      // If Rotated Badge
       if (p.rotate === 180) {
         ctx.fillStyle = '#f59e0b';
         ctx.font = 'bold 9px Segoe UI, sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText('180° ↻', px + pw - 4, py + 12);
+      } else if (p.rotate === 90) {
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 9px Segoe UI, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('90° ↻', px + pw - 4, py + 12);
       }
     });
   }
@@ -7325,7 +7384,7 @@ Catatan: Lengan Panjang
   if (btnLayoutPolaPrev) btnLayoutPolaPrev.addEventListener('click', prevLayoutVariant);
 
   // Form Inputs Auto-Recalculate
-  [numLayoutPolaBoxWidth, numLayoutPolaBoxHeight, selLayoutPolaUnitW, selLayoutPolaUnitH, numLayoutPolaGap, numLayoutPolaMargin, chkLayoutPolaAllowRotation].forEach(el => {
+  [numLayoutPolaBoxWidth, numLayoutPolaBoxHeight, selLayoutPolaUnitW, selLayoutPolaUnitH, numLayoutPolaGap, numLayoutPolaMargin, chkLayoutPolaAllowRotation, chkLayoutPolaAllowRotation90].forEach(el => {
     if (el) {
       el.addEventListener('input', () => computeAllLayoutVariants());
       el.addEventListener('change', () => computeAllLayoutVariants());
