@@ -48,11 +48,16 @@ try {
 }
 
 // Auto-Updater Integration via electron-updater
+const isPortableApp = !!process.env.PORTABLE_EXECUTABLE_FILE || !!process.env.PORTABLE_EXECUTABLE_DIR;
 let autoUpdater = null;
 try {
   autoUpdater = require('electron-updater').autoUpdater;
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  if (isPortableApp) {
+    autoUpdater.autoDownload = false;
+  } else {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+  }
 } catch (e) {
   console.log('[AutoUpdater] note:', e.message);
 }
@@ -62,7 +67,7 @@ function sendUpdaterStatus(status, data = {}) {
   windows.forEach((win) => {
     if (win && !win.isDestroyed() && win.webContents) {
       try {
-        win.webContents.send('updater:status', { status, ...data });
+        win.webContents.send('updater:status', { status, isPortable: isPortableApp, ...data });
       } catch {}
     }
   });
@@ -70,7 +75,13 @@ function sendUpdaterStatus(status, data = {}) {
 
 if (autoUpdater) {
   autoUpdater.on('checking-for-update', () => sendUpdaterStatus('checking'));
-  autoUpdater.on('update-available', (info) => sendUpdaterStatus('available', { version: info.version }));
+  autoUpdater.on('update-available', (info) => {
+    if (isPortableApp) {
+      sendUpdaterStatus('portable-available', { version: info.version });
+    } else {
+      sendUpdaterStatus('available', { version: info.version });
+    }
+  });
   autoUpdater.on('update-not-available', () => sendUpdaterStatus('not-available'));
   autoUpdater.on('error', (err) => sendUpdaterStatus('error', { error: err?.message || 'Gagal update' }));
   autoUpdater.on('download-progress', (progressObj) => {
