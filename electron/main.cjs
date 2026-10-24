@@ -5269,10 +5269,10 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    # Enable Optimization during layout placement to suspend screen redraws (enables moving 500+ shapes in seconds)
+    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
+    try { [void](Com-Call $doc 'ClearSelection' @()) } catch {}
     try { Com-Set $corel 'Optimization' $true } catch {}
     try { Com-Set $corel 'EventsEnabled' $false } catch {}
-    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
 
     function Get-ShapeLeft([object]$shp) {
         if ($null -eq $shp) { return 0.0 }
@@ -5438,15 +5438,43 @@ ${COREL_CONNECT_PS}
         } catch {}
     }
 
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    # 1. Close undo group first so objects are recorded in their final moved state
     try { [void](Com-Call $doc 'EndCommandGroup' @()) } catch {}
 
-    # Comprehensive clean refresh without graphics tearing
+    # 2. Re-enable events and restore optimization
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+
+    # 3. Clear any stale selection handles that could leave ghost bounding boxes
+    try { [void](Com-Call $doc 'ClearSelection' @()) } catch {}
+
+    # 4. ViewMode cycling & zoom cache purge:
+    # Toggling to Wireframe (1) and back forces CorelDRAW GPU/DirectX pipeline to dump stale tile caches,
+    # completely eliminating phantom/ghost objects during zooming and panning!
     try {
         $win = Com-Get $corel 'ActiveWindow'
+        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
         if ($win) {
-            try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            $curMode = Com-Get $win 'ViewMode'
+            if ($null -ne $curMode) {
+                try { Com-Set $win 'ViewMode' 1 } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+                try { Com-Set $win 'ViewMode' $curMode } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            } else {
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            }
+
+            try {
+                $actView = Com-Get $win 'ActiveView'
+                if ($actView) {
+                    $zVal = Com-Get $actView 'Zoom'
+                    if ($zVal -and [double]$zVal -gt 0) {
+                        try { Com-Set $actView 'Zoom' ([double]$zVal * 1.0001) } catch {}
+                        try { Com-Set $actView 'Zoom' ([double]$zVal) } catch {}
+                    }
+                }
+            } catch {}
         }
     } catch {}
     try { [void](Com-Call $corel 'Refresh' @()) } catch {}
@@ -5458,9 +5486,10 @@ ${COREL_CONNECT_PS}
     if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
 }
 catch {
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup' @()) } } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { [void](Com-Call $corel 'Refresh' @()) } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
