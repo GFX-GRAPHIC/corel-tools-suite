@@ -848,8 +848,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const url = btn.getAttribute('data-url');
-      if (url && window.corelAPI?.openExternalUrl) {
-        window.corelAPI.openExternalUrl(url);
+      if (!url) return;
+      const openFn = window.electronAPI?.openExternalUrl || window.corelAPI?.openExternalUrl;
+      if (openFn) {
+        openFn(url);
+      } else {
+        window.open(url, '_blank');
       }
     });
   });
@@ -6317,11 +6321,16 @@ Catatan: Lengan Panjang
           if (targetDir) window.corelAPI.openFolder(targetDir);
         }
       } else {
+        const hasHigherVer = selectedFiles.some(f => (f.versionNum && f.versionNum >= 24));
         selectedFiles.forEach((f) => {
           f.status = 'failed';
-          f.statusText = 'Gagal';
+          f.statusText = (f.versionNum && f.versionNum >= 24) ? 'Versi Terlalu Tinggi (v' + f.versionNum + ')' : 'Gagal';
         });
-        showToast(res?.message || 'Gagal menurunkan versi file CDR.', false);
+        if (hasHigherVer) {
+          showToast('File dibuat di CorelDRAW 2024/2026 (v24-v26) dan tidak dapat dibuka Corel lokal. Gunakan tombol AsanConvert di bawah.', false);
+        } else {
+          showToast(res?.message || 'Gagal menurunkan versi file CDR.', false);
+        }
       }
     } catch (err) {
       selectedFiles.forEach((f) => {
