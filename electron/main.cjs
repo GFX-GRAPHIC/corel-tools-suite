@@ -1063,6 +1063,28 @@ ${getCorelFindAppPs()}
             }
         }
     }
+
+    if ($corel -and -not $doc -and $realProcs -and $realProcs.Count -gt 1) {
+        foreach ($altProc in $realProcs) {
+            if ($targetProc -and $altProc.Id -eq $targetProc.Id) { continue }
+            $altVer = Get-CorelVerFromProcess $altProc
+            $altCorel = $null
+            if ($altVer -gt 0) {
+                try { $altCorel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$altVer") } catch {}
+            }
+            if (-not $altCorel) {
+                try { $altCorel = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application") } catch {}
+            }
+            if ($altCorel) {
+                $altDoc = Com-Get $altCorel "ActiveDocument"
+                if ($altDoc) {
+                    $corel = $altCorel
+                    $doc = $altDoc
+                    break
+                }
+            }
+        }
+    }
   `;
 }
 
@@ -4828,13 +4850,53 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    $sel = Com-Get $corel 'ActiveSelection'
-    if (-not $sel -or [int](Com-Get $sel.Shapes 'Count') -eq 0) {
-        $sel = Com-Get $doc 'Selection'
+    function Get-RangeCount($r) {
+        if ($null -eq $r) { return 0 }
+        try {
+            $cnt = Com-Get $r "Count"
+            if ($null -ne $cnt -and [int]$cnt -gt 0) { return [int]$cnt }
+        } catch {}
+        try {
+            $subShps = Com-Get $r "Shapes"
+            if ($null -ne $subShps) {
+                $sc = Com-Get $subShps "Count"
+                if ($null -ne $sc -and [int]$sc -gt 0) { return [int]$sc }
+            }
+        } catch {}
+        return 0
     }
 
-    $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
-    $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
+    function Get-RangeItem($r, [int]$idx) {
+        if ($null -eq $r) { return $null }
+        $it = $null
+        try {
+            $it = Com-Get $r "Item" @($idx)
+            if ($null -ne $it) { return ,$it }
+        } catch {}
+        try {
+            $subShps = Com-Get $r "Shapes"
+            if ($null -ne $subShps) {
+                $it = Com-Get $subShps "Item" @($idx)
+                if ($null -ne $it) { return ,$it }
+            }
+        } catch {}
+        return $null
+    }
+
+    $sel = Com-Get $corel 'ActiveSelectionRange'
+    $cnt = Get-RangeCount $sel
+    if ($cnt -eq 0) {
+        $sel = Com-Get $corel 'ActiveSelection'
+        $cnt = Get-RangeCount $sel
+    }
+    if ($cnt -eq 0) {
+        $sel = Com-Get $doc 'Selection'
+        $cnt = Get-RangeCount $sel
+    }
+    if ($cnt -eq 0) {
+        $sel = Com-Get $doc 'SelectionRange'
+        $cnt = Get-RangeCount $sel
+    }
 
     if ($cnt -eq 0) {
         throw "Silakan seleksi (blok) objek-objek pola di CorelDRAW terlebih dahulu."
@@ -4859,7 +4921,7 @@ ${COREL_CONNECT_PS}
 
     $rawItems = @()
     for ($i = 1; $i -le $cnt; $i++) {
-        $s = Com-Get $shps 'Item' @($i)
+        $s = Get-RangeItem $sel $i
         if (-not $s) { continue }
         $sId = [int](Com-Get $s 'StaticID')
         $w = [math]::Round([double](Com-Get $s 'SizeWidth'), 2)
@@ -4983,7 +5045,8 @@ ${COREL_CONNECT_PS}
 
     # Build shape map of all shapes on active page by StaticID
     $shapeMap = @{}
-    $allShapes = Com-Get $doc.ActivePage 'Shapes'
+    $actPg = Com-Get $doc 'ActivePage'
+    $allShapes = if ($actPg) { Com-Get $actPg 'Shapes' } else { $null }
     $totalPageShapes = if ($allShapes) { [int](Com-Get $allShapes 'Count') } else { 0 }
     for ($sIdx = 1; $sIdx -le $totalPageShapes; $sIdx++) {
         $curShp = Com-Get $allShapes 'Item' @($sIdx)
@@ -5042,7 +5105,8 @@ ${COREL_CONNECT_PS}
     if ($createBox -and -not $hasExistingBox) {
         $right = $boxLeft + $boxW
         $bottom = $boxTop - $boxH
-        $rect = Com-Call $doc.ActiveLayer 'CreateRectangle' @([double]$boxLeft, [double]$boxTop, [double]$right, [double]$bottom)
+        $actLayer = Com-Get $doc 'ActiveLayer'
+        $rect = if ($actLayer) { Com-Call $actLayer 'CreateRectangle' @([double]$boxLeft, [double]$boxTop, [double]$right, [double]$bottom) } else { $null }
         if ($rect) {
             try {
                 $outline = Com-Get $rect 'Outline'

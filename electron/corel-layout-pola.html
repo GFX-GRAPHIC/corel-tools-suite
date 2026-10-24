@@ -714,7 +714,13 @@
     btnMinimize.addEventListener('click', () => {
       if (api?.minimizeWindow) api.minimizeWindow();
     });
-    btnClose.addEventListener('click', () => window.close());
+    btnClose.addEventListener('click', () => {
+      if (api?.closeWindow) {
+        api.closeWindow();
+      } else {
+        window.close();
+      }
+    });
     btnPin.addEventListener('click', async () => {
       if (api?.toggleAlwaysOnTop) {
         const res = await api.toggleAlwaysOnTop();
@@ -1384,9 +1390,6 @@
     // Form inputs listeners
     [numBoxW, numBoxH, selUnitW, selUnitH, numGap, numMargin, chkAllowRotate, chkAllowRotate90].forEach(el => {
       if (!el) return;
-      el.addEventListener('input', computeVariants);
-      el.addEventListener('change', computeVariants);
-    });
       el.addEventListener('input', computeVariants);
       el.addEventListener('change', computeVariants);
     });
