@@ -492,12 +492,30 @@
   </div>
 
   <!-- 2. Corel Status Bar -->
-  <div class="status-bar-top">
-    <div style="display: flex; align-items: center;">
+  <div class="status-bar-top" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <div style="display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
       <span class="status-corel-dot" id="corelDot"></span>
-      <span id="lblCorelStatus">CorelDRAW: Memeriksa...</span>
+      <span id="lblCorelStatus" style="font-size: 11px;">CorelDRAW: Memeriksa...</span>
     </div>
-    <div style="color: #38bdf8; cursor: pointer; font-weight: 600;" id="btnRefreshStatus">Refresh</div>
+    <div style="display: flex; align-items: center; gap: 5px;">
+      <select id="selCorelVersion" class="select-native" style="height: 22px; font-size: 10px; padding: 0 4px; width: 130px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;" title="Ganti Versi CorelDRAW Target">
+        <option value="auto">Auto (Deteksi)</option>
+        <option value="26">CorelDRAW 2024</option>
+        <option value="25">CorelDRAW 2023</option>
+        <option value="24">CorelDRAW 2022</option>
+        <option value="23">CorelDRAW 2021</option>
+        <option value="22">CorelDRAW 2020</option>
+        <option value="21">CorelDRAW 2019</option>
+        <option value="20">CorelDRAW 2018</option>
+        <option value="19">CorelDRAW 2017</option>
+        <option value="18">CorelDRAW X8</option>
+        <option value="17">CorelDRAW X7</option>
+        <option value="16">CorelDRAW X6</option>
+        <option value="15">CorelDRAW X5</option>
+        <option value="14">CorelDRAW X4</option>
+      </select>
+      <div style="color: #38bdf8; cursor: pointer; font-weight: 700; font-size: 11px;" id="btnRefreshStatus" title="Segarkan status koneksi">🔄</div>
+    </div>
   </div>
 
   <!-- 3. Scrollable Controls Body -->
@@ -652,18 +670,6 @@
 
   <div class="toast-msg" id="toast">Notifikasi</div>
 
-  <!-- Loading Overlay -->
-  <div class="modal-overlay" id="loadingOverlay" style="display: none;">
-    <div class="modal-card">
-      <div class="spinner-ring"></div>
-      <div class="modal-title" id="loadingTitle">Memproses Layout...</div>
-      <div class="modal-desc" id="loadingDesc">Sedang menata posisi pola di lembar kerja CorelDRAW. Mohon tunggu...</div>
-      <div class="progress-track">
-        <div class="progress-bar-fill"></div>
-      </div>
-    </div>
-  </div>
-
   <!-- Result Modal Dialog -->
   <div class="modal-overlay" id="resultModal" style="display: none;">
     <div class="modal-card" id="resultCard">
@@ -749,11 +755,28 @@
     const btnExecute = document.getElementById('btnExecute');
     const toast = document.getElementById('toast');
 
-    // Modal elements
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const loadingTitle = document.getElementById('loadingTitle');
-    const loadingDesc = document.getElementById('loadingDesc');
+    // Version selector
+    const selCorelVersion = document.getElementById('selCorelVersion');
+    if (selCorelVersion) {
+      if (api?.getPreferredCorelVersion) {
+        api.getPreferredCorelVersion().then((res) => {
+          if (res && res.preferredVersion) {
+            selCorelVersion.value = res.preferredVersion;
+          }
+        }).catch(() => {});
+      }
+      selCorelVersion.addEventListener('change', async () => {
+        const val = selCorelVersion.value;
+        if (api?.setPreferredCorelVersion) {
+          await api.setPreferredCorelVersion(val);
+        }
+        await checkCorelStatus();
+        const txt = selCorelVersion.options[selCorelVersion.selectedIndex].text;
+        showToast(`Target CorelDRAW: ${txt}`);
+      });
+    }
 
+    // Modal elements
     const resultModal = document.getElementById('resultModal');
     const resultCard = document.getElementById('resultCard');
     const resultIcon = document.getElementById('resultIcon');
@@ -769,18 +792,7 @@
       resultModal.style.display = 'none';
     });
 
-    function showLoading(title, desc) {
-      if (loadingTitle) loadingTitle.innerText = title || 'Memproses...';
-      if (loadingDesc) loadingDesc.innerText = desc || 'Mohon tunggu sebentar...';
-      if (loadingOverlay) loadingOverlay.style.display = 'flex';
-    }
-
-    function hideLoading() {
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
-    }
-
     function showResultModal(isSuccess, title, desc, meta = null) {
-      hideLoading();
       if (!resultModal) return;
 
       if (isSuccess) {
@@ -1327,12 +1339,12 @@
           showToast('API CorelDRAW tidak tersedia.');
           return;
         }
-        showLoading('Mengambil Pola dari CorelDRAW', 'Membaca dimensi dan posisi objek yang sedang diseleksi di CorelDRAW...');
+        btnFetchCorel.innerText = 'Memeriksa Corel...';
         btnFetchCorel.disabled = true;
 
         const res = await api.layoutPolaGetSelection();
+        btnFetchCorel.innerText = 'Ambil Pola dari CorelDRAW';
         btnFetchCorel.disabled = false;
-        hideLoading();
 
         if (res && res.success && res.items && res.items.length > 0) {
           polaItems = res.items;
@@ -1349,8 +1361,8 @@
           showResultModal(false, 'Pola Tidak Ditemukan', res?.message || 'Pastikan Anda telah menyeleksi objek pola di CorelDRAW.');
         }
       } catch (err) {
+        btnFetchCorel.innerText = 'Ambil Pola dari CorelDRAW';
         btnFetchCorel.disabled = false;
-        hideLoading();
         showResultModal(false, 'Gagal Mengambil Pola', err.message);
       }
     });
@@ -1369,7 +1381,7 @@
         const createBox = !!chkCreateBox.checked;
 
         btnExecute.disabled = true;
-        showLoading('Menerapkan ke CorelDRAW', `Menata ${cur.positions.length} pola secara presisi ke dalam kotak ${boxW}x${boxH} cm...`);
+        btnExecute.innerText = 'Menata di Corel...';
 
         const payload = {
           boxWidthCm: boxW,
@@ -1382,7 +1394,7 @@
 
         const res = await api.layoutPolaExecute(payload);
         btnExecute.disabled = false;
-        hideLoading();
+        btnExecute.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terapkan Layout ke CorelDRAW`;
 
         if (res && res.success) {
           showResultModal(true, 'Layout Berhasil Diterapkan!', res.message || `Sukses menata ${cur.positions.length} pola di CorelDRAW.`, {
@@ -1396,7 +1408,7 @@
         }
       } catch (err) {
         btnExecute.disabled = false;
-        hideLoading();
+        btnExecute.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terapkan Layout ke CorelDRAW`;
         showResultModal(false, 'Terjadi Kesalahan', err.message);
       }
     });

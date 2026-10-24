@@ -1488,6 +1488,25 @@
               <div class="tool-view-title">Layout Pola (Auto-Nesting Lembar Cetak)</div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 6px;">
+                <label for="selLayoutPolaCorelVer" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Corel:</label>
+                <select id="selLayoutPolaCorelVer" class="select-native" style="height: 24px; font-size: 11px; padding: 0 4px; width: 120px;" title="Ganti target versi CorelDRAW">
+                  <option value="auto">Auto (Deteksi)</option>
+                  <option value="26">CorelDRAW 2024</option>
+                  <option value="25">CorelDRAW 2023</option>
+                  <option value="24">CorelDRAW 2022</option>
+                  <option value="23">CorelDRAW 2021</option>
+                  <option value="22">CorelDRAW 2020</option>
+                  <option value="21">CorelDRAW 2019</option>
+                  <option value="20">CorelDRAW 2018</option>
+                  <option value="19">CorelDRAW 2017</option>
+                  <option value="18">CorelDRAW X8</option>
+                  <option value="17">CorelDRAW X7</option>
+                  <option value="16">CorelDRAW X6</option>
+                  <option value="15">CorelDRAW X5</option>
+                  <option value="14">CorelDRAW X4</option>
+                </select>
+              </div>
               <button type="button" class="btn-secondary" id="btnLayoutPolaOpenCompanion">Jendela Mengambang</button>
               <button type="button" class="btn-secondary" id="btnLayoutPolaFetchCorel">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
@@ -1665,18 +1684,6 @@
               <div style="padding: 6px 12px; border-top: 1px solid var(--border-color); background: #111827; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
                 <div>Garis Biru: Kotak Pembatas &bull; Kartu Pola: Objek Baju &bull; Garis Merah Putus: Batas Panjang Terpakai</div>
                 <div id="lblLayoutPolaDimensionsPreview" style="font-weight: 600; color: #94a3b8;">100 x 500 cm</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Loading Animation Overlay -->
-          <div class="layout-pola-overlay" id="layoutPolaLoadingOverlay" style="display: none;">
-            <div class="layout-pola-modal-card">
-              <div class="layout-pola-spinner"></div>
-              <div class="layout-pola-modal-title" id="layoutPolaLoadingTitle">Menata Pola di CorelDRAW...</div>
-              <div class="layout-pola-modal-subtitle" id="layoutPolaLoadingSubtitle">Mohon tunggu sebentar, sedang menyusun dan memindahkan pola secara presisi...</div>
-              <div class="layout-pola-progress-track">
-                <div class="layout-pola-progress-bar"></div>
               </div>
             </div>
           </div>

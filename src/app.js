@@ -531,12 +531,16 @@ document.addEventListener('DOMContentLoaded', () => {
       window.corelAPI.getPreferredCorelVersion().then((res) => {
         if (res && res.preferredVersion) {
           selTargetCorelVersion.value = res.preferredVersion;
+          const selPolaVer = document.getElementById('selLayoutPolaCorelVer');
+          if (selPolaVer) selPolaVer.value = res.preferredVersion;
         }
         refreshTargetCorelDropdown();
       }).catch(() => {});
     }
     selTargetCorelVersion.addEventListener('change', async () => {
       const chosenVer = selTargetCorelVersion.value;
+      const selPolaVer = document.getElementById('selLayoutPolaCorelVer');
+      if (selPolaVer) selPolaVer.value = chosenVer;
       let targetPid = 0;
       try {
         if (window.corelAPI?.getDetectedCorelVersions) {
@@ -7379,10 +7383,27 @@ Catatan: Lengan Panjang
     });
   }
 
-  // Loading & Result Modal Helpers
-  const layoutPolaLoadingOverlay = document.getElementById('layoutPolaLoadingOverlay');
-  const layoutPolaLoadingTitle = document.getElementById('layoutPolaLoadingTitle');
-  const layoutPolaLoadingSubtitle = document.getElementById('layoutPolaLoadingSubtitle');
+  // Result Modal & Corel Version Dropdown Helpers
+  const selLayoutPolaCorelVer = document.getElementById('selLayoutPolaCorelVer');
+  if (selLayoutPolaCorelVer) {
+    if (window.corelAPI?.getPreferredCorelVersion) {
+      window.corelAPI.getPreferredCorelVersion().then((res) => {
+        if (res && res.preferredVersion) {
+          selLayoutPolaCorelVer.value = res.preferredVersion;
+        }
+      }).catch(() => {});
+    }
+    selLayoutPolaCorelVer.addEventListener('change', async () => {
+      const chosenVer = selLayoutPolaCorelVer.value;
+      if (selTargetCorelVersion) selTargetCorelVersion.value = chosenVer;
+      if (window.corelAPI?.setPreferredCorelVersion) {
+        await window.corelAPI.setPreferredCorelVersion(chosenVer);
+        await updateCorelStatus();
+        const selText = selLayoutPolaCorelVer.options[selLayoutPolaCorelVer.selectedIndex].text;
+        showToast(`Target CorelDRAW: ${selText}`);
+      }
+    });
+  }
 
   const layoutPolaResultModal = document.getElementById('layoutPolaResultModal');
   const layoutPolaResultCard = document.getElementById('layoutPolaResultCard');
@@ -7395,18 +7416,7 @@ Catatan: Lengan Panjang
   const lblResultFitStatus = document.getElementById('lblResultFitStatus');
   const btnLayoutPolaResultClose = document.getElementById('btnLayoutPolaResultClose');
 
-  function showLayoutPolaLoading(title = 'Memproses...', subtitle = 'Mohon tunggu sebentar...') {
-    if (layoutPolaLoadingTitle) layoutPolaLoadingTitle.innerText = title;
-    if (layoutPolaLoadingSubtitle) layoutPolaLoadingSubtitle.innerText = subtitle;
-    if (layoutPolaLoadingOverlay) layoutPolaLoadingOverlay.style.display = 'flex';
-  }
-
-  function hideLayoutPolaLoading() {
-    if (layoutPolaLoadingOverlay) layoutPolaLoadingOverlay.style.display = 'none';
-  }
-
   function showLayoutPolaResultModal(isSuccess, title, desc, meta = null) {
-    hideLayoutPolaLoading();
     if (!layoutPolaResultModal) return;
 
     if (layoutPolaResultCard) {
@@ -7457,14 +7467,11 @@ Catatan: Lengan Panjang
         }
 
         btnLayoutPolaFetchCorel.disabled = true;
-        showLayoutPolaLoading(
-          'Membaca Dokumen CorelDRAW...',
-          'Sedang mendeteksi objek pola & ukuran yang sedang Anda seleksi...'
-        );
+        btnLayoutPolaFetchCorel.innerText = 'Memeriksa Corel...';
 
         const res = await window.corelAPI.layoutPolaGetSelection();
         btnLayoutPolaFetchCorel.disabled = false;
-        hideLayoutPolaLoading();
+        btnLayoutPolaFetchCorel.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg> Ambil Pola dari CorelDRAW`;
 
         if (res && res.success && res.items && res.items.length > 0) {
           layoutPolaItems = res.items;
@@ -7494,8 +7501,10 @@ Catatan: Lengan Panjang
           );
         }
       } catch (err) {
-        if (btnLayoutPolaFetchCorel) btnLayoutPolaFetchCorel.disabled = false;
-        hideLayoutPolaLoading();
+        if (btnLayoutPolaFetchCorel) {
+          btnLayoutPolaFetchCorel.disabled = false;
+          btnLayoutPolaFetchCorel.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg> Ambil Pola dari CorelDRAW`;
+        }
         showLayoutPolaResultModal(false, 'Gagal Membaca CorelDRAW', err.message);
       }
     });
@@ -7521,10 +7530,7 @@ Catatan: Lengan Panjang
         const createBox = !!chkLayoutPolaCreateBox?.checked;
 
         btnLayoutPolaExecute.disabled = true;
-        showLayoutPolaLoading(
-          'Menata Pola di CorelDRAW...',
-          `Sedang menyusun ${curVariant.positions.length} pola ke dalam kotak pembatas (${boxW} cm × ${boxH} cm)...`
-        );
+        btnLayoutPolaExecute.innerText = 'Menata di Corel...';
 
         const payload = {
           boxWidthCm: boxW,
@@ -7537,7 +7543,7 @@ Catatan: Lengan Panjang
 
         const res = await window.corelAPI.layoutPolaExecute(payload);
         btnLayoutPolaExecute.disabled = false;
-        hideLayoutPolaLoading();
+        btnLayoutPolaExecute.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg> Terapkan ke CorelDRAW`;
 
         if (res && res.success) {
           showLayoutPolaResultModal(
@@ -7554,8 +7560,10 @@ Catatan: Lengan Panjang
           );
         }
       } catch (err) {
-        if (btnLayoutPolaExecute) btnLayoutPolaExecute.disabled = false;
-        hideLayoutPolaLoading();
+        if (btnLayoutPolaExecute) {
+          btnLayoutPolaExecute.disabled = false;
+          btnLayoutPolaExecute.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg> Terapkan ke CorelDRAW`;
+        }
         showLayoutPolaResultModal(false, 'Error Eksekusi', err.message);
       }
     });

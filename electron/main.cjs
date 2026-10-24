@@ -4840,6 +4840,23 @@ ${COREL_CONNECT_PS}
         throw "Silakan seleksi (blok) objek-objek pola di CorelDRAW terlebih dahulu."
     }
 
+    function Get-ShapeLeft([object]$shp) {
+        if ($null -eq $shp) { return 0.0 }
+        $v = Com-Get $shp 'LeftX'
+        if ($null -ne $v) { return [double]$v }
+        $v = Com-Get $shp 'PositionX'
+        if ($null -ne $v) { return [double]$v }
+        return 0.0
+    }
+    function Get-ShapeTop([object]$shp) {
+        if ($null -eq $shp) { return 0.0 }
+        $v = Com-Get $shp 'TopY'
+        if ($null -ne $v) { return [double]$v }
+        $v = Com-Get $shp 'PositionY'
+        if ($null -ne $v) { return [double]$v }
+        return 0.0
+    }
+
     $rawItems = @()
     for ($i = 1; $i -le $cnt; $i++) {
         $s = Com-Get $shps 'Item' @($i)
@@ -4847,8 +4864,8 @@ ${COREL_CONNECT_PS}
         $sId = [int](Com-Get $s 'StaticID')
         $w = [math]::Round([double](Com-Get $s 'SizeWidth'), 2)
         $h = [math]::Round([double](Com-Get $s 'SizeHeight'), 2)
-        $left = [math]::Round([double](Com-Get $s 'Left'), 2)
-        $top = [math]::Round([double](Com-Get $s 'Top'), 2)
+        $left = [math]::Round([double](Get-ShapeLeft $s), 2)
+        $top = [math]::Round([double](Get-ShapeTop $s), 2)
         $name = [string](Com-Get $s 'Name')
         $type = [int](Com-Get $s 'Type')
 
@@ -4947,6 +4964,23 @@ ${COREL_CONNECT_PS}
     try { Com-Set $corel 'EventsEnabled' $false } catch {}
     try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
 
+    function Get-ShapeLeft([object]$shp) {
+        if ($null -eq $shp) { return 0.0 }
+        $v = Com-Get $shp 'LeftX'
+        if ($null -ne $v) { return [double]$v }
+        $v = Com-Get $shp 'PositionX'
+        if ($null -ne $v) { return [double]$v }
+        return 0.0
+    }
+    function Get-ShapeTop([object]$shp) {
+        if ($null -eq $shp) { return 0.0 }
+        $v = Com-Get $shp 'TopY'
+        if ($null -ne $v) { return [double]$v }
+        $v = Com-Get $shp 'PositionY'
+        if ($null -ne $v) { return [double]$v }
+        return 0.0
+    }
+
     # Build shape map of all shapes on active page by StaticID
     $shapeMap = @{}
     $allShapes = Com-Get $doc.ActivePage 'Shapes'
@@ -4970,8 +5004,8 @@ ${COREL_CONNECT_PS}
         $id = [int]$it.staticId
         if ($shapeMap.ContainsKey($id)) {
             $s = $shapeMap[$id]
-            $sl = [double](Com-Get $s 'Left')
-            $st = [double](Com-Get $s 'Top')
+            $sl = [double](Get-ShapeLeft $s)
+            $st = [double](Get-ShapeTop $s)
             $sw = [double](Com-Get $s 'SizeWidth')
             $sh = [double](Com-Get $s 'SizeHeight')
             $sr = $sl + $sw
@@ -4996,11 +5030,11 @@ ${COREL_CONNECT_PS}
 
     if ($data.containerBoxId -and $shapeMap.ContainsKey([int]$data.containerBoxId)) {
         $cBox = $shapeMap[[int]$data.containerBoxId]
-        $boxLeft = [double](Com-Get $cBox 'Left')
-        $boxTop = [double](Com-Get $cBox 'Top')
+        $boxLeft = [double](Get-ShapeLeft $cBox)
+        $boxTop = [double](Get-ShapeTop $cBox)
         $hasExistingBox = $true
     } elseif ($foundAny) {
-        $boxLeft = $maxRight + 12.0
+        $boxLeft = $maxRight + 15.0
         $boxTop = $maxTop
     }
 
@@ -5043,30 +5077,24 @@ ${COREL_CONNECT_PS}
                 } catch {}
             }
 
-            # 2. Re-measure shape top-left AFTER rotation to avoid rotation center displacement
-            $curLeft = [double](Com-Get $shp 'Left')
-            $curTop = [double](Com-Get $shp 'Top')
-
             # Target position
             $targetLeft = $boxLeft + [double]$it.xCm
             $targetTop = $boxTop - [double]$it.yCm
 
-            $dx = $targetLeft - $curLeft
-            $dy = $targetTop - $curTop
-
-            # 3. Move via native Delta translation (glitch-free for nested groups and PowerClips)
+            # Direct SetPosition (LeftX, TopY)
             $moveSuccess = $false
             try {
-                Com-Call $shp 'Move' @([double]$dx, [double]$dy)
+                Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
                 $moveSuccess = $true
             } catch {
                 try {
-                    Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
+                    Com-Set $shp 'PositionX' $targetLeft
+                    Com-Set $shp 'PositionY' $targetTop
                     $moveSuccess = $true
                 } catch {
                     try {
-                        Com-Set $shp 'Left' $targetLeft
-                        Com-Set $shp 'Top' $targetTop
+                        Com-Set $shp 'LeftX' $targetLeft
+                        Com-Set $shp 'TopY' $targetTop
                         $moveSuccess = $true
                     } catch {}
                 }
@@ -5085,10 +5113,6 @@ ${COREL_CONNECT_PS}
         $win = Com-Get $corel 'ActiveWindow'
         if ($win) {
             try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            $view = Com-Get $win 'ActiveView'
-            if ($view) {
-                try { [void](Com-Call $view 'ToFitAllObjects' @()) } catch {}
-            }
         }
     } catch {}
     try { [void](Com-Call $corel 'Refresh' @()) } catch {}
