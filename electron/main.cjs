@@ -175,38 +175,48 @@ function installPortableUpdate() {
   }
 
   const targetExe = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
-  const runnerScriptPath = path.join(app.getPath('temp'), 'corel-portable-update-runner.bat');
+  const runnerScriptPath = path.join(app.getPath('temp'), 'corel-portable-update-runner.ps1');
 
   const runnerContent = [
-    '@echo off',
-    'chcp 65001 >nul',
-    `set "TARGET_EXE=${targetExe.replace(/"/g, '')}"`,
-    `set "NEW_EXE=${portableDownloadedPath.replace(/"/g, '')}"`,
-    `set "PARENT_PID=${process.pid}"`,
+    `$parentPid = ${process.pid}`,
+    `$targetExe = '${targetExe.replace(/'/g, "''")}'`,
+    `$newExe = '${portableDownloadedPath.replace(/'/g, "''")}'`,
+    `$selfScript = $MyInvocation.MyCommand.Path`,
     '',
-    ':wait_loop',
-    'tasklist /fi "PID eq %PARENT_PID%" 2>nul | find "%PARENT_PID%" >nul',
-    'if not errorlevel 1 (',
-    '    timeout /t 1 /nobreak >nul',
-    '    goto wait_loop',
-    ')',
+    'try {',
+    '    $proc = Get-Process -Id $parentPid -ErrorAction SilentlyContinue',
+    '    if ($proc) {',
+    '        $proc.WaitForExit(30000)',
+    '    }',
+    '} catch {}',
     '',
-    'timeout /t 1 /nobreak >nul',
+    'Start-Sleep -Milliseconds 800',
     '',
-    'copy /y "%NEW_EXE%" "%TARGET_EXE%" >nul',
-    'if errorlevel 1 (',
-    '    move /y "%NEW_EXE%" "%TARGET_EXE%" >nul',
-    ') else (',
-    '    del /f /q "%NEW_EXE%" 2>nul',
-    ')',
+    'try {',
+    '    Copy-Item -Path $newExe -Destination $targetExe -Force -ErrorAction Stop',
+    '    Remove-Item -Path $newExe -Force -ErrorAction SilentlyContinue',
+    '} catch {',
+    '    try { Move-Item -Path $newExe -Destination $targetExe -Force -ErrorAction SilentlyContinue } catch {}',
+    '}',
     '',
-    'start "" "%TARGET_EXE%"',
-    '(goto) 2>nul & del "%~f0"'
+    'try {',
+    '    Start-Process -FilePath $targetExe',
+    '} catch {}',
+    '',
+    'if ($selfScript -and (Test-Path $selfScript)) {',
+    '    Start-Sleep -Milliseconds 500',
+    '    try { Remove-Item -Path $selfScript -Force -ErrorAction SilentlyContinue } catch {}',
+    '}'
   ].join('\r\n');
 
   try {
     fs.writeFileSync(runnerScriptPath, runnerContent, 'utf-8');
-    const child = spawn('cmd.exe', ['/c', runnerScriptPath], {
+    const child = spawn('powershell.exe', [
+      '-NoProfile',
+      '-WindowStyle', 'Hidden',
+      '-ExecutionPolicy', 'Bypass',
+      '-File', runnerScriptPath
+    ], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
@@ -4095,25 +4105,25 @@ ${COREL_CONNECT_PS}
         # Try semantic fallback
         $combined = ($ph + " " + $lbl + " " + $col).ToLower()
         if ($combined -match 'nama|name|pemain|player') {
-            foreach ($k in @('name','nama','pemain','player','playerName')) {
+            foreach ($k in @('name','nama','pemain','player','playerName','nama punggung','nama dada','nama_punggung','nama_dada','Col_1','Col_2')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
         }
-        if ($combined -match 'nomor|number|no\b|punggung') {
-            foreach ($k in @('number','nomor','no','punggung')) {
+        if ($combined -match 'nomor|number|no\b|punggung|celana') {
+            foreach ($k in @('number','nomor','no','punggung','no punggung','nomor punggung','no_punggung','nomor_punggung','no celana','nomor celana','no.','Col_1','Col_2','Col_3')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
         }
         if ($combined -match 'ukuran|size') {
-            foreach ($k in @('size','ukuran','Ukuran','Size')) {
+            foreach ($k in @('size','ukuran','Ukuran','Size','sz','Col_3','Col_4')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
         }
-        if ($combined -match 'sponsor') {
-            foreach ($k in @('sponsor','Sponsor')) {
+        if ($combined -match 'sponsor|tim|team') {
+            foreach ($k in @('sponsor','Sponsor','tim','team','club','Col_4','Col_5')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
@@ -4174,10 +4184,14 @@ ${COREL_CONNECT_PS}
 
             $txtObj = Com-Get $ts 'Text'
             $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
-            if ($story) {
-                Com-Set $story 'Text' ([string]$val)
+            if ($story -or $txtObj) {
+                if ($story) {
+                    try { Com-Set $story 'Text' ([string]$val) } catch { try { Com-Set $txtObj 'Contents' ([string]$val) } catch {} }
+                } else {
+                    try { Com-Set $txtObj 'Contents' ([string]$val) } catch {}
+                }
 
-                if ($textCase -and $textCase -ne 'none') {
+                if ($story -and $textCase -and $textCase -ne 'none') {
                     $cdrCaseEnum = switch ($textCase.ToLower()) {
                         'sentence' { 1 }
                         'lower'    { 2 }
@@ -4192,15 +4206,17 @@ ${COREL_CONNECT_PS}
                 }
 
                 $alignMode = if ($align) { $align.ToString().ToLower() } else { 'center' }
-                try {
-                    if ($alignMode -eq 'left') {
-                        Com-Set $story 'Alignment' 1 # cdrLeftAlignment
-                    } elseif ($alignMode -eq 'right') {
-                        Com-Set $story 'Alignment' 2 # cdrRightAlignment
-                    } else {
-                        Com-Set $story 'Alignment' 3 # cdrCenterAlignment
-                    }
-                } catch {}
+                if ($story) {
+                    try {
+                        if ($alignMode -eq 'left') {
+                            Com-Set $story 'Alignment' 1 # cdrLeftAlignment
+                        } elseif ($alignMode -eq 'right') {
+                            Com-Set $story 'Alignment' 2 # cdrRightAlignment
+                        } else {
+                            Com-Set $story 'Alignment' 3 # cdrCenterAlignment
+                        }
+                    } catch {}
+                }
             }
 
             $curW = [double](Com-Get $ts 'SizeWidth')
@@ -4251,7 +4267,7 @@ ${COREL_CONNECT_PS}
         try {
             $shps = Com-Get $container 'Shapes'
             if ($shps) {
-                $found = Com-Call $shps 'FindShapes' @("", [int]6, [bool]$true)
+                $found = Com-Call $shps 'FindShapes' @([Type]::Missing, [int]6, [bool]$true)
                 $fcnt = if ($found) { [int](Com-Get $found 'Count') } else { 0 }
                 if ($fcnt -gt 0) {
                     for ($k = 1; $k -le $fcnt; $k++) {
@@ -4289,27 +4305,29 @@ ${COREL_CONNECT_PS}
         return $list
     }
 
-    # Match any text shape to its intended data mapping (supports NAMA, 00, multiple numbers, placeholders)
+    # Match any text shape to its intended data mapping (supports NAMA, 00, multiple numbers, placeholders, sizes)
     function Get-ShapeMatchingMapping([string]$txt, $mappingsList) {
         if ([string]::IsNullOrWhiteSpace($txt) -or -not $mappingsList) { return $null }
         $tClean = $txt.Trim()
         $tLow = $tClean.ToLower()
+        $tNorm = $tClean.Trim('.', '[', ']', '{', '}', ':', ' ', '#', '"', "'", '-', '_')
+        $tNormLow = $tNorm.ToLower()
 
-        # 1. Exact match with placeholder, bare placeholder, label, or column
+        # 1. Exact match with placeholder, bare placeholder, label, column, or normalized forms
         foreach ($m in $mappingsList) {
             $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
-            $bare = $ph.Trim('[', ']', '{', '}')
+            $bare = $ph.Trim('[', ']', '{', '}', '.', ':')
             $lbl = if ($m.label) { [string]$m.label.Trim() } else { '' }
             $col = if ($m.column) { [string]$m.column.Trim() } else { '' }
 
-            if ($ph -and ($tClean -ieq $ph -or $tClean -match ('^' + [regex]::Escape($ph) + '$'))) { return $m }
-            if ($bare -and ($tClean -ieq $bare -or $tClean -match ('^' + [regex]::Escape($bare) + '$'))) { return $m }
-            if ($lbl -and ($tClean -ieq $lbl)) { return $m }
-            if ($col -and ($tClean -ieq $col)) { return $m }
+            if ($ph -and ($tClean -ieq $ph -or $tNormLow -ieq $ph.ToLower() -or $tClean -match ('^' + [regex]::Escape($ph) + '$'))) { return $m }
+            if ($bare -and ($tClean -ieq $bare -or $tNormLow -ieq $bare.ToLower() -or $tClean -match ('^' + [regex]::Escape($bare) + '$'))) { return $m }
+            if ($lbl -and ($tClean -ieq $lbl -or $tNormLow -ieq $lbl.ToLower())) { return $m }
+            if ($col -and ($tClean -ieq $col -or $tNormLow -ieq $col.ToLower())) { return $m }
         }
 
-        # 2. Semantic matching for Player Name: "NAMA", "NAME", "PEMAIN", "PLAYER"
-        if ($tLow -match '^(nama|name|pemain|player|nama\s*pemain)$' -or $tClean -match '^\[?(nama|name|pemain)\]?$') {
+        # 2. Semantic matching for Player Name: "NAMA", "NAME", "PEMAIN", "PLAYER", "NAMA PUNGGUNG", "NAMA DADA"
+        if ($tNormLow -match '^(nama|name|pemain|player|nama\s*pemain|nama\s*punggung|nama\s*dada|nama\s*lengkap)$' -or $tClean -match '^\[?(nama|name|pemain)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
                 if ($comb -match 'nama|name|pemain') { return $m }
@@ -4317,30 +4335,30 @@ ${COREL_CONNECT_PS}
         }
 
         # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches both back and pants!)
-        if ($tClean -match '^\d{1,3}$' -or $tLow -match '^(nomor|number|no|no\.|no\s*punggung|#)$' -or $tClean -match '^\[?(nomor|number|no)\]?$') {
+        if ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#)$' -or $tClean -match '^\[?(nomor|number|no)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
-                if ($comb -match 'nomor|number|no\b|punggung') { return $m }
+                if ($comb -match 'nomor|number|no\b|punggung|celana') { return $m }
             }
         }
 
-        # 4. Semantic matching for Sponsor
-        if ($tLow -match '^(sponsor|sponsor\s*depan)$' -or $tClean -match '^\[?sponsor\]?$') {
+        # 4. Semantic matching for Sponsor / Team
+        if ($tNormLow -match '^(sponsor|sponsor\s*depan|sponsor\s*belakang|tim|team|club)$' -or $tClean -match '^\[?sponsor\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
-                if ($comb -match 'sponsor') { return $m }
+                if ($comb -match 'sponsor|tim|team|club') { return $m }
             }
         }
 
-        # 5. Semantic matching for Size
-        if ($tLow -match '^(ukuran|size|size\s*jersey)$' -or $tClean -match '^\[?(ukuran|size)\]?$') {
+        # 5. Semantic matching for Size: "UKURAN", "SIZE", ".SIZE", "SIZE JERSEY", or standard size badges (S, M, L, XL, etc.)
+        if ($tNormLow -match '^(ukuran|size|size\s*jersey)$' -or $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl)$' -or $tClean -match '^\[?(ukuran|size)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
                 if ($comb -match 'ukuran|size') { return $m }
             }
         }
 
-        # 6. Embedded placeholder inside string (e.g. "NO: [NOMOR]")
+        # 6. Embedded placeholder inside string (e.g. "NO: [NOMOR]" or "SIZE: [UKURAN]")
         foreach ($m in $mappingsList) {
             $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
             if ($ph -and $tClean -match [regex]::Escape($ph)) { return $m }
@@ -4357,8 +4375,8 @@ ${COREL_CONNECT_PS}
             if (-not $ts) { continue }
             $txtObj = Com-Get $ts 'Text'
             $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
-            if (-not $story) { continue }
-            $curText = ([string](Com-Get $story 'Text')).Trim()
+            if (-not $story -and -not $txtObj) { continue }
+            $curText = if ($story) { ([string](Com-Get $story 'Text')).Trim() } else { ([string](Com-Get $txtObj 'Contents')).Trim() }
 
             $m = Get-ShapeMatchingMapping $curText $mappingsList
             if (-not $m) { continue }
@@ -4369,7 +4387,13 @@ ${COREL_CONNECT_PS}
             $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { $fallbackMaxW }
             $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
 
-            Apply-TextToShape $ts $val $m.align $m.textCase $mW $lR
+            $finalVal = [string]$val
+            $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
+            if ($ph -and $curText -match [regex]::Escape($ph) -and $curText -ne $ph) {
+                $finalVal = $curText -replace [regex]::Escape($ph), [string]$val
+            }
+
+            Apply-TextToShape $ts $finalVal $m.align $m.textCase $mW $lR
         }
     }
 
@@ -4511,24 +4535,6 @@ ${COREL_CONNECT_PS}
             }
 
             try { UpdateJerseyCard $card $p $mappings $maxW } catch {}
-
-            if ($autoCurves) {
-                try {
-                    $cTexts = @(Find-AllShapeTexts $card)
-                    for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
-                        try {
-                            $ct = $cTexts[$ck]
-                            if ($ct) {
-                                try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
-                            }
-                        } catch {}
-                    }
-                } catch {}
-            }
-
-            $created++
-        } catch {}
-    }
 
             if ($autoCurves) {
                 try {

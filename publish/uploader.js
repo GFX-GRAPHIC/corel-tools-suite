@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.8:\n- Perbaikan Penggantian Teks Nama & Nomor Jersey: Mode teks CorelDRAW dipastikan aktif penuh saat injeksi teks nama dan nomor pemain, menjamin seluruh nama dan nomor (baik di punggung maupun celana) terganti 100% sempurna.\n- Smart Multi-Placement Detection: Teks angka \"00\" di punggung dan di celana otomatis terisi nomor pemain sekaligus tanpa bentrok atau tertukar.\n- Proteksi Teks Logo: Teks merek/logo pada pola jersey tidak akan terganggu atau tertimpa data pemain.\n- Akselerasi & Timeout Dinamis: Duplikasi pola tetap secepat kilat dengan batas timeout hingga 10 menit tanpa risiko gagal di tengah jalan.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.9:\n- 100% Silent Background Auto-Update: Menghilangkan jendela CMD dan proses console find, proses update berjalan senyap tanpa pop-up hitam.\n- Perbaikan Total Auto-Layout Jersey: Mengatasi syntax error PowerShell yang sempat muncul di v1.0.8, kini penataan berjalan mulus dan stabil.\n- Smart Text Replacement Multi-Posisi & Size: Mengganti teks nama, nomor (punggung & celana), ukuran (.SIZE / S / M / L / XL), serta sponsor dengan presisi penuh tanpa merusak font atau rasio.\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),
