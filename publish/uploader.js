@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.6:\n- Eliminasi Glitch Zooming CorelDRAW: Pembersihan cache grafis viewport DirectX/GPU otomatis setelah layout selesai, mencegah objek bayangan (ghosting) saat zoom in/out.\n- Smart Silent Portable Updater: Penggantian file pembaruan portable kini berjalan 100% senyap tanpa jendela terminal hitam yang menggantung.\n- Verifikasi Integritas File: Sistem memeriksa ukuran dan keutuhan paket secara ketat untuk mencegah NSIS error.\n- Layout Pola: Dual-Mode Live Preview (Pop-out Window Mandiri Always on Top & Side-by-Side Split-View) dengan navigasi varian Next/Prev.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.7:\n- Auto Layout Jersey Super Cepat: Optimasi COM CorelDRAW diaktifkan selama penataan jersey, memangkas waktu proses hingga 15x lebih cepat (hanya ~0.15 detik per jersey).\n- Eliminasi Timeout Eksekusi: Batas waktu PowerShell diekspansi dinamis sesuai jumlah jersey (minimal 10 menit), mengatasi error Command Failed di tengah proses penataan batch besar.\n- Proteksi Error Per-Jersey: Isolasi try-catch per kartu sehingga jika ada objek teks khusus terkunci tidak akan membatalkan sisa antrean pola lainnya.\n- Pembersihan Cache DirectX/GPU: Toggling viewport otomatis setelah layout jersey selesai untuk mencegah glitch zoom dan objek bayangan.\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),

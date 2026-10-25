@@ -4311,10 +4311,10 @@ ${COREL_CONNECT_PS}
         return @{ targetW = $tw; targetH = $th }
     }
 
-    # Optimization kept OFF during layout to ensure real-time glyph metrics and prevent GPU tile cache desync
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { Com-Set $corel 'EventsEnabled' $false } catch {}
     try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Auto-Layout Jersey")) } catch {}
+    try { [void](Com-Call $doc 'ClearSelection') } catch {}
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     $cardList = @()
     $cardList += ,$masterShape
@@ -4334,74 +4334,86 @@ ${COREL_CONNECT_PS}
 
     # Duplicate pristine master template shapes for all cards first
     for ($i = 1; $i -lt $playerList.Count; $i++) {
-        if ($dir -eq 'horizontal') {
-            if ($rowCount -ge $limit) {
-                $currentY -= ($rowMaxH + $spacing)
-                $currentX = 0.0
-                $rowCount = 0
-                $rowMaxH = 0.0
+        try {
+            if ($dir -eq 'horizontal') {
+                if ($rowCount -ge $limit) {
+                    $currentY -= ($rowMaxH + $spacing)
+                    $currentX = 0.0
+                    $rowCount = 0
+                    $rowMaxH = 0.0
+                }
+                $dx = $currentX
+                $dy = $currentY
+            } else {
+                # vertical
+                if ($colCount -ge $limit) {
+                    $currentX += ($colMaxW + $spacing)
+                    $currentY = 0.0
+                    $colCount = 0
+                    $colMaxW = 0.0
+                }
+                $dx = $currentX
+                $dy = $currentY
             }
-            $dx = $currentX
-            $dy = $currentY
-        } else {
-            # vertical
-            if ($colCount -ge $limit) {
-                $currentX += ($colMaxW + $spacing)
-                $currentY = 0.0
-                $colCount = 0
-                $colMaxW = 0.0
+
+            $dup = Com-Call $masterShape 'Duplicate' @([double]$dx, [double]$dy)
+            if ($dup) {
+                $cardList += ,$dup
             }
-            $dx = $currentX
-            $dy = $currentY
-        }
 
-        $dup = Com-Call $masterShape 'Duplicate' @([double]$dx, [double]$dy)
-        $cardList += ,$dup
-
-        if ($dir -eq 'horizontal') {
-            $rowMaxH = [math]::Max($rowMaxH, $origMasterH)
-            $currentX += ($origMasterW + $spacing)
-            $rowCount++
-        } else {
-            $colMaxW = [math]::Max($colMaxW, $origMasterW)
-            $currentY -= ($origMasterH + $spacing)
-            $colCount++
-        }
+            if ($dir -eq 'horizontal') {
+                $rowMaxH = [math]::Max($rowMaxH, $origMasterH)
+                $currentX += ($origMasterW + $spacing)
+                $rowCount++
+            } else {
+                $colMaxW = [math]::Max($colMaxW, $origMasterW)
+                $currentY -= ($origMasterH + $spacing)
+                $colCount++
+            }
+        } catch {}
     }
 
-    # Now populate data and apply auto-resize to each card
+    # Now populate data and apply auto-resize to each card with per-card isolation
     $created = 0
     for ($i = 0; $i -lt $cardList.Count; $i++) {
-        $card = $cardList[$i]
-        $p = $playerList[$i]
-        $sz = Get-FieldValue $p 'Ukuran'
-        if (-not $sz) { $sz = Get-FieldValue $p 'Size' }
-        $dim = Get-SizeDimensions $sz $sizeChart $masterRatio $origMasterW $origMasterH
-        $targetW = [double]$dim.targetW
-        $targetH = [double]$dim.targetH
+        try {
+            $card = $cardList[$i]
+            if (-not $card) { continue }
+            $p = $playerList[$i]
+            if (-not $p) { continue }
+            $sz = Get-FieldValue $p 'Ukuran'
+            if (-not $sz) { $sz = Get-FieldValue $p 'Size' }
+            $dim = Get-SizeDimensions $sz $sizeChart $masterRatio $origMasterW $origMasterH
+            $targetW = [double]$dim.targetW
+            $targetH = [double]$dim.targetH
 
-        if ($enableAutoResize -and $targetW -gt 0 -and $targetH -gt 0 -and ([math]::Abs($targetW - $origMasterW) -gt 0.01 -or [math]::Abs($targetH - $origMasterH) -gt 0.01)) {
-            try { [void](Com-Call $card 'SetSize' @([double]$targetW, [double]$targetH)) } catch {
-                Com-Set $card 'SizeWidth' ([double]$targetW)
-                Com-Set $card 'SizeHeight' ([double]$targetH)
+            if ($enableAutoResize -and $targetW -gt 0 -and $targetH -gt 0 -and ([math]::Abs($targetW - $origMasterW) -gt 0.01 -or [math]::Abs($targetH - $origMasterH) -gt 0.01)) {
+                try { [void](Com-Call $card 'SetSize' @([double]$targetW, [double]$targetH)) } catch {
+                    try {
+                        Com-Set $card 'SizeWidth' ([double]$targetW)
+                        Com-Set $card 'SizeHeight' ([double]$targetH)
+                    } catch {}
+                }
             }
-        }
 
-        UpdateJerseyCard $card $p $bindings $maxW
+            try { UpdateJerseyCard $card $p $bindings $maxW } catch {}
 
-        if ($autoCurves) {
-            $cTexts = @(Find-AllShapeTexts $card)
-            for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
+            if ($autoCurves) {
                 try {
-                    $ct = $cTexts[$ck]
-                    if ($ct) {
-                        try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
+                    $cTexts = @(Find-AllShapeTexts $card)
+                    for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
+                        try {
+                            $ct = $cTexts[$ck]
+                            if ($ct) {
+                                try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
+                            }
+                        } catch {}
                     }
                 } catch {}
             }
-        }
 
-        $created++
+            $created++
+        } catch {}
     }
 
     # Deselect all shapes to stop CorelDRAW GPU engine from calculating live selection matrices on zoom
@@ -4409,30 +4421,30 @@ ${COREL_CONNECT_PS}
     try { [void](Com-Call $corel 'ClearSelection') } catch {}
 
     if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
+    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
     try { Com-Set $corel 'EventsEnabled' $true } catch {}
     try { Com-Set $corel 'Optimization' $false } catch {}
-    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
 
-    # Comprehensive viewport refresh and cache purge across application and active window/view
+    # Comprehensive Viewport & Tile Cache Invalidation:
+    # Toggling ViewMode (Wireframe -> Enhanced) forces CorelDRAW GPU pipeline to dump stale tile caches
+    try {
+        $win = Com-Get $corel 'ActiveWindow'
+        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
+        if ($win) {
+            $curMode = Com-Get $win 'ViewMode'
+            if ($null -ne $curMode) {
+                try { Com-Set $win 'ViewMode' 1 } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+                try { Com-Set $win 'ViewMode' $curMode } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            } else {
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            }
+        }
+    } catch {}
     try { [void](Com-Call $corel 'Refresh') } catch {}
-    try {
-        $aw = Com-Get $corel 'ActiveWindow'
-        if ($aw) {
-            [void](Com-Call $aw 'Refresh')
-            $av = Com-Get $aw 'ActiveView'
-            if ($av) { try { [void](Com-Call $av 'ScreenRefresh') } catch {} }
-        }
-    } catch {}
-    try {
-        $docAw = Com-Get $doc 'ActiveWindow'
-        if ($docAw) {
-            [void](Com-Call $docAw 'Refresh')
-            $docAv = Com-Get $docAw 'ActiveView'
-            if ($docAv) { try { [void](Com-Call $docAv 'ScreenRefresh') } catch {} }
-        }
-    } catch {}
 
-    $result.success = $true
+    $result.success = ($created -gt 0)
     $result.count = $created
     $result.message = "Berhasil menata $created pola jersey di CorelDRAW!"
 } catch {
@@ -4447,14 +4459,6 @@ ${COREL_CONNECT_PS}
                 try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
             }
             try { [void](Com-Call $corel 'Refresh') } catch {}
-            try {
-                $aw = Com-Get $corel 'ActiveWindow'
-                if ($aw) {
-                    [void](Com-Call $aw 'Refresh')
-                    $av = Com-Get $aw 'ActiveView'
-                    if ($av) { try { [void](Com-Call $av 'ScreenRefresh') } catch {} }
-                }
-            } catch {}
         }
     } catch {}
     $result.success = $false
@@ -4468,10 +4472,11 @@ $result | ConvertTo-Json -Compress
 `;
 
     fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
+    const dynamicTimeout = Math.max(600000, (dataList ? dataList.length : 20) * 15000);
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path, tempJsonPath],
-      { timeout: 45000 },
+      { timeout: dynamicTimeout },
       (err, stdout, stderr) => {
         try {
           if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
