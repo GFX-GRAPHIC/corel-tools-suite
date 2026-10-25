@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.1.2:\n- Perbaikan Tombol Tambah Ukuran Size: Mengganti prompt() browser/Electron yang sebelumnya macet/tidak merespon dengan penambahan baris ukuran secara instan dan otomatis (urutan XS hingga 8XL atau custom). Kolom nama ukuran kini dapat diketik dan diedit langsung di tabel.\n- Smart Ratio Sync: Menjaga rasio lebar dan tinggi pola jersey saat menambah atau mengedit ukuran baru agar selalu proporsional sesuai pola master CorelDRAW.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.1.3:\n- Perbaikan Tombol Tambah Ukuran Size di Floating Companion Window: Menghilangkan window.prompt() yang terblokir pada Chromium/Electron sehingga penambahan baris ukuran (4XL, 5XL, 6XL...) berjalan instan sekali klik.\n- Input Nama Ukuran Fleksibel: Kolom ukuran pada tabel kini berupa input teks langsung (bisa diketik bebas, misal ANAK-10, JUMBO, dll).\n- Sinkronisasi Rasio Master Pola: Menjaga proporsi lebar x tinggi pola secara akurat sesuai bentuk pola jersey di CorelDRAW.\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),

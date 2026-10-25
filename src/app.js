@@ -5256,17 +5256,22 @@ Catatan: Lengan Panjang
   const btnOrderAddColumn = document.getElementById('btnOrderAddColumn');
   if (btnOrderAddColumn) {
     btnOrderAddColumn.addEventListener('click', () => {
-      const colName = prompt('Masukkan nama kolom baru (contoh: Nama Dada, Kerah, dll.):');
-      if (colName && colName.trim()) {
-        const cleanCol = colName.trim();
-        if (cleanCol.toLowerCase().includes('dada')) {
-          orderShowDada = true;
-        } else if (!orderActiveCustomCols.includes(cleanCol)) {
-          orderActiveCustomCols.push(cleanCol);
-        }
-        renderOrderTable();
-        showToast(`Kolom "${cleanCol}" berhasil ditambahkan.`);
+      let colName = null;
+      try {
+        colName = prompt('Masukkan nama kolom baru (contoh: Nama Dada, Kerah, dll.):');
+      } catch {}
+      if (!colName || !colName.trim()) {
+        const nextNum = orderActiveCustomCols.length + 1;
+        colName = `Kolom Baru ${nextNum}`;
       }
+      const cleanCol = colName.trim();
+      if (cleanCol.toLowerCase().includes('dada')) {
+        orderShowDada = true;
+      } else if (!orderActiveCustomCols.includes(cleanCol)) {
+        orderActiveCustomCols.push(cleanCol);
+      }
+      renderOrderTable();
+      showToast(`Kolom "${cleanCol}" berhasil ditambahkan.`);
     });
   }
 

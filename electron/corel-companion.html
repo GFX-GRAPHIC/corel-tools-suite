@@ -2179,7 +2179,9 @@
       sizeChart.forEach((item, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><b style="color: #1d4ed8; font-size: 11px;">${item.size}</b></td>
+          <td>
+            <input type="text" class="input-size-chart txt-sc-size" data-idx="${idx}" value="${item.size}" style="width: 52px; height: 22px; font-weight: 800; text-transform: uppercase; color: #1d4ed8; text-align: center; padding: 0 2px;" title="Klik untuk mengubah nama ukuran" />
+          </td>
           <td>
             <div style="display: inline-flex; align-items: center; gap: 2px;">
               <input type="number" step="0.5" class="input-size-chart txt-sc-height" data-idx="${idx}" value="${item.height}" />
@@ -2202,10 +2204,15 @@
           </td>
         `;
 
+        const inSz = tr.querySelector('.txt-sc-size');
         const inH = tr.querySelector('.txt-sc-height');
         const inW = tr.querySelector('.txt-sc-width');
         const bLock = tr.querySelector('.btn-sc-lock');
         const bDel = tr.querySelector('.btn-sc-del');
+
+        inSz.addEventListener('input', () => {
+          item.size = inSz.value.trim().toUpperCase();
+        });
 
         inH.addEventListener('input', () => {
           const val = parseFloat(inH.value);
@@ -2301,29 +2308,51 @@
     });
 
     btnAddSizeRow.addEventListener('click', () => {
-      const szName = prompt('Masukkan nama ukuran baru (misal: 4XL atau ANAK-6):', '4XL');
-      if (!szName) return;
-      const cleanSz = szName.trim().toUpperCase();
-      if (sizeChart.some(s => s.size === cleanSz)) {
-        alert('Ukuran ini sudah ada di tabel.');
-        return;
+      // Determine the next logical size candidate
+      const standardSequence = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL'];
+      let nextSz = '';
+      for (const cand of standardSequence) {
+        if (!sizeChart.some(s => s.size === cand)) {
+          nextSz = cand;
+          break;
+        }
       }
+      if (!nextSz) {
+        let count = sizeChart.length + 1;
+        while (sizeChart.some(s => s.size === `SIZE-${count}`)) {
+          count++;
+        }
+        nextSz = `SIZE-${count}`;
+      }
+
       const lastH = sizeChart[sizeChart.length - 1]?.height || 76;
-      const newH = lastH + 2.5;
-      const newW = parseFloat((newH * masterRatio).toFixed(2));
-      sizeChart.push({ size: cleanSz, height: newH, width: newW, lockRatio: true });
+      const newH = parseFloat((lastH + 2.5).toFixed(1));
+      const curRatio = (masterRatio && !isNaN(masterRatio) && masterRatio > 0) ? masterRatio : 1.264;
+      const newW = parseFloat((newH * curRatio).toFixed(2));
+      sizeChart.push({ size: nextSz, height: newH, width: newW, lockRatio: true });
       renderSizeChartUI();
+
+      // Automatically focus and select the size name input of the newly added row
+      setTimeout(() => {
+        const inputs = tbodySizeChart.querySelectorAll('.txt-sc-size');
+        const lastInput = inputs[inputs.length - 1];
+        if (lastInput) {
+          lastInput.focus();
+          lastInput.select();
+        }
+      }, 50);
     });
 
     btnResetSizeChart.addEventListener('click', () => {
+      const curRatio = (masterRatio && !isNaN(masterRatio) && masterRatio > 0) ? masterRatio : 1.264;
       sizeChart = [
-        { size: 'XS', height: 68.0, width: parseFloat((68.0 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: 'S',  height: 71.0, width: parseFloat((71.0 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: 'M',  height: 73.5, width: parseFloat((73.5 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: 'L',  height: 76.0, width: parseFloat((76.0 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: 'XL', height: 78.5, width: parseFloat((78.5 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: 'XXL',height: 81.0, width: parseFloat((81.0 * masterRatio).toFixed(2)), lockRatio: true },
-        { size: '3XL',height: 83.5, width: parseFloat((83.5 * masterRatio).toFixed(2)), lockRatio: true }
+        { size: 'XS', height: 68.0, width: parseFloat((68.0 * curRatio).toFixed(2)), lockRatio: true },
+        { size: 'S',  height: 71.0, width: parseFloat((71.0 * curRatio).toFixed(2)), lockRatio: true },
+        { size: 'M',  height: 73.5, width: parseFloat((73.5 * curRatio).toFixed(2)), lockRatio: true },
+        { size: 'L',  height: 76.0, width: parseFloat((76.0 * curRatio).toFixed(2)), lockRatio: true },
+        { size: 'XL', height: 78.5, width: parseFloat((78.5 * curRatio).toFixed(2)), lockRatio: true },
+        { size: 'XXL',height: 81.0, width: parseFloat((81.0 * curRatio).toFixed(2)), lockRatio: true },
+        { size: '3XL',height: 83.5, width: parseFloat((83.5 * curRatio).toFixed(2)), lockRatio: true }
       ];
       renderSizeChartUI();
     });
