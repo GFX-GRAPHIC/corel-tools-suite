@@ -4159,13 +4159,26 @@ ${COREL_CONNECT_PS}
         throw "Tidak ada data pemain yang cocok untuk ukuran '$targetSize'."
     }
 
+    # Helper: Apparel size ranking for proper garment ordering
+    function Get-SizeRank($sz) {
+        if (-not $sz) { return 999 }
+        $s = $sz.ToString().Trim().ToUpper()
+        $ranks = @{
+            'XS ANAK' = 1; 'S ANAK' = 2; 'M ANAK' = 3; 'L ANAK' = 4; 'XL ANAK' = 5; 'XXL ANAK' = 6
+            '2XS' = 10; 'XXS' = 10; 'XS' = 11; 'S' = 12; 'M' = 13; 'L' = 14; 'XL' = 15; 'XXL' = 16; '2XL' = 16
+            '3XL' = 17; 'XXXL' = 17; '4XL' = 18; '5XL' = 19; '6XL' = 20; '7XL' = 21
+        }
+        if ($ranks.ContainsKey($s)) { return $ranks[$s] }
+        return 100
+    }
+
     # Sort players by size if requested
     if ($groupBySize) {
-        $playerList = $playerList | Sort-Object {
+        $playerList = @($playerList | Sort-Object {
             $s = Get-FieldValue $_ 'Ukuran'
             if (-not $s) { $s = Get-FieldValue $_ 'Size' }
-            $s
-        }
+            Get-SizeRank $s
+        })
     }
 
     # Format text shape with font casing, alignment, proportional scaling, and true centering
@@ -4415,11 +4428,25 @@ ${COREL_CONNECT_PS}
                     break
                 }
             }
-        } elseif ($chart.Keys) {
+        }
+        if (-not $entry -and $chart.Keys) {
             foreach ($k in $chart.Keys) {
                 if ($k.ToString().Trim().ToUpper() -eq $cleanSz) {
                     $entry = $chart[$k]
                     break
+                }
+            }
+        }
+        # Normalized fallback (e.g. "L" matching "SIZE L" or "UKURAN L")
+        if (-not $entry) {
+            $cleanBare = $cleanSz -replace '^(?:SIZE|UKURAN|UK\.?|SZ\.?)\s*', ''
+            if ($chart.PSObject -and $chart.PSObject.Properties) {
+                foreach ($prop in $chart.PSObject.Properties) {
+                    $pName = $prop.Name.Trim().ToUpper() -replace '^(?:SIZE|UKURAN|UK\.?|SZ\.?)\s*', ''
+                    if ($pName -eq $cleanBare) {
+                        $entry = $prop.Value
+                        break
+                    }
                 }
             }
         }
@@ -4428,13 +4455,27 @@ ${COREL_CONNECT_PS}
             return @{ targetW = $origW; targetH = $origH }
         }
 
-        $tw = if ($entry.width) { [double]$entry.width } else { 0.0 }
-        $th = if ($entry.height) { [double]$entry.height } else { 0.0 }
-        $isLock = if ($entry.lockRatio -ne $null) { [bool]$entry.lockRatio } else { $true }
+        $tw = 0.0
+        $th = 0.0
+        $isLock = $true
 
-        if ($th -gt 0 -and $tw -le 0 -and $isLock) {
+        if ($entry.PSObject -and $entry.PSObject.Properties) {
+            if ($entry.PSObject.Properties['height'] -and $entry.height -ne $null) { $th = [double]$entry.height }
+            if ($entry.PSObject.Properties['width'] -and $entry.width -ne $null)   { $tw = [double]$entry.width }
+            if ($entry.PSObject.Properties['lockRatio'] -and $entry.lockRatio -ne $null) { $isLock = [bool]$entry.lockRatio }
+        } elseif ($entry.Keys) {
+            if ($entry['height'] -ne $null) { $th = [double]$entry['height'] }
+            if ($entry['width'] -ne $null)  { $tw = [double]$entry['width'] }
+            if ($entry.ContainsKey('lockRatio') -and $entry['lockRatio'] -ne $null) { $isLock = [bool]$entry['lockRatio'] }
+        } else {
+            if ($entry.height -ne $null) { $th = [double]$entry.height }
+            if ($entry.width -ne $null)  { $tw = [double]$entry.width }
+            if ($entry.lockRatio -ne $null) { $isLock = [bool]$entry.lockRatio }
+        }
+
+        if ($th -gt 0 -and $tw -le 0 -and $isLock -and $mRatio -gt 0) {
             $tw = [math]::Round(($th * $mRatio), 3)
-        } elseif ($tw -gt 0 -and $th -le 0 -and $isLock) {
+        } elseif ($tw -gt 0 -and $th -le 0 -and $isLock -and $mRatio -gt 0) {
             $th = [math]::Round(($tw / $mRatio), 3)
         } elseif ($tw -le 0 -and $th -le 0) {
             $tw = $origW
@@ -4444,166 +4485,190 @@ ${COREL_CONNECT_PS}
         return @{ targetW = $tw; targetH = $th }
     }
 
-    # Step 1: Duplication with Optimization = $true for lightning fast creation of 20+ cards
-    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Auto-Layout Jersey")) } catch {}
-    try { [void](Com-Call $doc 'ClearSelection') } catch {}
-    try { Com-Set $corel 'Optimization' $true } catch {}
-    try { Com-Set $corel 'EventsEnabled' $false } catch {}
+    # Helper: Multi-strategy shape resizing for grouped CorelDRAW patterns
+    function Resize-JerseyShape($shp, [double]$targetW, [double]$targetH) {
+        if (-not $shp -or $targetW -le 0 -or $targetH -le 0) { return }
+        $curW = [double](Com-Get $shp 'SizeWidth')
+        $curH = [double](Com-Get $shp 'SizeHeight')
+        if ([math]::Abs($curW - $targetW) -lt 0.05 -and [math]::Abs($curH - $targetH) -lt 0.05) { return }
 
-    $cardList = @()
-    $cardList += ,$masterShape
-
-    $currentX = 0.0
-    $currentY = 0.0
-    $colMaxW = $origMasterW
-    $rowMaxH = $origMasterH
-    $colCount = 1
-    $rowCount = 1
-
-    if ($dir -eq 'horizontal') {
-        $currentX += ($origMasterW + $spacing)
-    } else {
-        $currentY -= ($origMasterH + $spacing)
-    }
-
-    # Duplicate pristine master template shapes for all cards first
-    for ($i = 1; $i -lt $playerList.Count; $i++) {
+        # Strategy 1: Direct SetSize via PowerShell CLR COM Binder
         try {
-            if ($dir -eq 'horizontal') {
-                if ($rowCount -ge $limit) {
-                    $currentY -= ($rowMaxH + $spacing)
-                    $currentX = 0.0
-                    $rowCount = 0
-                    $rowMaxH = 0.0
-                }
-                $dx = $currentX
-                $dy = $currentY
-            } else {
-                # vertical
-                if ($colCount -ge $limit) {
-                    $currentX += ($colMaxW + $spacing)
-                    $currentY = 0.0
-                    $colCount = 0
-                    $colMaxW = 0.0
-                }
-                $dx = $currentX
-                $dy = $currentY
-            }
+            $shp.SetSize([double]$targetW, [double]$targetH)
+            $hNow = [double](Com-Get $shp 'SizeHeight')
+            if ([math]::Abs($hNow - $targetH) -lt 0.1) { return }
+        } catch {}
 
-            $dup = Com-Call $masterShape 'Duplicate' @([double]$dx, [double]$dy)
-            if ($dup) {
-                $cardList += ,$dup
-            }
+        # Strategy 2: Reflection InvokeMember (pure DISPATCH_METHOD)
+        try {
+            [void]$shp.GetType().InvokeMember('SetSize', [System.Reflection.BindingFlags]::InvokeMethod, $null, $shp, @([double]$targetW, [double]$targetH))
+            $hNow = [double](Com-Get $shp 'SizeHeight')
+            if ([math]::Abs($hNow - $targetH) -lt 0.1) { return }
+        } catch {}
 
-            if ($dir -eq 'horizontal') {
-                $rowMaxH = [math]::Max($rowMaxH, $origMasterH)
-                $currentX += ($origMasterW + $spacing)
-                $rowCount++
-            } else {
-                $colMaxW = [math]::Max($colMaxW, $origMasterW)
-                $currentY -= ($origMasterH + $spacing)
-                $colCount++
-            }
+        # Strategy 3: FastCom Call
+        try {
+            [void](Com-Call $shp 'SetSize' @([double]$targetW, [double]$targetH))
+            $hNow = [double](Com-Get $shp 'SizeHeight')
+            if ([math]::Abs($hNow - $targetH) -lt 0.1) { return }
+        } catch {}
+
+        # Strategy 4: Proportional Stretch (Universal fallback for all shape types including grouped shapes)
+        if ($curW -gt 0 -and $curH -gt 0) {
+            try {
+                $scaleX = $targetW / $curW
+                $scaleY = $targetH / $curH
+                try {
+                    $shp.Stretch([double]$scaleX, [double]$scaleY)
+                } catch {
+                    [void]$shp.GetType().InvokeMember('Stretch', [System.Reflection.BindingFlags]::InvokeMethod, $null, $shp, @([double]$scaleX, [double]$scaleY))
+                }
+                $hNow = [double](Com-Get $shp 'SizeHeight')
+                if ([math]::Abs($hNow - $targetH) -lt 0.1) { return }
+            } catch {}
+        }
+
+        # Strategy 5: Direct Property Put
+        try {
+            Com-Set $shp 'SizeHeight' ([double]$targetH)
+            Com-Set $shp 'SizeWidth' ([double]$targetW)
         } catch {}
     }
 
-    # Step 2: CRITICAL - Turn OFF optimization and enable events so CorelDRAW text engine & glyph metrics are 100% active!
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    $commandGroupOpen = $false
+    try {
+        [void](Com-Call $doc 'BeginCommandGroup' @("CTS Auto-Layout Jersey"))
+        $commandGroupOpen = $true
+    } catch {}
 
-    # Step 3: Now populate data, auto-resize each card, and convert to curves if requested
+    # Ensure ReferencePoint is Top-Left (cdrTopLeft = 1) so PositionX and PositionY are true Left and Top
+    try { Com-Set $doc 'ReferencePoint' 1 } catch {}
+    try { [void](Com-Call $doc 'ClearSelection') } catch {}
+
+    $startX = [double](Com-Get $masterShape 'PositionX')
+    $startY = [double](Com-Get $masterShape 'PositionY')
+
+    $curPosX = $startX
+    $curPosY = $startY
+    $rowMaxH = 0.0
+    $colMaxW = 0.0
+    $rowCount = 0
+    $colCount = 0
+
     $created = 0
-    for ($i = 0; $i -lt $cardList.Count; $i++) {
-        try {
-            $card = $cardList[$i]
-            if (-not $card) { continue }
-            $p = $playerList[$i]
-            if (-not $p) { continue }
-            $sz = Get-FieldValue $p 'Ukuran'
-            if (-not $sz) { $sz = Get-FieldValue $p 'Size' }
-            $dim = Get-SizeDimensions $sz $sizeChart $masterRatio $origMasterW $origMasterH
-            $targetW = [double]$dim.targetW
-            $targetH = [double]$dim.targetH
+    for ($i = 0; $i -lt $playerList.Count; $i++) {
+        $p = $playerList[$i]
+        if (-not $p) { continue }
 
-            if ($enableAutoResize -and $targetW -gt 0 -and $targetH -gt 0 -and ([math]::Abs($targetW - $origMasterW) -gt 0.01 -or [math]::Abs($targetH - $origMasterH) -gt 0.01)) {
-                try { [void](Com-Call $card 'SetSize' @([double]$targetW, [double]$targetH)) } catch {
-                    try {
-                        Com-Set $card 'SizeWidth' ([double]$targetW)
-                        Com-Set $card 'SizeHeight' ([double]$targetH)
-                    } catch {}
-                }
-            }
-
-            try { UpdateJerseyCard $card $p $mappings $maxW } catch {}
-
-            if ($autoCurves) {
+        $card = $null
+        if ($i -eq 0) {
+            $card = $masterShape
+        } else {
+            # Duplicate pristine master template in place (no offset parameters)
+            $card = Com-Call $masterShape 'Duplicate'
+            if (-not $card) {
                 try {
-                    $cTexts = @(Find-AllShapeTexts $card)
-                    for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
-                        try {
-                            $ct = $cTexts[$ck]
-                            if ($ct) {
-                                try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
-                            }
-                        } catch {}
-                    }
+                    $card = $masterShape.GetType().InvokeMember('Duplicate', [System.Reflection.BindingFlags]::InvokeMethod, $null, $masterShape, $null)
                 } catch {}
             }
+        }
 
-            $created++
-        } catch {}
+        if (-not $card) { continue }
+
+        # Step A: Resolve target size dimensions and resize BEFORE calculating next position
+        $sz = Get-FieldValue $p 'Ukuran'
+        if (-not $sz) { $sz = Get-FieldValue $p 'Size' }
+        $dim = Get-SizeDimensions $sz $sizeChart $masterRatio $origMasterW $origMasterH
+        $targetW = [double]$dim.targetW
+        $targetH = [double]$dim.targetH
+
+        if ($enableAutoResize -and $targetW -gt 0 -and $targetH -gt 0) {
+            Resize-JerseyShape $card $targetW $targetH
+        }
+
+        # Step B: Read actual measured dimensions after resize
+        $cardW = [double](Com-Get $card 'SizeWidth')
+        $cardH = [double](Com-Get $card 'SizeHeight')
+        if ($cardW -le 0) { $cardW = if ($targetW -gt 0) { $targetW } else { $origMasterW } }
+        if ($cardH -le 0) { $cardH = if ($targetH -gt 0) { $targetH } else { $origMasterH } }
+
+        # Step C: Position card exactly using absolute coordinates
+        if ($dir -eq 'horizontal') {
+            if ($rowCount -ge $limit) {
+                # Wrap to next row
+                $curPosX = $startX
+                $curPosY -= ($rowMaxH + $spacing)
+                $rowCount = 0
+                $rowMaxH = 0.0
+            }
+
+            Com-Set $card 'PositionX' ([double]$curPosX)
+            Com-Set $card 'PositionY' ([double]$curPosY)
+
+            $rowMaxH = [math]::Max($rowMaxH, $cardH)
+            $curPosX += ($cardW + $spacing)
+            $rowCount++
+        } else {
+            # vertical
+            if ($colCount -ge $limit) {
+                # Wrap to next column
+                $curPosY = $startY
+                $curPosX += ($colMaxW + $spacing)
+                $colCount = 0
+                $colMaxW = 0.0
+            }
+
+            Com-Set $card 'PositionX' ([double]$curPosX)
+            Com-Set $card 'PositionY' ([double]$curPosY)
+
+            $colMaxW = [math]::Max($colMaxW, $cardW)
+            $curPosY -= ($cardH + $spacing)
+            $colCount++
+        }
+
+        # Step D: Update text data
+        try { UpdateJerseyCard $card $p $mappings $maxW } catch {}
+
+        # Step E: Convert to curves if requested
+        if ($autoCurves) {
+            try {
+                $cTexts = @(Find-AllShapeTexts $card)
+                for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
+                    try {
+                        $ct = $cTexts[$ck]
+                        if ($ct) {
+                            try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
+                        }
+                    } catch {}
+                }
+            } catch {}
+        }
+
+        $created++
     }
 
-    # Deselect all shapes to stop CorelDRAW GPU engine from calculating live selection matrices on zoom
     try { [void](Com-Call $doc 'ClearSelection') } catch {}
     try { [void](Com-Call $corel 'ClearSelection') } catch {}
-
-    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
-    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
-    try { Com-Set $corel 'Optimization' $false } catch {}
-
-    # Comprehensive Viewport & Tile Cache Invalidation:
-    # Toggling ViewMode (Wireframe -> Enhanced) forces CorelDRAW GPU pipeline to dump stale tile caches
-    try {
-        $win = Com-Get $corel 'ActiveWindow'
-        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
-        if ($win) {
-            $curMode = Com-Get $win 'ViewMode'
-            if ($null -ne $curMode) {
-                try { Com-Set $win 'ViewMode' 1 } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-                try { Com-Set $win 'ViewMode' $curMode } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            } else {
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            }
-        }
-    } catch {}
     try { [void](Com-Call $corel 'Refresh') } catch {}
 
     $result.success = ($created -gt 0)
     $result.count = $created
     $result.message = "Berhasil menata $created pola jersey di CorelDRAW!"
 } catch {
-    try {
-        if ($corel) {
-            try { [void](Com-Call $doc 'ClearSelection') } catch {}
-            try { [void](Com-Call $corel 'ClearSelection') } catch {}
-            try { Com-Set $corel 'Optimization' $false } catch {}
-            try { Com-Set $corel 'EventsEnabled' $true } catch {}
-            if ($doc) {
-                if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
-                try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
-            }
-            try { [void](Com-Call $corel 'Refresh') } catch {}
-        }
-    } catch {}
     $result.success = $false
     $result.message = $_.Exception.Message
 } finally {
-    if ($doc) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc) | Out-Null } catch {} }
-    if ($corel) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($corel) | Out-Null } catch {} }
+    if ($commandGroupOpen -and $doc) {
+        try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
+    }
+    if ($null -ne $origDocUnit -and $doc) {
+        try { Com-Set $doc 'Unit' $origDocUnit } catch {}
+    }
+    if ($corel) {
+        try { Com-Set $corel 'EventsEnabled' $true } catch {}
+        try { Com-Set $corel 'Optimization' $false } catch {}
+        try { [void](Com-Call $corel 'Refresh') } catch {}
+    }
     [GC]::Collect()
 }
 $result | ConvertTo-Json -Compress
