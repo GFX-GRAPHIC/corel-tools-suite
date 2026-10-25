@@ -3050,7 +3050,8 @@ document.addEventListener('DOMContentLoaded', () => {
           return {
             id: vIdx + 1,
             column: colKey,
-            placeholder: v.placeholder,
+            placeholder: v.placeholder ? v.placeholder.trim() : `[VAR_${vIdx + 1}]`,
+            label: v.label || v.placeholder,
             align: 'center',
             textCase: 'none',
             maxWidth: 27.0,
@@ -3062,11 +3063,32 @@ document.addEventListener('DOMContentLoaded', () => {
           const rowObj = {};
           jerseyManualVars.forEach((v, vIdx) => {
             const val = varLines[vIdx][r] || '';
-            rowObj[`Col_${vIdx + 1}`] = val;
-            const phLow = v.placeholder.toLowerCase();
-            if (phLow.includes('nama') || phLow.includes('name')) rowObj.Nama = val;
-            if (phLow.includes('nomor') || phLow.includes('number') || phLow.includes('no')) rowObj.Nomor = val;
-            if (phLow.includes('ukuran') || phLow.includes('size')) rowObj.Ukuran = val;
+            const colKey = `Col_${vIdx + 1}`;
+            rowObj[colKey] = val;
+            if (v.placeholder) {
+              rowObj[v.placeholder] = val;
+              const phBare = v.placeholder.replace(/[\[\]\{\}]/g, '').trim();
+              if (phBare) rowObj[phBare] = val;
+            }
+            if (v.label) {
+              rowObj[v.label] = val;
+            }
+            const phComb = ((v.placeholder || '') + ' ' + (v.label || '')).toLowerCase();
+            if (phComb.includes('nama') || phComb.includes('name') || phComb.includes('pemain') || phComb.includes('player')) {
+              rowObj.Nama = val;
+              rowObj.Name = val;
+            }
+            if (phComb.includes('nomor') || phComb.includes('number') || phComb.includes('no') || phComb.includes('00') || phComb.includes('#') || v.placeholder === '[00]') {
+              rowObj.Nomor = val;
+              rowObj.Number = val;
+            }
+            if (phComb.includes('ukuran') || phComb.includes('size') || phComb.includes('sz')) {
+              rowObj.Ukuran = val;
+              rowObj.Size = val;
+            }
+            if (phComb.includes('sponsor') || phComb.includes('tim') || phComb.includes('team') || phComb.includes('club')) {
+              rowObj.Sponsor = val;
+            }
           });
           finalPlayers.push(rowObj);
         }

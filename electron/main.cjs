@@ -4110,14 +4110,14 @@ ${COREL_CONNECT_PS}
                 if ($v -ne '') { return $v }
             }
         }
-        if ($combined -match 'nomor|number|no\b|punggung|celana') {
-            foreach ($k in @('number','nomor','no','punggung','no punggung','nomor punggung','no_punggung','nomor_punggung','no celana','nomor celana','no.','Col_1','Col_2','Col_3')) {
+        if ($combined -match 'nomor|number|no\b|punggung|celana|00|#') {
+            foreach ($k in @('number','nomor','no','punggung','no punggung','nomor punggung','no_punggung','nomor_punggung','no celana','nomor celana','no.','00','[00]','Col_2','Col_1','Col_3')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
         }
-        if ($combined -match 'ukuran|size') {
-            foreach ($k in @('size','ukuran','Ukuran','Size','sz','Col_3','Col_4')) {
+        if ($combined -match 'ukuran|size|sz') {
+            foreach ($k in @('size','ukuran','Ukuran','Size','sz','SIZE','UKURAN','[SIZE]','[UKURAN]','Col_3','Col_4')) {
                 $v = Get-FieldValue $p $k
                 if ($v -ne '') { return $v }
             }
@@ -4198,10 +4198,15 @@ ${COREL_CONNECT_PS}
             $txtObj = Com-Get $ts 'Text'
             $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
             if ($story -or $txtObj) {
+                $tSet = $false
                 if ($story) {
-                    try { Com-Set $story 'Text' ([string]$val) } catch { try { Com-Set $txtObj 'Contents' ([string]$val) } catch {} }
-                } else {
-                    try { Com-Set $txtObj 'Contents' ([string]$val) } catch {}
+                    try { $story.Text = [string]$val; $tSet = $true } catch {}
+                    if (-not $tSet) { try { Com-Set $story 'Text' ([string]$val); $tSet = $true } catch {} }
+                    if (-not $tSet) { try { [void]$story.GetType().InvokeMember('Text', [System.Reflection.BindingFlags]::SetProperty, $null, $story, @([string]$val)); $tSet = $true } catch {} }
+                }
+                if (-not $tSet -and $txtObj) {
+                    try { $txtObj.Contents = [string]$val; $tSet = $true } catch {}
+                    if (-not $tSet) { try { Com-Set $txtObj 'Contents' ([string]$val); $tSet = $true } catch {} }
                 }
 
                 if ($story -and $textCase -and $textCase -ne 'none') {
@@ -4339,6 +4344,46 @@ ${COREL_CONNECT_PS}
             if ($col -and ($tClean -ieq $col -or $tNormLow -ieq $col.ToLower())) { return $m }
         }
 
+        # 1b. Check if text matches existing sample player values (e.g. template already has "ALEXANDER", "10", "L")
+        if ($rawPlayers -and $rawPlayers.Count -gt 0) {
+            foreach ($pSample in $rawPlayers) {
+                $pName = Get-FieldValue $pSample 'Nama'
+                if (-not $pName) { $pName = Get-FieldValue $pSample 'Name' }
+                if ($pName -and $tClean -ieq $pName.Trim()) {
+                    foreach ($m in $mappingsList) {
+                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        if ($comb -match 'nama|name|pemain|player') { return $m }
+                    }
+                }
+
+                $pNum = Get-FieldValue $pSample 'Nomor'
+                if (-not $pNum) { $pNum = Get-FieldValue $pSample 'Number' }
+                if ($pNum -and $tClean -ieq $pNum.Trim()) {
+                    foreach ($m in $mappingsList) {
+                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        if ($comb -match 'nomor|number|no\b|punggung|celana|00|#') { return $m }
+                    }
+                }
+
+                $pSz = Get-FieldValue $pSample 'Ukuran'
+                if (-not $pSz) { $pSz = Get-FieldValue $pSample 'Size' }
+                if ($pSz -and ($tClean -ieq $pSz.Trim() -or $tClean -ieq ('SIZE ' + $pSz.Trim()) -or $tClean -ieq ('UKURAN ' + $pSz.Trim()))) {
+                    foreach ($m in $mappingsList) {
+                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        if ($comb -match 'ukuran|size|sz') { return $m }
+                    }
+                }
+
+                $pSp = Get-FieldValue $pSample 'Sponsor'
+                if ($pSp -and $tClean -ieq $pSp.Trim()) {
+                    foreach ($m in $mappingsList) {
+                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        if ($comb -match 'sponsor|tim|team|club') { return $m }
+                    }
+                }
+            }
+        }
+
         # 2. Semantic matching for Player Name: "NAMA", "NAME", "PEMAIN", "PLAYER", "NAMA PUNGGUNG", "NAMA DADA"
         if ($tNormLow -match '^(nama|name|pemain|player|nama\s*pemain|nama\s*punggung|nama\s*dada|nama\s*lengkap)$' -or $tClean -match '^\[?(nama|name|pemain)\]?$') {
             foreach ($m in $mappingsList) {
@@ -4348,10 +4393,10 @@ ${COREL_CONNECT_PS}
         }
 
         # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches both back and pants!)
-        if ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#)$' -or $tClean -match '^\[?(nomor|number|no)\]?$') {
+        if ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$' -or $tClean -match '^\[?(nomor|number|no|00|#)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
-                if ($comb -match 'nomor|number|no\b|punggung|celana') { return $m }
+                if ($comb -match 'nomor|number|no\b|punggung|celana|00|#') { return $m }
             }
         }
 
@@ -4364,10 +4409,10 @@ ${COREL_CONNECT_PS}
         }
 
         # 5. Semantic matching for Size: "UKURAN", "SIZE", ".SIZE", "SIZE JERSEY", or standard size badges (S, M, L, XL, etc.)
-        if ($tNormLow -match '^(ukuran|size|size\s*jersey)$' -or $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl)$' -or $tClean -match '^\[?(ukuran|size)\]?$') {
+        if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz)$' -or $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all)$' -or $tClean -match '^\[?(ukuran|size|sz)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
-                if ($comb -match 'ukuran|size') { return $m }
+                if ($comb -match 'ukuran|size|sz') { return $m }
             }
         }
 
@@ -4555,25 +4600,28 @@ ${COREL_CONNECT_PS}
     $rowCount = 0
     $colCount = 0
 
-    $created = 0
-    for ($i = 0; $i -lt $playerList.Count; $i++) {
-        $p = $playerList[$i]
-        if (-not $p) { continue }
+    # Step 1: Duplicate ALL needed cards 1..N FIRST from $masterShape while $masterShape is 100% pristine!
+    $cardList = @()
+    $cardList += ,$masterShape
 
-        $card = $null
-        if ($i -eq 0) {
-            $card = $masterShape
-        } else {
-            # Duplicate pristine master template in place (no offset parameters)
-            $card = Com-Call $masterShape 'Duplicate'
-            if (-not $card) {
-                try {
-                    $card = $masterShape.GetType().InvokeMember('Duplicate', [System.Reflection.BindingFlags]::InvokeMethod, $null, $masterShape, $null)
-                } catch {}
-            }
+    for ($i = 1; $i -lt $playerList.Count; $i++) {
+        $dup = Com-Call $masterShape 'Duplicate'
+        if (-not $dup) {
+            try {
+                $dup = $masterShape.GetType().InvokeMember('Duplicate', [System.Reflection.BindingFlags]::InvokeMethod, $null, $masterShape, $null)
+            } catch {}
         }
+        if ($dup) {
+            $cardList += ,$dup
+        }
+    }
 
-        if (-not $card) { continue }
+    # Step 2: Now step through each card, resize, position, and update text
+    $created = 0
+    for ($i = 0; $i -lt $cardList.Count; $i++) {
+        $card = $cardList[$i]
+        $p = $playerList[$i]
+        if (-not $card -or -not $p) { continue }
 
         # Step A: Resolve target size dimensions and resize BEFORE calculating next position
         $sz = Get-FieldValue $p 'Ukuran'
