@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.1.1:\n- Perbaikan Total Penggantian Teks Jersey Multi-Pola: Mengatasi masalah nama, nomor, dan teks ukuran (Size) yang sebelumnya tidak terganti pada kartu ke-2 dan seterusnya karena duplikasi mendahului update master. Kini semua pola diduplikasi dari template master murni sehingga setiap pemain (Card 1, 2, 3, 4, dst.) mendapatkan nama, nomor, dan size yang unik dan sesuai dengan data input.\n- Smart Recognition untuk Sample Template: Menambahkan deteksi otomatis untuk teks template yang sudah berisi contoh nama/nomor/size (misal ALEXANDER, 10, L, atau placeholder [00], [SIZE], dsb.) sehingga langsung teridentifikasi dan terganti dengan tepat.\n- Dukungan Penuh Placeholder [00] dan [SIZE]: Mengintegrasikan placeholder varian konveksi secara menyeluruh baik pada input manual maupun impor tabel.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.1.2:\n- Perbaikan Tombol Tambah Ukuran Size: Mengganti prompt() browser/Electron yang sebelumnya macet/tidak merespon dengan penambahan baris ukuran secara instan dan otomatis (urutan XS hingga 8XL atau custom). Kolom nama ukuran kini dapat diketik dan diedit langsung di tabel.\n- Smart Ratio Sync: Menjaga rasio lebar dan tinggi pola jersey saat menambah atau mengedit ukuran baru agar selalu proporsional sesuai pola master CorelDRAW.\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),
