@@ -235,8 +235,21 @@ async function main() {
       process.exit(1);
     }
 
-    // Auto-sync files from dist-release if any
-    syncFilesToPublishDir();
+    const cliArgs = process.argv.slice(2);
+    let cliVersion = '';
+    let cliAuto = false;
+    let cliBuild = false;
+
+    for (let i = 0; i < cliArgs.length; i++) {
+      if (cliArgs[i] === '--version' && cliArgs[i + 1]) {
+        cliVersion = cliArgs[i + 1].replace(/^v/, '');
+        i++;
+      } else if (cliArgs[i] === '--auto' || cliArgs[i] === '--yes' || cliArgs[i] === '-y') {
+        cliAuto = true;
+      } else if (cliArgs[i] === '--build') {
+        cliBuild = true;
+      }
+    }
 
     let owner = DEFAULT_OWNER;
     let repo = DEFAULT_REPO;
@@ -254,6 +267,19 @@ async function main() {
       } catch {}
     }
 
+    if (cliVersion) {
+      appVersion = cliVersion;
+      try {
+        const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf-8'));
+        pkg.version = appVersion;
+        fs.writeFileSync(PKG_PATH, JSON.stringify(pkg, null, 2), 'utf-8');
+        console.log(`[OK] Versi target CLI ditetapkan: ${appVersion}\n`);
+      } catch {}
+    }
+
+    // Auto-sync files from dist-release if any
+    syncFilesToPublishDir();
+
     // Check existing ready-made files
     let readyFiles = fs.readdirSync(PUBLISH_DIR).filter((f) => {
       if (f === 'uploader.js' || f === 'UPLOAD_UPDATE.bat' || f.endsWith('.tmp')) return false;
@@ -261,13 +287,23 @@ async function main() {
       return f.endsWith('.exe') || f.endsWith('.yml') || f.endsWith('.blockmap');
     });
 
-    const hasSetup = readyFiles.some((f) => f.toLowerCase().includes('setup') && f.endsWith('.exe'));
+    const hasSetup = readyFiles.some((f) => f.toLowerCase().includes('setup') && f.endsWith('.exe') && f.includes(appVersion));
     const hasYml = readyFiles.some((f) => f === 'latest.yml');
 
     console.log(`Repository Target  : ${owner}/${repo}`);
     console.log(`Versi Terdeteksi   : ${appVersion} (Tag: v${appVersion})\n`);
 
-    if (hasSetup && hasYml) {
+    if (cliBuild) {
+      console.log('[*] Flag --build aktif: Memulai build installer...\n');
+      await runBuildProcess();
+    } else if (cliAuto) {
+      if (!hasSetup || !hasYml) {
+        console.log('[*] Mode otomatis: Installer belum lengkap, menjalankan build...\n');
+        await runBuildProcess();
+      } else {
+        console.log('[*] Mode otomatis: Menggunakan installer yang sudah tersedia.\n');
+      }
+    } else if (hasSetup && hasYml) {
       console.log(`[INFO] File rilis yang SUDAH JADI ditemukan di folder publish:`);
       readyFiles.forEach((f) => {
         const sz = (fs.statSync(path.join(PUBLISH_DIR, f)).size / (1024 * 1024)).toFixed(2);
@@ -331,6 +367,8 @@ async function main() {
       targetRelease = listRes.data.find((r) => r.tag_name === releaseTag);
     }
 
+    const defaultReleaseBody = `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nPeningkatan & Performa ${releaseTag}:\n- Peningkatan Kecepatan Ekstrim: Proses penataan pola jersey massal (60+ pola) kini berjalan dalam ~10-20 detik (sebelumnya ~6 menit).\n- Optimasi Memori RAM CorelDRAW: Menggunakan Optimization = true dan menonaktifkan rendering kanvas serta event inter-process selama batch loop berjalan.\n- Text Shape Path Caching: Struktur pola master dipetakan secara otomatis sehingga resolusi teks nama, nomor punggung, nomor celana, dan ukuran pada kartu duplikat berjalan instan (< 2 milidetik per kartu).\n- Penataan Teks Aman & Akurat: 100% mempertahankan kecocokan nama, nomor punggung, nomor celana, dan ukuran tanpa merubah format desain.\n- Fast Filter Non-Group Objects: Melewati ribuan kurva non-kontainer secara langsung untuk memangkas ribuan panggilan COM yang tidak perlu.\n\nInstaller Setup dan Portable siap digunakan.`;
+
     if (!targetRelease) {
       console.log(`[*] Membuat rilis baru di GitHub (${releaseTag})...`);
       const createRes = await githubApi(
@@ -340,7 +378,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.1.3:\n- Perbaikan Tombol Tambah Ukuran Size di Floating Companion Window: Menghilangkan window.prompt() yang terblokir pada Chromium/Electron sehingga penambahan baris ukuran (4XL, 5XL, 6XL...) berjalan instan sekali klik.\n- Input Nama Ukuran Fleksibel: Kolom ukuran pada tabel kini berupa input teks langsung (bisa diketik bebas, misal ANAK-10, JUMBO, dll).\n- Sinkronisasi Rasio Master Pola: Menjaga proporsi lebar x tinggi pola secara akurat sesuai bentuk pola jersey di CorelDRAW.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: defaultReleaseBody,
           draft: true,
           prerelease: false,
         }),
@@ -354,6 +392,16 @@ async function main() {
       console.log(`[OK] Release draft dibuat (ID: ${targetRelease.id})`);
     } else {
       console.log(`[*] Memperbarui Release ${releaseTag} yang sudah ada (ID: ${targetRelease.id})...`);
+      // Update body as well
+      await githubApi(
+        token,
+        `/repos/${owner}/${repo}/releases/${targetRelease.id}`,
+        'PATCH',
+        JSON.stringify({
+          body: defaultReleaseBody,
+        }),
+        { 'Content-Type': 'application/json' }
+      );
     }
 
     const uploadUrl = targetRelease.upload_url;

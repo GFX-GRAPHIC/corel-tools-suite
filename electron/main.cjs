@@ -1086,6 +1086,11 @@ public static class FastCom {
     }
 
     private static void WriteVariant(object val, IntPtr slot) {
+        if (val != null && val is Array) {
+            Array a = (Array)val;
+            if (a.Length > 0) val = a.GetValue(0);
+            else val = null;
+        }
         if (val != null && Marshal.IsComObject(val)) {
             IntPtr pDisp = Marshal.GetIDispatchForObject(val);
             Marshal.WriteInt16(slot, 0, 9);
@@ -1100,6 +1105,11 @@ public static class FastCom {
 
     private static object InvokeInternal(object comObj, string name, short flags, object[] args, bool isPut) {
         if (comObj == null) return null;
+        if (comObj is Array) {
+            Array arr = (Array)comObj;
+            if (arr.Length > 0) comObj = arr.GetValue(0);
+            else return null;
+        }
         var disp = comObj as IDispatchRaw;
         if (disp == null) throw new InvalidOperationException("Object does not implement IDispatch");
         int dispId = GetDispId(comObj, disp, name);
@@ -1161,7 +1171,7 @@ public static class FastCom {
 }
 "@
     if (-not ("FastCom" -as [type])) {
-        $fastComDll = Join-Path $env:TEMP "CorelFastCom_v2.dll"
+        $fastComDll = Join-Path $env:TEMP "CorelFastCom_v4.dll"
         if (Test-Path $fastComDll) {
             try { Add-Type -Path $fastComDll -ErrorAction Stop } catch {}
         }
@@ -1177,10 +1187,13 @@ public static class FastCom {
 
     function Com-Get($obj, [string]$prop, [object[]]$argsList = $null) {
         if ($null -eq $obj) { return $null }
+        if ($obj -is [System.Array]) {
+            if ($obj.Length -gt 0) { $obj = $obj[0] } else { return $null }
+        }
         try {
             $res = [FastCom]::Get($obj, $prop, $argsList)
             if ($null -eq $res) { return $null }
-            return ,$res
+            return $res
         } catch {
             return $null
         }
@@ -1188,6 +1201,9 @@ public static class FastCom {
 
     function Com-Set($obj, [string]$prop, $val) {
         if ($null -eq $obj) { return }
+        if ($obj -is [System.Array]) {
+            if ($obj.Length -gt 0) { $obj = $obj[0] } else { return }
+        }
         try {
             [FastCom]::Set($obj, $prop, $val)
         } catch {}
@@ -1195,9 +1211,16 @@ public static class FastCom {
 
     function Com-Call($obj, [string]$method, [object[]]$argsList = $null) {
         if ($null -eq $obj) { return $null }
-        $res = [FastCom]::Call($obj, $method, $argsList)
-        if ($null -eq $res) { return $null }
-        return ,$res
+        if ($obj -is [System.Array]) {
+            if ($obj.Length -gt 0) { $obj = $obj[0] } else { return $null }
+        }
+        try {
+            $res = [FastCom]::Call($obj, $method, $argsList)
+            if ($null -eq $res) { return $null }
+            return $res
+        } catch {
+            return $null
+        }
     }
 
     function Get-CorelMajorFromCom($obj) {
@@ -3919,7 +3942,28 @@ ipcMain.handle('corel:execute-layout', async (_event, payload) => {
       groupBySize = false
     } = payload || {};
 
-    const dataList = (players && players.length > 0) ? players : rows;
+    // PowerShell ConvertFrom-Json rejects keys that differ only by letter case
+    // (e.g. 'NAMA' and 'Nama'), so collapse such keys and keep the first non-empty value.
+    const dedupeKeysCI = (obj) => {
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+      const out = {};
+      const seen = new Map();
+      for (const [k, v] of Object.entries(obj)) {
+        const low = String(k).toLowerCase();
+        if (seen.has(low)) {
+          const prevKey = seen.get(low);
+          const prevEmpty = out[prevKey] === '' || out[prevKey] === null || out[prevKey] === undefined;
+          if (prevEmpty && v !== '' && v !== null && v !== undefined) out[prevKey] = v;
+          continue;
+        }
+        seen.set(low, k);
+        out[k] = v;
+      }
+      return out;
+    };
+
+    const rawList = (players && players.length > 0) ? players : rows;
+    const dataList = Array.isArray(rawList) ? rawList.map(dedupeKeysCI) : [];
     if (!dataList || dataList.length === 0) {
       return resolve({ success: false, message: 'Daftar data pemain kosong.' });
     }
@@ -3932,8 +3976,8 @@ ipcMain.handle('corel:execute-layout', async (_event, payload) => {
     const dataPayload = {
       targetSize: targetSize || 'ALL',
       players: dataList,
-      mappings: Array.isArray(mappings) ? mappings : [],
-      sizeChart: sizeChart || {},
+      mappings: Array.isArray(mappings) ? mappings.map(dedupeKeysCI) : [],
+      sizeChart: dedupeKeysCI(sizeChart || {}),
       enableAutoResize: !!enableAutoResize,
       autoCurves: !!autoCurves,
       masterSize: masterSize || 'L',
@@ -3957,43 +4001,111 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    function Get-RangeCount($r) {
-        if (-not $r) { return 0 }
-        try {
-            $cnt = Com-Get $r 'Count'
-            if ($null -ne $cnt) { return [int]$cnt }
-        } catch {}
-        try {
-            $shps = Com-Get $r 'Shapes'
-            if ($shps) {
-                $cnt2 = Com-Get $shps 'Count'
-                if ($null -ne $cnt2) { return [int]$cnt2 }
-            }
-        } catch {}
-        return 0
-    }
     function Get-RangeItem($r, [int]$idx) {
         if (-not $r) { return $null }
-        try {
-            $it = Com-Get $r 'Item' @($idx)
-            if ($it) { return ,$it }
-        } catch {}
+        if ($r -is [System.Array]) {
+            if ($r.Length -gt 0) { $r = $r[0] } else { return $null }
+        }
         try {
             $shps = Com-Get $r 'Shapes'
             if ($shps) {
                 $it2 = Com-Get $shps 'Item' @($idx)
-                if ($it2) { return ,$it2 }
+                if ($it2) {
+                    if ($it2 -is [System.Array]) { if ($it2.Length -gt 0) { $it2 = $it2[0] } }
+                    return $it2
+                }
+            }
+        } catch {}
+        try {
+            $it = Com-Get $r 'Item' @($idx)
+            if ($it) {
+                if ($it -is [System.Array]) { if ($it.Length -gt 0) { $it = $it[0] } }
+                return $it
             }
         } catch {}
         return $null
     }
 
-    $selection = Com-Get $corel 'ActiveSelection'
-    if (-not $selection -or (Get-RangeCount $selection) -eq 0) {
-        $selection = Com-Get $doc 'Selection'
+    # Resolve Active Selection from CorelDRAW using robust cascading strategy
+    $selection = $null
+    $selShapes = $null
+    $selCount  = 0
+
+    # 1. Try ActiveSelectionRange from Corel Application
+    try {
+        $cand = Com-Get $corel 'ActiveSelectionRange'
+        if ($cand) {
+            $shps = Com-Get $cand 'Shapes'
+            $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
+            if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
+        }
+    } catch {}
+
+    # 2. Try Selection from Document
+    if ($selCount -eq 0) {
+        try {
+            $cand = Com-Get $doc 'Selection'
+            if ($cand) {
+                $shps = Com-Get $cand 'Shapes'
+                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
+                if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
+            }
+        } catch {}
     }
-    $selCount = Get-RangeCount $selection
-    if ($selCount -eq 0) { throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu." }
+
+    # 3. Try SelectionRange from Document
+    if ($selCount -eq 0) {
+        try {
+            $cand = Com-Get $doc 'SelectionRange'
+            if ($cand) {
+                $shps = Com-Get $cand 'Shapes'
+                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
+                if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
+            }
+        } catch {}
+    }
+
+    # 4. Try ActiveSelection from Application
+    if ($selCount -eq 0) {
+        try {
+            $cand = Com-Get $corel 'ActiveSelection'
+            if ($cand) {
+                $shps = Com-Get $cand 'Shapes'
+                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
+                if ($c -gt 0) {
+                    $selection = $cand; $selShapes = $shps; $selCount = $c
+                } else {
+                    $sType = Com-Get $cand 'Type'
+                    if ($null -ne $sType -and [int]$sType -gt 0) {
+                        $selection = $cand; $selCount = 1
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    # 5. Try ActiveSelection from Document
+    if ($selCount -eq 0) {
+        try {
+            $cand = Com-Get $doc 'ActiveSelection'
+            if ($cand) {
+                $shps = Com-Get $cand 'Shapes'
+                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
+                if ($c -gt 0) {
+                    $selection = $cand; $selShapes = $shps; $selCount = $c
+                } else {
+                    $sType = Com-Get $cand 'Type'
+                    if ($null -ne $sType -and [int]$sType -gt 0) {
+                        $selection = $cand; $selCount = 1
+                    }
+                }
+            }
+        } catch {}
+    }
+
+    if ($selCount -eq 0 -or -not $selection) {
+        throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu."
+    }
 
     $jsonFile = $args[0]
     $data = Get-Content -Path $jsonFile -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -4181,9 +4293,23 @@ ${COREL_CONNECT_PS}
         })
     }
 
+    $dbgLog = Join-Path $env:TEMP "cts_jersey_debug.log"
+    $logBuffer = [System.Collections.Generic.List[string]]::new()
+    function Write-CtsLog($msg) {
+        try {
+            $ts = [DateTime]::Now.ToString("HH:mm:ss.fff")
+            $logBuffer.Add("[$ts] $msg")
+        } catch {}
+    }
+    Write-CtsLog "=== Starting CTS Jersey Auto-Layout ==="
+    Write-CtsLog "TargetSize: $targetSize, Spacing: $spacing, Limit: $limit, Direction: $dir, AutoResize: $enableAutoResize, AutoCurves: $autoCurves"
+
     # Format text shape with font casing, alignment, proportional scaling, and true centering
     function Apply-TextToShape($ts, $val, $align, $textCase, $maxWLimit, $lockRatio) {
         if (-not $ts) { return }
+        if ($ts -is [System.Array]) {
+            if ($ts.Length -gt 0) { $ts = $ts[0] } else { return }
+        }
         try {
             $origCenterX = [double](Com-Get $ts 'CenterX')
             $origCenterY = [double](Com-Get $ts 'CenterY')
@@ -4196,45 +4322,97 @@ ${COREL_CONNECT_PS}
             }
 
             $txtObj = Com-Get $ts 'Text'
+            if (-not $txtObj) { try { $txtObj = $ts.Text } catch {} }
+            if ($txtObj -is [System.Array]) { if ($txtObj.Length -gt 0) { $txtObj = $txtObj[0] } else { $txtObj = $null } }
+            
             $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
-            if ($story -or $txtObj) {
-                $tSet = $false
-                if ($story) {
-                    try { $story.Text = [string]$val; $tSet = $true } catch {}
-                    if (-not $tSet) { try { Com-Set $story 'Text' ([string]$val); $tSet = $true } catch {} }
-                    if (-not $tSet) { try { [void]$story.GetType().InvokeMember('Text', [System.Reflection.BindingFlags]::SetProperty, $null, $story, @([string]$val)); $tSet = $true } catch {} }
-                }
-                if (-not $tSet -and $txtObj) {
-                    try { $txtObj.Contents = [string]$val; $tSet = $true } catch {}
-                    if (-not $tSet) { try { Com-Set $txtObj 'Contents' ([string]$val); $tSet = $true } catch {} }
-                }
+            if (-not $story -and $txtObj) { try { $story = $txtObj.Story } catch {} }
+            if ($story -is [System.Array]) { if ($story.Length -gt 0) { $story = $story[0] } else { $story = $null } }
 
-                if ($story -and $textCase -and $textCase -ne 'none') {
-                    $cdrCaseEnum = switch ($textCase.ToLower()) {
-                        'sentence' { 1 }
-                        'lower'    { 2 }
-                        'upper'    { 3 }
-                        'title'    { 4 }
-                        'toggle'   { 5 }
-                        default    { 0 }
-                    }
-                    if ($cdrCaseEnum -gt 0) {
-                        try { Com-Set $story 'Case' $cdrCaseEnum } catch {}
-                    }
-                }
+            $targetStr = [string]$val
+            $tSet = $false
 
-                $alignMode = if ($align) { $align.ToString().ToLower() } else { 'center' }
-                if ($story) {
-                    try {
-                        if ($alignMode -eq 'left') {
-                            Com-Set $story 'Alignment' 1 # cdrLeftAlignment
-                        } elseif ($alignMode -eq 'right') {
-                            Com-Set $story 'Alignment' 2 # cdrRightAlignment
-                        } else {
-                            Com-Set $story 'Alignment' 3 # cdrCenterAlignment
-                        }
-                    } catch {}
+            # Method 1: Com-Set $story 'Text' $targetStr
+            if ($story) {
+                try {
+                    Com-Set $story 'Text' $targetStr
+                    $tSet = $true
+                } catch {}
+            }
+
+            # Method 2: Direct PowerShell property $story.Text = $targetStr
+            if (-not $tSet -and $story) {
+                try {
+                    $story.Text = $targetStr
+                    $nowTxt = [string]$story.Text
+                    if ($nowTxt.Trim() -eq $targetStr.Trim()) { $tSet = $true }
+                } catch {}
+            }
+
+            # Method 3: Com-Set $txtObj 'Contents' $targetStr
+            if (-not $tSet -and $txtObj) {
+                try {
+                    Com-Set $txtObj 'Contents' $targetStr
+                    $nowTxt = [string](Com-Get $story 'Text')
+                    if ($nowTxt.Trim() -eq $targetStr.Trim()) { $tSet = $true }
+                } catch {}
+            }
+
+            # Method 4: $txtObj.Contents = $targetStr
+            if (-not $tSet -and $txtObj) {
+                try {
+                    $txtObj.Contents = $targetStr
+                    $nowTxt = [string]$txtObj.Contents
+                    if ($nowTxt.Trim() -eq $targetStr.Trim()) { $tSet = $true }
+                } catch {}
+            }
+
+            # Method 5: $txtObj.Story = $targetStr
+            if (-not $tSet -and $txtObj) {
+                try {
+                    $txtObj.Story = $targetStr
+                    $nowTxt = [string](Com-Get $story 'Text')
+                    if ($nowTxt.Trim() -eq $targetStr.Trim()) { $tSet = $true }
+                } catch {}
+            }
+
+            # Method 6: Direct shape text access $ts.Text.Story.Text = $targetStr
+            if (-not $tSet) {
+                try {
+                    $ts.Text.Story.Text = $targetStr
+                    $nowTxt = [string]$ts.Text.Story.Text
+                    if ($nowTxt.Trim() -eq $targetStr.Trim()) { $tSet = $true }
+                } catch {}
+            }
+
+            Write-CtsLog "    Apply-TextToShape: Target='$targetStr', UpdatedSuccessfully=$tSet"
+
+            # Alignment & Case
+            if ($story -and $textCase -and $textCase -ne 'none') {
+                $cdrCaseEnum = switch ($textCase.ToLower()) {
+                    'sentence' { 1 }
+                    'lower'    { 2 }
+                    'upper'    { 3 }
+                    'title'    { 4 }
+                    'toggle'   { 5 }
+                    default    { 0 }
                 }
+                if ($cdrCaseEnum -gt 0) {
+                    try { Com-Set $story 'Case' $cdrCaseEnum } catch {}
+                }
+            }
+
+            $alignMode = if ($align) { $align.ToString().ToLower() } else { 'center' }
+            if ($story) {
+                try {
+                    if ($alignMode -eq 'left') {
+                        Com-Set $story 'Alignment' 1 # cdrLeftAlignment
+                    } elseif ($alignMode -eq 'right') {
+                        Com-Set $story 'Alignment' 2 # cdrRightAlignment
+                    } else {
+                        Com-Set $story 'Alignment' 3 # cdrCenterAlignment
+                    }
+                } catch {}
             }
 
             $curW = [double](Com-Get $ts 'SizeWidth')
@@ -4269,58 +4447,220 @@ ${COREL_CONNECT_PS}
         } catch {}
     }
 
-    # Robust recursive text finder using native CorelDRAW FindShapes with manual fallback
+    # Robust iterative text finder (deep traversal of any nesting level, zero stack overflow, zero infinite loops)
     function Find-AllShapeTexts($container) {
         $list = @()
-        if (-not $container) { return $list }
-        try {
-            $cType = [int](Com-Get $container 'Type')
-            if ($cType -eq 6) {
-                $list += ,$container
-                return $list
-            }
-        } catch {}
+        if ($null -eq $container) { return $list }
 
-        # 1. Native CorelDRAW recursive text search (Instant & 100% complete)
-        try {
-            $shps = Com-Get $container 'Shapes'
-            if ($shps) {
-                $found = Com-Call $shps 'FindShapes' @([Type]::Missing, [int]6, [bool]$true)
-                $fcnt = if ($found) { [int](Com-Get $found 'Count') } else { 0 }
-                if ($fcnt -gt 0) {
-                    for ($k = 1; $k -le $fcnt; $k++) {
-                        $it = Com-Get $found 'Item' @($k)
-                        if ($it) { $list += ,$it }
-                    }
-                    if ($list.Count -gt 0) { return $list }
-                }
-            }
-        } catch {}
+        $queue = [System.Collections.Queue]::new()
 
-        # 2. Manual recursive fallback including nested groups and PowerClips
-        try {
-            $shps = Com-Get $container 'Shapes'
-            $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-            for ($k = 1; $k -le $cnt; $k++) {
-                $s = Com-Get $shps 'Item' @($k)
-                if (-not $s) { continue }
-                $sType = [int](Com-Get $s 'Type')
-                if ($sType -eq 6) {
-                    $list += ,$s
-                } else {
-                    $sub = @(Find-AllShapeTexts $s)
-                    if ($sub.Count -gt 0) { $list += $sub }
-                }
+        if ($container -is [System.Array]) {
+            foreach ($c in $container) { if ($c) { $queue.Enqueue($c) } }
+        } else {
+            $queue.Enqueue($container)
+        }
+
+        $visited = 0
+        $maxShapes = 3000
+
+        while ($queue.Count -gt 0 -and $visited -lt $maxShapes) {
+            $visited++
+            $curr = $queue.Dequeue()
+            if ($null -eq $curr) { continue }
+            if ($curr -is [System.Array]) {
+                if ($curr.Length -gt 0) { $curr = $curr[0] } else { continue }
+            }
+
+            $sType = 0
+            try { $sType = [int](Com-Get $curr 'Type') } catch {}
+
+            # cdrTextShape = 6
+            if ($sType -eq 6) {
+                $list += $curr
+                continue
+            }
+
+            # Fast filter: Non-container shapes (curves = 3, rectangles = 1, ellipses = 2, bitmaps = 4)
+            # cannot contain child shapes. Skip immediately to avoid thousands of slow COM calls!
+            if ($sType -ne 7 -and $sType -ne 8 -and $sType -ne 0) {
+                continue
+            }
+
+            # 1. Inspect Child Shapes inside Group (Type=7), ShapeRange (Type=8), Selection, Page, Layer
+            $childShapes = $null
+            try { $childShapes = Com-Get $curr 'Shapes' } catch {}
+            if (-not $childShapes) { try { $childShapes = $curr.Shapes } catch {} }
+            if (-not $childShapes) {
                 try {
-                    $pc = Com-Get $s 'PowerClip'
-                    if ($pc) {
-                        $pcSub = @(Find-AllShapeTexts $pc)
-                        if ($pcSub.Count -gt 0) { $list += $pcSub }
+                    $grp = Com-Get $curr 'Group'
+                    if (-not $grp) { try { $grp = $curr.Group } catch {} }
+                    if ($grp) {
+                        $childShapes = Com-Get $grp 'Shapes'
+                        if (-not $childShapes) { try { $childShapes = $grp.Shapes } catch {} }
                     }
                 } catch {}
             }
-        } catch {}
+
+            if ($childShapes) {
+                $cnt = 0
+                try { $cnt = [int](Com-Get $childShapes 'Count') } catch {}
+                if ($cnt -eq 0) { try { $cnt = [int]$childShapes.Count } catch {} }
+
+                if ($cnt -gt 0) {
+                    for ($k = 1; $k -le $cnt; $k++) {
+                        $ch = $null
+                        try { $ch = Com-Get $childShapes 'Item' @($k) } catch {}
+                        if (-not $ch) { try { $ch = $childShapes.Item($k) } catch {} }
+                        if ($ch) { $queue.Enqueue($ch) }
+                    }
+                }
+            } elseif ($sType -eq 8 -or $sType -eq 0) {
+                # ShapeRange or Collection directly has Item(k)
+                $cnt = 0
+                try { $cnt = [int](Com-Get $curr 'Count') } catch {}
+                if ($cnt -gt 0) {
+                    for ($k = 1; $k -le $cnt; $k++) {
+                        $ch = $null
+                        try { $ch = Com-Get $curr 'Item' @($k) } catch {}
+                        if (-not $ch) { try { $ch = $curr.Item($k) } catch {} }
+                        if ($ch) { $queue.Enqueue($ch) }
+                    }
+                }
+            }
+
+            # 2. Check shapes inside PowerClip if any
+            try {
+                $pc = Com-Get $curr 'PowerClip'
+                if ($pc) {
+                    $pcShps = Com-Get $pc 'Shapes'
+                    if ($pcShps) {
+                        $pCnt = [int](Com-Get $pcShps 'Count')
+                        if ($pCnt -gt 0) {
+                            for ($pk = 1; $pk -le $pCnt; $pk++) {
+                                $pch = Com-Get $pcShps 'Item' @($pk)
+                                if ($pch) { $queue.Enqueue($pch) }
+                            }
+                        }
+                    }
+                }
+            } catch {}
+        }
+
         return $list
+    }
+
+    # Helper: Pre-index relative 1-based child shape paths of all text shapes in the master card
+    function Get-MasterTextPaths($root) {
+        $paths = [System.Collections.Generic.List[object]]::new()
+        if ($null -eq $root) { return $paths }
+
+        $q = [System.Collections.Queue]::new()
+        $q.Enqueue(@{ Node = $root; Path = [int[]]@() })
+        $visited = 0
+
+        while ($q.Count -gt 0 -and $visited -lt 2000) {
+            $visited++
+            $item = $q.Dequeue()
+            $currNode = $item.Node
+            $currPath = $item.Path
+            if ($null -eq $currNode) { continue }
+            if ($currNode -is [System.Array]) {
+                if ($currNode.Length -gt 0) { $currNode = $currNode[0] } else { continue }
+            }
+
+            $sType = 0
+            try { $sType = [int](Com-Get $currNode 'Type') } catch {}
+
+            # cdrTextShape = 6
+            if ($sType -eq 6) {
+                $paths.Add($currPath)
+                continue
+            }
+
+            # Only inspect child shapes if Group (7), ShapeRange (8), or root collection (0)
+            if ($sType -eq 7 -or $sType -eq 8 -or $sType -eq 0) {
+                $childShapes = $null
+                try { $childShapes = Com-Get $currNode 'Shapes' } catch {}
+                if (-not $childShapes) { try { $childShapes = $currNode.Shapes } catch {} }
+                if (-not $childShapes -and $sType -eq 7) {
+                    try {
+                        $grp = Com-Get $currNode 'Group'
+                        if ($grp) { $childShapes = Com-Get $grp 'Shapes' }
+                    } catch {}
+                }
+
+                if ($childShapes) {
+                    $cnt = 0
+                    try { $cnt = [int](Com-Get $childShapes 'Count') } catch {}
+                    if ($cnt -gt 0) {
+                        for ($k = 1; $k -le $cnt; $k++) {
+                            $ch = $null
+                            try { $ch = Com-Get $childShapes 'Item' @($k) } catch {}
+                            if (-not $ch) { try { $ch = $childShapes.Item($k) } catch {} }
+                            if ($ch) {
+                                $newPath = [int[]]($currPath + @($k))
+                                $q.Enqueue(@{ Node = $ch; Path = $newPath })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $paths
+    }
+
+    # Helper: Lightning-fast resolution of text shapes on duplicated cards via pre-indexed child paths
+    function Resolve-CardTextsByPaths($card, $paths) {
+        $resultTexts = @()
+        if (-not $card -or -not $paths -or $paths.Count -eq 0) { return $resultTexts }
+        if ($card -is [System.Array]) {
+            if ($card.Length -gt 0) { $card = $card[0] } else { return $resultTexts }
+        }
+
+        foreach ($p in $paths) {
+            if ($null -eq $p -or $p.Length -eq 0) {
+                $t = 0
+                try { $t = [int](Com-Get $card 'Type') } catch {}
+                if ($t -eq 6) { $resultTexts += $card }
+                continue
+            }
+
+            $curr = $card
+            $valid = $true
+            for ($pi = 0; $pi -lt $p.Length; $pi++) {
+                $idx = [int]$p[$pi]
+                $shps = $null
+                try { $shps = Com-Get $curr 'Shapes' } catch {}
+                if (-not $shps) { try { $shps = $curr.Shapes } catch {} }
+                if (-not $shps) { $valid = $false; break }
+
+                $ch = $null
+                try { $ch = Com-Get $shps 'Item' @($idx) } catch {}
+                if (-not $ch) { try { $ch = $shps.Item($idx) } catch {} }
+                if (-not $ch) { $valid = $false; break }
+                $curr = $ch
+            }
+
+            if ($valid -and $curr) {
+                if ($curr -is [System.Array]) { if ($curr.Length -gt 0) { $curr = $curr[0] } }
+                $t = 0
+                try { $t = [int](Com-Get $curr 'Type') } catch {}
+                if ($t -eq 6) {
+                    $resultTexts += $curr
+                }
+            }
+        }
+
+        return $resultTexts
+    }
+
+    # Helper: Build lowercase combined descriptor (placeholder + label + column) of a mapping
+    function Get-MappingComb($mp) {
+        if (-not $mp) { return '' }
+        $a = if ($mp.placeholder) { [string]$mp.placeholder } else { '' }
+        $b = if ($mp.label) { [string]$mp.label } else { '' }
+        $c = if ($mp.column) { [string]$mp.column } else { '' }
+        return ($a + ' ' + $b + ' ' + $c).ToLower()
     }
 
     # Match any text shape to its intended data mapping (supports NAMA, 00, multiple numbers, placeholders, sizes)
@@ -4349,35 +4689,46 @@ ${COREL_CONNECT_PS}
             foreach ($pSample in $rawPlayers) {
                 $pName = Get-FieldValue $pSample 'Nama'
                 if (-not $pName) { $pName = Get-FieldValue $pSample 'Name' }
+                if (-not $pName) { $pName = Get-FieldValue $pSample '[NAMA]' }
+                if (-not $pName) { $pName = Get-FieldValue $pSample 'col_0' }
                 if ($pName -and $tClean -ieq $pName.Trim()) {
                     foreach ($m in $mappingsList) {
-                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        $comb = Get-MappingComb $m
                         if ($comb -match 'nama|name|pemain|player') { return $m }
                     }
                 }
 
                 $pNum = Get-FieldValue $pSample 'Nomor'
                 if (-not $pNum) { $pNum = Get-FieldValue $pSample 'Number' }
+                if (-not $pNum) { $pNum = Get-FieldValue $pSample '00' }
+                if (-not $pNum) { $pNum = Get-FieldValue $pSample '[00]' }
+                if (-not $pNum) { $pNum = Get-FieldValue $pSample '[NOMOR]' }
+                if (-not $pNum) { $pNum = Get-FieldValue $pSample 'col_1' }
                 if ($pNum -and $tClean -ieq $pNum.Trim()) {
                     foreach ($m in $mappingsList) {
-                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        $comb = Get-MappingComb $m
                         if ($comb -match 'nomor|number|no\b|punggung|celana|00|#') { return $m }
                     }
                 }
 
                 $pSz = Get-FieldValue $pSample 'Ukuran'
                 if (-not $pSz) { $pSz = Get-FieldValue $pSample 'Size' }
+                if (-not $pSz) { $pSz = Get-FieldValue $pSample '[SIZE]' }
+                if (-not $pSz) { $pSz = Get-FieldValue $pSample '[UKURAN]' }
+                if (-not $pSz) { $pSz = Get-FieldValue $pSample 'col_2' }
                 if ($pSz -and ($tClean -ieq $pSz.Trim() -or $tClean -ieq ('SIZE ' + $pSz.Trim()) -or $tClean -ieq ('UKURAN ' + $pSz.Trim()))) {
                     foreach ($m in $mappingsList) {
-                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        $comb = Get-MappingComb $m
                         if ($comb -match 'ukuran|size|sz') { return $m }
                     }
                 }
 
                 $pSp = Get-FieldValue $pSample 'Sponsor'
+                if (-not $pSp) { $pSp = Get-FieldValue $pSample '[SPONSOR]' }
+                if (-not $pSp) { $pSp = Get-FieldValue $pSample 'col_3' }
                 if ($pSp -and $tClean -ieq $pSp.Trim()) {
                     foreach ($m in $mappingsList) {
-                        $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                        $comb = Get-MappingComb $m
                         if ($comb -match 'sponsor|tim|team|club') { return $m }
                     }
                 }
@@ -4387,7 +4738,7 @@ ${COREL_CONNECT_PS}
         # 2. Semantic matching for Player Name: "NAMA", "NAME", "PEMAIN", "PLAYER", "NAMA PUNGGUNG", "NAMA DADA"
         if ($tNormLow -match '^(nama|name|pemain|player|nama\s*pemain|nama\s*punggung|nama\s*dada|nama\s*lengkap)$' -or $tClean -match '^\[?(nama|name|pemain)\]?$') {
             foreach ($m in $mappingsList) {
-                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                $comb = Get-MappingComb $m
                 if ($comb -match 'nama|name|pemain') { return $m }
             }
         }
@@ -4395,7 +4746,7 @@ ${COREL_CONNECT_PS}
         # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches both back and pants!)
         if ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$' -or $tClean -match '^\[?(nomor|number|no|00|#)\]?$') {
             foreach ($m in $mappingsList) {
-                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                $comb = Get-MappingComb $m
                 if ($comb -match 'nomor|number|no\b|punggung|celana|00|#') { return $m }
             }
         }
@@ -4403,7 +4754,7 @@ ${COREL_CONNECT_PS}
         # 4. Semantic matching for Sponsor / Team
         if ($tNormLow -match '^(sponsor|sponsor\s*depan|sponsor\s*belakang|tim|team|club)$' -or $tClean -match '^\[?sponsor\]?$') {
             foreach ($m in $mappingsList) {
-                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                $comb = Get-MappingComb $m
                 if ($comb -match 'sponsor|tim|team|club') { return $m }
             }
         }
@@ -4411,7 +4762,7 @@ ${COREL_CONNECT_PS}
         # 5. Semantic matching for Size: "UKURAN", "SIZE", ".SIZE", "SIZE JERSEY", or standard size badges (S, M, L, XL, etc.)
         if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz)$' -or $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all)$' -or $tClean -match '^\[?(ukuran|size|sz)\]?$') {
             foreach ($m in $mappingsList) {
-                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                $comb = Get-MappingComb $m
                 if ($comb -match 'ukuran|size|sz') { return $m }
             }
         }
@@ -4426,39 +4777,161 @@ ${COREL_CONNECT_PS}
     }
 
     # Function to update any card (master or duplicated) by scanning all text shapes
-    function UpdateJerseyCard($cardShape, $player, $mappingsList, $fallbackMaxW) {
+    function UpdateJerseyCard($cardShape, $player, $mappingsList, $fallbackMaxW, $cachedPaths = $null) {
         if (-not $cardShape -or -not $player) { return }
-        $cardTexts = @(Find-AllShapeTexts $cardShape)
+        if ($cardShape -is [System.Array]) {
+            if ($cardShape.Length -gt 0) { $cardShape = $cardShape[0] } else { return }
+        }
+
+        # 1. Fast Path Resolution (resolves shapes in ~1-2ms instead of 4.7s)
+        $cardTexts = @()
+        if ($cachedPaths -and $cachedPaths.Count -gt 0) {
+            $cardTexts = @(Resolve-CardTextsByPaths $cardShape $cachedPaths)
+        }
+        # 2. Safety Fallback: If path resolution found nothing, fall back to BFS
+        if ($cardTexts.Count -eq 0) {
+            $cardTexts = @(Find-AllShapeTexts $cardShape)
+        }
+        Write-CtsLog "UpdateJerseyCard: Found $($cardTexts.Count) text shapes inside card"
+
         foreach ($ts in $cardTexts) {
             if (-not $ts) { continue }
+            if ($ts -is [System.Array]) {
+                if ($ts.Length -gt 0) { $ts = $ts[0] } else { continue }
+            }
             $txtObj = Com-Get $ts 'Text'
+            if (-not $txtObj) { try { $txtObj = $ts.Text } catch {} }
+            if ($txtObj -is [System.Array]) { if ($txtObj.Length -gt 0) { $txtObj = $txtObj[0] } else { $txtObj = $null } }
+            
             $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
+            if (-not $story -and $txtObj) { try { $story = $txtObj.Story } catch {} }
+            if ($story -is [System.Array]) { if ($story.Length -gt 0) { $story = $story[0] } else { $story = $null } }
+            
             if (-not $story -and -not $txtObj) { continue }
-            $curText = if ($story) { ([string](Com-Get $story 'Text')).Trim() } else { ([string](Com-Get $txtObj 'Contents')).Trim() }
+
+            $curText = ""
+            if ($story) {
+                $curText = [string](Com-Get $story 'Text')
+                if (-not $curText) { try { $curText = [string]$story.Text } catch {} }
+            }
+            if ([string]::IsNullOrWhiteSpace($curText) -and $txtObj) {
+                $curText = [string](Com-Get $txtObj 'Contents')
+                if (-not $curText) { try { $curText = [string]$txtObj.Contents } catch {} }
+            }
+            $curText = $curText.Trim()
+            if ([string]::IsNullOrWhiteSpace($curText)) { continue }
 
             $m = Get-ShapeMatchingMapping $curText $mappingsList
-            if (-not $m) { continue }
+            Write-CtsLog "  Shape Text '$curText' -> Matched: $(if ($m) { $m.label + ' / ' + $m.placeholder } else { 'NONE' })"
 
-            $val = Get-PlayerValueForMapping $player $m -1
+            $val = $null
+            $mW = $fallbackMaxW
+            $lR = $true
+            $align = 'center'
+            $textCase = 'none'
+
+            if ($m) {
+                $val = Get-PlayerValueForMapping $player $m -1
+                $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { $fallbackMaxW }
+                $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
+                $align = if ($m.align) { $m.align } else { 'center' }
+                $textCase = if ($m.textCase) { $m.textCase } else { 'none' }
+            }
+            if (-not $m -or [string]::IsNullOrWhiteSpace($val)) {
+                # Intelligent Semantic Direct Fallback for Size, Name, and Number:
+                $tNorm = $curText.Trim('.', '[', ']', '{', '}', ':', ' ', '#', '"', "'", '-', '_')
+                $tNormLow = $tNorm.ToLower()
+
+                if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz|xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all)$') {
+                    $pSz = Get-FieldValue $player 'Ukuran'
+                    if (-not $pSz) { $pSz = Get-FieldValue $player 'Size' }
+                    if (-not $pSz) { $pSz = Get-FieldValue $player '[SIZE]' }
+                    if (-not $pSz) { $pSz = Get-FieldValue $player '[UKURAN]' }
+                    if ($pSz) {
+                        $val = $pSz
+                        $align = 'center'; $textCase = 'upper'; $mW = 15.0; $lR = $true
+                        Write-CtsLog "  Direct Auto-Match Size: '$curText' -> '$val'"
+                    }
+                } elseif ($tNormLow -match '^(nama|name|pemain|player|nama\s*pemain|nama\s*punggung|nama\s*dada|nama\s*lengkap)$') {
+                    $pName = Get-FieldValue $player 'Nama'
+                    if (-not $pName) { $pName = Get-FieldValue $player 'Name' }
+                    if (-not $pName) { $pName = Get-FieldValue $player '[NAMA]' }
+                    if ($pName) {
+                        $val = $pName
+                        $align = 'center'; $textCase = 'upper'; $mW = $fallbackMaxW; $lR = $true
+                        Write-CtsLog "  Direct Auto-Match Name: '$curText' -> '$val'"
+                    }
+                } elseif ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$') {
+                    $pNum = Get-FieldValue $player 'Nomor'
+                    if (-not $pNum) { $pNum = Get-FieldValue $player 'Number' }
+                    if (-not $pNum) { $pNum = Get-FieldValue $player '00' }
+                    if (-not $pNum) { $pNum = Get-FieldValue $player '[00]' }
+                    if (-not $pNum) { $pNum = Get-FieldValue $player '[NOMOR]' }
+                    if ($pNum) {
+                        $val = $pNum
+                        $align = 'center'; $textCase = 'none'; $mW = 20.0; $lR = $true
+                        Write-CtsLog "  Direct Auto-Match Number: '$curText' -> '$val'"
+                    }
+                }
+            }
+
             if ($null -eq $val -or $val -eq '') { continue }
-
-            $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { $fallbackMaxW }
-            $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
+            Write-CtsLog "  Final Value to Apply for '$curText' -> '$val'"
 
             $finalVal = [string]$val
-            $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
+            $ph = if ($m -and $m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
             if ($ph -and $curText -match [regex]::Escape($ph) -and $curText -ne $ph) {
                 $finalVal = $curText -replace [regex]::Escape($ph), [string]$val
             }
 
-            Apply-TextToShape $ts $finalVal $m.align $m.textCase $mW $lR
+            Apply-TextToShape $ts $finalVal $align $textCase $mW $lR
         }
     }
 
-    $masterShape = if ($selCount -gt 1) { Com-Call $selection 'Group' } else { Get-RangeItem $selection 1 }
+    $masterShape = $null
+    # Attempt to group selection into 1 unified master pattern card
+    try {
+        $masterShape = Com-Call $selection 'Group'
+        if (-not $masterShape) { try { $masterShape = $selection.Group() } catch {} }
+    } catch {}
+
+    if (-not $masterShape -and $selShapes) {
+        try {
+            $masterShape = Com-Call $selShapes 'Group'
+            if (-not $masterShape) { try { $masterShape = $selShapes.Group() } catch {} }
+        } catch {}
+    }
+
+    if (-not $masterShape) {
+        $masterShape = Get-RangeItem $selection 1
+        if (-not $masterShape) { $masterShape = $selection }
+    }
+
+    if ($masterShape -is [System.Array]) {
+        if ($masterShape.Length -gt 0) { $masterShape = $masterShape[0] }
+    }
+
+    # If it is still a ShapeRange or Selection with multiple shapes, group it!
+    try {
+        $mCnt = [int](Com-Get $masterShape 'Count')
+        if ($mCnt -gt 1) {
+            $g = Com-Call $masterShape 'Group'
+            if (-not $g) { try { $g = $masterShape.Group() } catch {} }
+            if ($g) { $masterShape = $g }
+        } elseif ($mCnt -eq 1) {
+            $it1 = Com-Get $masterShape 'Item' @(1)
+            if (-not $it1) { try { $it1 = $masterShape.Item(1) } catch {} }
+            if ($it1) { $masterShape = $it1 }
+        }
+    } catch {}
+
+    if (-not $masterShape) {
+        throw "Gagal memproses objek master pola jersey di CorelDRAW."
+    }
     $origMasterW = [double](Com-Get $masterShape 'SizeWidth')
     $origMasterH = [double](Com-Get $masterShape 'SizeHeight')
     $masterRatio = if ($origMasterH -gt 0) { $origMasterW / $origMasterH } else { 1.0 }
+    Write-CtsLog "MasterShape resolved: Type=$(Com-Get $masterShape 'Type'), W=$origMasterW, H=$origMasterH, Ratio=$masterRatio"
 
     # Helper: Resolve target pattern dimensions based on sizeChart and aspect ratio
     function Get-SizeDimensions($szName, $chart, $mRatio, $origW, $origH) {
@@ -4533,6 +5006,9 @@ ${COREL_CONNECT_PS}
     # Helper: Multi-strategy shape resizing for grouped CorelDRAW patterns
     function Resize-JerseyShape($shp, [double]$targetW, [double]$targetH) {
         if (-not $shp -or $targetW -le 0 -or $targetH -le 0) { return }
+        if ($shp -is [System.Array]) {
+            if ($shp.Length -gt 0) { $shp = $shp[0] } else { return }
+        }
         $curW = [double](Com-Get $shp 'SizeWidth')
         $curH = [double](Com-Get $shp 'SizeHeight')
         if ([math]::Abs($curW - $targetW) -lt 0.05 -and [math]::Abs($curH - $targetH) -lt 0.05) { return }
@@ -4580,11 +5056,98 @@ ${COREL_CONNECT_PS}
         } catch {}
     }
 
+    # Helper: Multi-strategy shape duplicator that never fails on CorelDRAW groups or shapes
+    function Duplicate-JerseyShape($shp, $docRef) {
+        if ($null -eq $shp) { return $null }
+        if ($shp -is [System.Array]) {
+            if ($shp.Length -gt 0) { $shp = $shp[0] } else { return $null }
+        }
+
+        # Strategy 1: FastCom Duplicate with explicit (0.0, 0.0) offset
+        try {
+            $d = Com-Call $shp 'Duplicate' @([double]0.0, [double]0.0)
+            if ($d) {
+                if ($d -is [System.Array]) { if ($d.Length -gt 0) { $d = $d[0] } }
+                if ($d) { return $d }
+            }
+        } catch {}
+
+        # Strategy 2: Direct COM Duplicate(0.0, 0.0) via PowerShell CLR
+        try {
+            $d = $shp.Duplicate(0.0, 0.0)
+            if ($d) {
+                if ($d -is [System.Array]) { if ($d.Length -gt 0) { $d = $d[0] } }
+                if ($d) { return $d }
+            }
+        } catch {}
+
+        # Strategy 3: Duplicate() with no args via PowerShell CLR
+        try {
+            $d = $shp.Duplicate()
+            if ($d) {
+                if ($d -is [System.Array]) { if ($d.Length -gt 0) { $d = $d[0] } }
+                if ($d) { return $d }
+            }
+        } catch {}
+
+        # Strategy 4: Reflection InvokeMember with 0.0, 0.0
+        try {
+            $d = $shp.GetType().InvokeMember('Duplicate', [System.Reflection.BindingFlags]::InvokeMethod, $null, $shp, @([double]0.0, [double]0.0))
+            if ($d) {
+                if ($d -is [System.Array]) { if ($d.Length -gt 0) { $d = $d[0] } }
+                if ($d) { return $d }
+            }
+        } catch {}
+
+        # Strategy 5: Copy and Paste to ActiveLayer (Universal fallback in CorelDRAW)
+        try {
+            [void](Com-Call $shp 'Copy')
+            $targetLyr = Com-Get $docRef 'ActiveLayer'
+            if (-not $targetLyr) {
+                $actPg = Com-Get $docRef 'ActivePage'
+                if ($actPg) { $targetLyr = Com-Get $actPg 'ActiveLayer' }
+            }
+            if ($targetLyr) {
+                $pasted = Com-Call $targetLyr 'Paste'
+                if ($pasted) {
+                    $pCnt = [int](Com-Get $pasted 'Count')
+                    if ($pCnt -gt 1) {
+                        $pGrp = Com-Call $pasted 'Group'
+                        if (-not $pGrp) { try { $pGrp = $pasted.Group() } catch {} }
+                        if ($pGrp) { return $pGrp }
+                    }
+                    $pShp = Get-RangeItem $pasted 1
+                    if (-not $pShp) { $pShp = $pasted }
+                    if ($pShp -is [System.Array]) { if ($pShp.Length -gt 0) { $pShp = $pShp[0] } }
+                    if ($pShp) { return $pShp }
+                }
+            }
+        } catch {}
+
+        return $null
+    }
+
+    # Helper: Multi-strategy shape mover that never fails on CorelDRAW groups or shapes
+    function Move-JerseyCard($shp, [double]$px, [double]$py) {
+        if (-not $shp) { return }
+        if ($shp -is [System.Array]) { if ($shp.Length -gt 0) { $shp = $shp[0] } else { return } }
+        try { [void](Com-Call $shp 'SetPosition' @([double]$px, [double]$py)) } catch {}
+        try { $shp.SetPosition([double]$px, [double]$py) } catch {}
+        try { Com-Set $shp 'PositionX' ([double]$px) } catch {}
+        try { Com-Set $shp 'PositionY' ([double]$py) } catch {}
+        try { $shp.PositionX = [double]$px } catch {}
+        try { $shp.PositionY = [double]$py } catch {}
+    }
+
     $commandGroupOpen = $false
     try {
         [void](Com-Call $doc 'BeginCommandGroup' @("CTS Auto-Layout Jersey"))
         $commandGroupOpen = $true
     } catch {}
+
+    # Critical performance boost: suspend viewport redrawing and COM event processing
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     # Ensure ReferencePoint is Top-Left (cdrTopLeft = 1) so PositionX and PositionY are true Left and Top
     try { Com-Set $doc 'ReferencePoint' 1 } catch {}
@@ -4602,19 +5165,27 @@ ${COREL_CONNECT_PS}
 
     # Step 1: Duplicate ALL needed cards 1..N FIRST from $masterShape while $masterShape is 100% pristine!
     $cardList = @()
-    $cardList += ,$masterShape
+    if ($masterShape -is [System.Array]) {
+        if ($masterShape.Length -gt 0) { $masterShape = $masterShape[0] }
+    }
+    $cardList += $masterShape
+    Write-CtsLog "Card 0 registered as master shape"
+
+    # Pre-index text shape paths on master card for instant resolution on all duplicates
+    $cachedPaths = Get-MasterTextPaths $masterShape
+    Write-CtsLog "Pre-indexed $($cachedPaths.Count) text shape paths from master shape"
 
     for ($i = 1; $i -lt $playerList.Count; $i++) {
-        $dup = Com-Call $masterShape 'Duplicate'
-        if (-not $dup) {
-            try {
-                $dup = $masterShape.GetType().InvokeMember('Duplicate', [System.Reflection.BindingFlags]::InvokeMethod, $null, $masterShape, $null)
-            } catch {}
-        }
+        $dup = Duplicate-JerseyShape $masterShape $doc
         if ($dup) {
-            $cardList += ,$dup
+            if ($dup -is [System.Array]) { if ($dup.Length -gt 0) { $dup = $dup[0] } }
+            $cardList += $dup
+            Write-CtsLog "Card $i duplicated successfully"
+        } else {
+            Write-CtsLog "Card $i FAILED to duplicate!"
         }
     }
+    Write-CtsLog "Total cards available for layout: $($cardList.Count) of $($playerList.Count)"
 
     # Step 2: Now step through each card, resize, position, and update text
     $created = 0
@@ -4623,9 +5194,14 @@ ${COREL_CONNECT_PS}
         $p = $playerList[$i]
         if (-not $card -or -not $p) { continue }
 
+        $pName = Get-FieldValue $p 'Nama'
+        $pNum = Get-FieldValue $p 'Nomor'
+        $pSz = Get-FieldValue $p 'Ukuran'
+        if (-not $pSz) { $pSz = Get-FieldValue $p 'Size' }
+        Write-CtsLog "Processing Card $($i) - Name='$pName', Num='$pNum', Size='$pSz'"
+
         # Step A: Resolve target size dimensions and resize BEFORE calculating next position
-        $sz = Get-FieldValue $p 'Ukuran'
-        if (-not $sz) { $sz = Get-FieldValue $p 'Size' }
+        $sz = $pSz
         $dim = Get-SizeDimensions $sz $sizeChart $masterRatio $origMasterW $origMasterH
         $targetW = [double]$dim.targetW
         $targetH = [double]$dim.targetH
@@ -4650,8 +5226,7 @@ ${COREL_CONNECT_PS}
                 $rowMaxH = 0.0
             }
 
-            Com-Set $card 'PositionX' ([double]$curPosX)
-            Com-Set $card 'PositionY' ([double]$curPosY)
+            Move-JerseyCard $card $curPosX $curPosY
 
             $rowMaxH = [math]::Max($rowMaxH, $cardH)
             $curPosX += ($cardW + $spacing)
@@ -4666,8 +5241,7 @@ ${COREL_CONNECT_PS}
                 $colMaxW = 0.0
             }
 
-            Com-Set $card 'PositionX' ([double]$curPosX)
-            Com-Set $card 'PositionY' ([double]$curPosY)
+            Move-JerseyCard $card $curPosX $curPosY
 
             $colMaxW = [math]::Max($colMaxW, $cardW)
             $curPosY -= ($cardH + $spacing)
@@ -4675,12 +5249,22 @@ ${COREL_CONNECT_PS}
         }
 
         # Step D: Update text data
-        try { UpdateJerseyCard $card $p $mappings $maxW } catch {}
+        try {
+            UpdateJerseyCard $card $p $mappings $maxW $cachedPaths
+        } catch {
+            Write-CtsLog "UpdateJerseyCard Card $i ERROR: $($_.Exception.Message)"
+        }
 
         # Step E: Convert to curves if requested
         if ($autoCurves) {
             try {
-                $cTexts = @(Find-AllShapeTexts $card)
+                $cTexts = @()
+                if ($cachedPaths -and $cachedPaths.Count -gt 0) {
+                    $cTexts = @(Resolve-CardTextsByPaths $card $cachedPaths)
+                }
+                if ($cTexts.Count -eq 0) {
+                    $cTexts = @(Find-AllShapeTexts $card)
+                }
                 for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
                     try {
                         $ct = $cTexts[$ck]
@@ -4699,6 +5283,7 @@ ${COREL_CONNECT_PS}
     try { [void](Com-Call $corel 'ClearSelection') } catch {}
     try { [void](Com-Call $corel 'Refresh') } catch {}
 
+    Write-CtsLog "=== Finished CTS Jersey Auto-Layout: Created $created shapes ==="
     $result.success = ($created -gt 0)
     $result.count = $created
     $result.message = "Berhasil menata $created pola jersey di CorelDRAW!"
@@ -4717,6 +5302,11 @@ ${COREL_CONNECT_PS}
         try { Com-Set $corel 'Optimization' $false } catch {}
         try { [void](Com-Call $corel 'Refresh') } catch {}
     }
+    try {
+        if ($logBuffer -and $logBuffer.Count -gt 0) {
+            [System.IO.File]::AppendAllLines($dbgLog, $logBuffer, [System.Text.Encoding]::UTF8)
+        }
+    } catch {}
     [GC]::Collect()
 }
 $result | ConvertTo-Json -Compress

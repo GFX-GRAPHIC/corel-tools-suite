@@ -2330,61 +2330,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  window.addJerseySizeRow = function() {
+    // Determine the next logical size candidate
+    const standardSequence = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL'];
+    let nextSz = '';
+    for (const cand of standardSequence) {
+      if (!jerseySizeChart.some(s => s.size === cand)) {
+        nextSz = cand;
+        break;
+      }
+    }
+    if (!nextSz) {
+      let count = jerseySizeChart.length + 1;
+      while (jerseySizeChart.some(s => s.size === `SIZE-${count}`)) {
+        count++;
+      }
+      nextSz = `SIZE-${count}`;
+    }
+
+    const lastH = jerseySizeChart[jerseySizeChart.length - 1]?.height || 76.0;
+    const newH = parseFloat((lastH + 2.5).toFixed(1));
+    const curRatio = (jerseyMasterRatio && !isNaN(jerseyMasterRatio) && jerseyMasterRatio > 0) ? jerseyMasterRatio : 1.264;
+    const newW = parseFloat((newH * curRatio).toFixed(2));
+
+    jerseySizeChart.push({ size: nextSz, height: newH, width: newW, lockRatio: true });
+    renderJerseySizeChart();
+    showToast(`Ukuran ${nextSz} berhasil ditambahkan! Anda dapat mengubah nama ukuran langsung di tabel.`, true);
+
+    // Auto-focus the newly added row
+    setTimeout(() => {
+      const inputs = tbodyJerseySizeChart ? tbodyJerseySizeChart.querySelectorAll('.sc-sz') : [];
+      const lastInput = inputs[inputs.length - 1];
+      if (lastInput) {
+        lastInput.focus();
+        lastInput.select();
+      }
+    }, 50);
+  };
+
+  window.resetJerseySizeChart = function() {
+    const curRatio = (jerseyMasterRatio && !isNaN(jerseyMasterRatio) && jerseyMasterRatio > 0) ? jerseyMasterRatio : 1.264;
+    jerseySizeChart = [
+      { size: 'XS', height: 68.0, width: parseFloat((68.0 * curRatio).toFixed(2)), lockRatio: true },
+      { size: 'S', height: 71.0, width: parseFloat((71.0 * curRatio).toFixed(2)), lockRatio: true },
+      { size: 'M', height: 73.5, width: parseFloat((73.5 * curRatio).toFixed(2)), lockRatio: true },
+      { size: 'L', height: 76.0, width: parseFloat((76.0 * curRatio).toFixed(2)), lockRatio: true },
+      { size: 'XL', height: 78.5, width: parseFloat((78.5 * curRatio).toFixed(2)), lockRatio: true },
+      { size: 'XXL', height: 81.0, width: parseFloat((81.0 * curRatio).toFixed(2)), lockRatio: true },
+      { size: '3XL', height: 83.5, width: parseFloat((83.5 * curRatio).toFixed(2)), lockRatio: true }
+    ];
+    renderJerseySizeChart();
+    showToast('Tabel ukuran direset ke standar sublimasi.', true);
+  };
+
   if (btnJerseyAddSizeRow) {
-    btnJerseyAddSizeRow.addEventListener('click', () => {
-      // Determine the next logical size candidate
-      const standardSequence = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL'];
-      let nextSz = '';
-      for (const cand of standardSequence) {
-        if (!jerseySizeChart.some(s => s.size === cand)) {
-          nextSz = cand;
-          break;
-        }
-      }
-      if (!nextSz) {
-        let count = jerseySizeChart.length + 1;
-        while (jerseySizeChart.some(s => s.size === `SIZE-${count}`)) {
-          count++;
-        }
-        nextSz = `SIZE-${count}`;
-      }
-
-      const lastH = jerseySizeChart[jerseySizeChart.length - 1]?.height || 76.0;
-      const newH = parseFloat((lastH + 2.5).toFixed(1));
-      const curRatio = (jerseyMasterRatio && !isNaN(jerseyMasterRatio) && jerseyMasterRatio > 0) ? jerseyMasterRatio : 1.264;
-      const newW = parseFloat((newH * curRatio).toFixed(2));
-
-      jerseySizeChart.push({ size: nextSz, height: newH, width: newW, lockRatio: true });
-      renderJerseySizeChart();
-      showToast(`Ukuran ${nextSz} berhasil ditambahkan! Anda dapat mengubah nama ukuran langsung di tabel.`, true);
-
-      // Auto-focus the newly added row
-      setTimeout(() => {
-        const inputs = tbodyJerseySizeChart ? tbodyJerseySizeChart.querySelectorAll('.sc-sz') : [];
-        const lastInput = inputs[inputs.length - 1];
-        if (lastInput) {
-          lastInput.focus();
-          lastInput.select();
-        }
-      }, 50);
-    });
+    btnJerseyAddSizeRow.addEventListener('click', window.addJerseySizeRow);
   }
 
   if (btnJerseyResetSizeChart) {
-    btnJerseyResetSizeChart.addEventListener('click', () => {
-      const curRatio = (jerseyMasterRatio && !isNaN(jerseyMasterRatio) && jerseyMasterRatio > 0) ? jerseyMasterRatio : 1.264;
-      jerseySizeChart = [
-        { size: 'XS', height: 68.0, width: parseFloat((68.0 * curRatio).toFixed(2)), lockRatio: true },
-        { size: 'S', height: 71.0, width: parseFloat((71.0 * curRatio).toFixed(2)), lockRatio: true },
-        { size: 'M', height: 73.5, width: parseFloat((73.5 * curRatio).toFixed(2)), lockRatio: true },
-        { size: 'L', height: 76.0, width: parseFloat((76.0 * curRatio).toFixed(2)), lockRatio: true },
-        { size: 'XL', height: 78.5, width: parseFloat((78.5 * curRatio).toFixed(2)), lockRatio: true },
-        { size: 'XXL', height: 81.0, width: parseFloat((81.0 * curRatio).toFixed(2)), lockRatio: true },
-        { size: '3XL', height: 83.5, width: parseFloat((83.5 * curRatio).toFixed(2)), lockRatio: true }
-      ];
-      renderJerseySizeChart();
-      showToast('Tabel ukuran direset ke standar sublimasi.', true);
-    });
+    btnJerseyResetSizeChart.addEventListener('click', window.resetJerseySizeChart);
   }
 
   // Sample Master Pattern from CorelDRAW Selection
