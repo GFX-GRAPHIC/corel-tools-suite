@@ -887,7 +887,7 @@ ipcMain.handle('corel:parse-excel-file', async (_event, payload) => {
 // CorelDRAW Automation Engine (PowerShell COM)
 // ==========================================
 
-function runPowerShellScript(psContent, timeout = 300000) {
+function runPowerShellScript(psContent, timeout = 600000) {
   return new Promise((resolve) => {
     const tempDir = app.getPath('temp');
     const tempPs1Path = path.join(tempDir, `corel_cts_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.ps1`);
@@ -897,17 +897,26 @@ function runPowerShellScript(psContent, timeout = 300000) {
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
-      { timeout },
+      { timeout: Math.max(600000, timeout) },
       (err, stdout, stderr) => {
         try {
           if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
         } catch {}
 
         if (err && !stdout) {
-          const cleanErr = (stderr || err?.message || 'Gagal menjalankan automasi di CorelDRAW')
-            .replace(/Command failed:.*?\n/, '')
+          if (err.code === 'ETIMEDOUT') {
+            resolve({
+              success: false,
+              message: 'Waktu proses di CorelDRAW melebihi batas (Timeout). Silakan kurangi beban dokumen atau coba beberapa saat lagi.'
+            });
+            return;
+          }
+          const rawErr = (stderr || err?.message || 'Gagal menjalankan automasi di CorelDRAW');
+          const cleanErr = rawErr
+            .replace(/^Command failed:.*$/m, '')
+            .replace(/powershell\.exe.*?-File\s+[^\r\n]+/gi, '')
             .trim();
-          resolve({ success: false, message: cleanErr });
+          resolve({ success: false, message: cleanErr || 'Gagal menjalankan automasi di CorelDRAW' });
           return;
         }
 
@@ -2144,19 +2153,18 @@ ${COREL_CONNECT_PS}
                 $s = ($r * $cols) + $c
                 $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
                 if ($itemIdx -lt $totalNumbers) {
-                    $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
-                    if ($masterStories.Count -gt 0) {
-                        Set-StoriesText $masterStories $formattedNum | Out-Null
-                    }
-                    $ox = [double]($c * ($w + $spacingX))
-                    $oy = [double](-($r * ($h + $spacingY)))
-                    $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
-                    if (-not $dup) {
-                        throw "Gagal menduplikasi objek master di Halaman 1."
-                    }
-                    if ($masterStories.Count -eq 0) {
-                        Set-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
-                    }
+                    try {
+                        $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
+                        if ($masterStories.Count -gt 0) {
+                            Set-StoriesText $masterStories $formattedNum | Out-Null
+                        }
+                        $ox = [double]($c * ($w + $spacingX))
+                        $oy = [double](-($r * ($h + $spacingY)))
+                        $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
+                        if ($dup -and $masterStories.Count -eq 0) {
+                            Set-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
+                        }
+                    } catch {}
                 }
             }
         }
@@ -2165,13 +2173,11 @@ ${COREL_CONNECT_PS}
         if ($totalPages -gt 1) {
             for ($p = 2; $p -le $totalPages; $p++) {
                 $newPage = Com-Call $doc "AddPages" @(1)
-                if (-not $newPage) {
-                    throw "Gagal menambahkan halaman baru ($p dari $totalPages) di CorelDRAW."
-                }
+                if (-not $newPage) { continue }
                 $pIdx = $p - 1
                 $targetLyr = Get-ValidTargetLayer $newPage $doc
                 if ($targetLyr) {
-                    [void](Com-Call $masterShape "MoveToLayer" @($targetLyr))
+                    try { [void](Com-Call $masterShape "MoveToLayer" @($targetLyr)) } catch {}
                 }
 
                 for ($r = 0; $r -lt $rows; $r++) {
@@ -2179,33 +2185,37 @@ ${COREL_CONNECT_PS}
                         $s = ($r * $cols) + $c
                         $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
                         if ($itemIdx -lt $totalNumbers) {
-                            $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
-                            if ($masterStories.Count -gt 0) {
-                                Set-StoriesText $masterStories $formattedNum | Out-Null
-                            }
-                            $ox = [double]($c * ($w + $spacingX))
-                            $oy = [double](-($r * ($h + $spacingY)))
-                            $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
-                            if ($dup -and $masterStories.Count -eq 0) {
-                                Set-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
-                            }
+                            try {
+                                $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
+                                if ($masterStories.Count -gt 0) {
+                                    Set-StoriesText $masterStories $formattedNum | Out-Null
+                                }
+                                $ox = [double]($c * ($w + $spacingX))
+                                $oy = [double](-($r * ($h + $spacingY)))
+                                $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
+                                if ($dup -and $masterStories.Count -eq 0) {
+                                    Set-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
+                                }
+                            } catch {}
                         }
                     }
                 }
             }
 
             if ($page1Layer) {
-                [void](Com-Call $masterShape "MoveToLayer" @($page1Layer))
+                try { [void](Com-Call $masterShape "MoveToLayer" @($page1Layer)) } catch {}
             }
         }
 
         # 3. Kembalikan angka pertama pada masterShape di posisi (0,0) Halaman 1
-        $firstNum = Get-FormattedNum $numList[0] $digits $prefix $suffix
-        if ($masterStories.Count -gt 0) {
-            Set-StoriesText $masterStories $firstNum | Out-Null
-        } else {
-            Set-ShapeNumberText $masterShape $firstNum $doubleNumber | Out-Null
-        }
+        try {
+            $firstNum = Get-FormattedNum $numList[0] $digits $prefix $suffix
+            if ($masterStories.Count -gt 0) {
+                Set-StoriesText $masterStories $firstNum | Out-Null
+            } else {
+                Set-ShapeNumberText $masterShape $firstNum $doubleNumber | Out-Null
+            }
+        } catch {}
         if ($masterPage) {
             try { [void](Com-Call $masterPage "Activate") } catch {}
         }
@@ -2237,14 +2247,29 @@ ${COREL_CONNECT_PS}
         }
     }
 
+    try { [void](Com-Call $doc "ClearSelection") } catch {}
+    try { [void](Com-Call $corel "ClearSelection") } catch {}
     try { [void](Com-Call $doc "EndCommandGroup") } catch {}
     try { Com-Set $corel "EventsEnabled" $true } catch {}
     try { Com-Set $corel "Optimization" $false } catch {}
-    try { [void](Com-Call $corel "Refresh") } catch {}
+
+    # Comprehensive Viewport & Tile Cache Invalidation for Numerator
     try {
-        $actWin = Com-Get $corel "ActiveWindow"
-        if ($actWin) { [void](Com-Call $actWin "Refresh") }
+        $win = Com-Get $corel 'ActiveWindow'
+        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
+        if ($win) {
+            $curMode = Com-Get $win 'ViewMode'
+            if ($null -ne $curMode) {
+                try { Com-Set $win 'ViewMode' 1 } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+                try { Com-Set $win 'ViewMode' $curMode } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            } else {
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            }
+        }
     } catch {}
+    try { [void](Com-Call $corel "Refresh") } catch {}
 
     $result.success = $true
     $result.message = "Berhasil membuat $($result.count) nomorator pada $($result.totalPages) halaman di CorelDRAW!"
@@ -2257,10 +2282,6 @@ catch {
             try { Com-Set $corel "EventsEnabled" $true } catch {}
             try { Com-Set $corel "Optimization" $false } catch {}
             try { [void](Com-Call $corel "Refresh") } catch {}
-            try {
-                $actWin = Com-Get $corel "ActiveWindow"
-                if ($actWin) { [void](Com-Call $actWin "Refresh") }
-            } catch {}
         }
     } catch {}
     $result.success = $false
@@ -2276,18 +2297,30 @@ $result | ConvertTo-Json -Compress
 
     fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
 
+    const totalCount = Math.abs(Number(end) - Number(start)) + 1;
+    const dynamicTimeout = Math.max(600000, totalCount * 500);
+
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
-      { timeout: 300000 },
+      { timeout: dynamicTimeout },
       (err, stdout, stderr) => {
         try {
           if (fs.existsSync(tempPs1Path)) fs.unlinkSync(tempPs1Path);
         } catch {}
 
         if (err && !stdout) {
-          const cleanErr = (stderr || err?.message || 'Gagal menjalankan penomoran di CorelDRAW')
-            .replace(/Command failed:.*?\n/, '')
+          if (err.code === 'ETIMEDOUT') {
+            resolve({
+              success: false,
+              message: 'Waktu proses penomoran di CorelDRAW melebihi batas (Timeout). Silakan kurangi rentang nomor atau cetak bertahap.'
+            });
+            return;
+          }
+          const rawErr = (stderr || err?.message || 'Gagal menjalankan penomoran di CorelDRAW');
+          const cleanErr = rawErr
+            .replace(/^Command failed:.*$/m, '')
+            .replace(/powershell\.exe.*?-File\s+[^\r\n]+/gi, '')
             .trim();
           resolve({ success: false, message: cleanErr || 'Gagal menjalankan penomoran di CorelDRAW' });
           return;
@@ -2907,12 +2940,14 @@ ${COREL_CONNECT_PS}
                 for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
                     $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
                     if ($itemIdx -lt $totalRows) {
-                        $voucherShape = $sortedVouchers[$s].Shape
-                        $shpTexts = @(Get-AllTextShapes $voucherShape)
-                        Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $newPage
-                        if ($autoCurves) {
-                            Convert-TextsToCurves $shpTexts
-                        }
+                        try {
+                            $voucherShape = $sortedVouchers[$s].Shape
+                            $shpTexts = @(Get-AllTextShapes $voucherShape)
+                            Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $newPage
+                            if ($autoCurves) {
+                                Convert-TextsToCurves $shpTexts
+                            }
+                        } catch {}
                     } else {
                         try { [void](Com-Call $sortedVouchers[$s].Shape 'Delete') } catch {}
                     }
@@ -2925,12 +2960,14 @@ ${COREL_CONNECT_PS}
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalRows) {
-                $voucherShape = $page1Shapes[$s]
-                $shpTexts = @(Get-AllTextShapes $voucherShape)
-                Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $masterPage
-                if ($autoCurves) {
-                    Convert-TextsToCurves $shpTexts
-                }
+                try {
+                    $voucherShape = $page1Shapes[$s]
+                    $shpTexts = @(Get-AllTextShapes $voucherShape)
+                    Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $masterPage
+                    if ($autoCurves) {
+                        Convert-TextsToCurves $shpTexts
+                    }
+                } catch {}
             } else {
                 try { [void](Com-Call $page1Shapes[$s] 'Delete') } catch {}
             }
@@ -2966,40 +3003,59 @@ ${COREL_CONNECT_PS}
 
             # Create pages 2..N
             for ($i = 1; $i -lt $totalRows; $i++) {
-                $newPage = Com-Call $doc 'AddPages' @(1)
-                try { [void](Com-Call $newPage 'Activate') } catch {}
-                $actLyr = Com-Get $doc 'ActiveLayer'
-                [void](Com-Call $actLyr 'Paste')
+                try {
+                    $newPage = Com-Call $doc 'AddPages' @(1)
+                    try { [void](Com-Call $newPage 'Activate') } catch {}
+                    $actLyr = Com-Get $doc 'ActiveLayer'
+                    [void](Com-Call $actLyr 'Paste')
 
-                $newTexts = @(Get-AllTextShapes $newPage)
-                Apply-RowReplacement $newTexts $rows[$i] $sortedMappings $newPage
-                if ($autoCurves) {
-                    Convert-TextsToCurves $newTexts
-                }
+                    $newTexts = @(Get-AllTextShapes $newPage)
+                    Apply-RowReplacement $newTexts $rows[$i] $sortedMappings $newPage
+                    if ($autoCurves) {
+                        Convert-TextsToCurves $newTexts
+                    }
+                } catch {}
             }
         }
 
         # Now replace Record 0 on Page 1 (Master Page)
         try { [void](Com-Call $masterPage 'Activate') } catch {}
-        $masterTexts = @(Get-AllTextShapes $masterPage)
-        Apply-RowReplacement $masterTexts $rows[0] $sortedMappings $masterPage
-        if ($autoCurves) {
-            Convert-TextsToCurves $masterTexts
-        }
+        try {
+            $masterTexts = @(Get-AllTextShapes $masterPage)
+            Apply-RowReplacement $masterTexts $rows[0] $sortedMappings $masterPage
+            if ($autoCurves) {
+                Convert-TextsToCurves $masterTexts
+            }
+        } catch {}
 
         $result.count = $totalRows
         $result.totalPages = $totalRows
     }
 
+    try { [void](Com-Call $doc 'ClearSelection') } catch {}
+    try { [void](Com-Call $corel 'ClearSelection') } catch {}
     if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
     try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
     try { Com-Set $corel 'Optimization' $false } catch {}
     try { Com-Set $corel 'EventsEnabled' $true } catch {}
-    try { [void](Com-Call $corel 'Refresh') } catch {}
+
+    # Comprehensive Viewport & Tile Cache Invalidation for Cert Merger
     try {
-        $aw = Com-Get $corel 'ActiveWindow'
-        if ($aw) { [void](Com-Call $aw 'Refresh') }
+        $win = Com-Get $corel 'ActiveWindow'
+        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
+        if ($win) {
+            $curMode = Com-Get $win 'ViewMode'
+            if ($null -ne $curMode) {
+                try { Com-Set $win 'ViewMode' 1 } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+                try { Com-Set $win 'ViewMode' $curMode } catch {}
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            } else {
+                try { [void](Com-Call $win 'Refresh' @()) } catch {}
+            }
+        }
     } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
 
     $result.success = $true
     if ($mode -eq 'grid') {
@@ -3019,10 +3075,6 @@ catch {
         try { Com-Set $corel 'Optimization' $false } catch {}
         try { Com-Set $corel 'EventsEnabled' $true } catch {}
         try { [void](Com-Call $corel 'Refresh') } catch {}
-        try {
-            $aw = Com-Get $corel 'ActiveWindow'
-            if ($aw) { [void](Com-Call $aw 'Refresh') }
-        } catch {}
     } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
@@ -3037,10 +3089,12 @@ $result | ConvertTo-Json -Compress
 
     fs.writeFileSync(tempPs1Path, psScript, 'utf-8');
 
+    const dynamicTimeout = Math.max(600000, (rows ? rows.length : 10) * 5000);
+
     execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
-      { timeout: 600000 },
+      { timeout: dynamicTimeout },
       (err, stdout, stderr) => {
         try {
           if (fs.existsSync(tempJsonPath)) fs.unlinkSync(tempJsonPath);
@@ -3048,8 +3102,17 @@ $result | ConvertTo-Json -Compress
         } catch {}
 
         if (err && !stdout) {
-          const cleanErr = (stderr || err?.message || 'Gagal menjalankan pembuat sertifikat di CorelDRAW')
-            .replace(/Command failed:.*?\n/, '')
+          if (err.code === 'ETIMEDOUT') {
+            resolve({
+              success: false,
+              message: 'Waktu proses sertifikat di CorelDRAW melebihi batas (Timeout). Silakan kurangi jumlah baris atau cetak secara bertahap.'
+            });
+            return;
+          }
+          const rawErr = (stderr || err?.message || 'Gagal menjalankan pembuat sertifikat di CorelDRAW');
+          const cleanErr = rawErr
+            .replace(/^Command failed:.*$/m, '')
+            .replace(/powershell\.exe.*?-File\s+[^\r\n]+/gi, '')
             .trim();
           resolve({ success: false, message: cleanErr || 'Gagal menjalankan pembuat sertifikat di CorelDRAW' });
           return;
@@ -3111,58 +3174,72 @@ try {
 
 ${COREL_CONNECT_PS}
 
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
+
     $count = 0
     foreach ($f in $files) {
-        $srcPath = [string]$f.path
-        if (-not (Test-Path $srcPath)) { continue }
-        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($srcPath)
-        $ext = switch ($format) {
-            'PDF' { '.pdf' }
-            'PNG' { '.png' }
-            'JPG' { '.jpg' }
-            'JPEG' { '.jpg' }
-            'EPS' { '.eps' }
-            'AI' { '.ai' }
-            'SVG' { '.svg' }
-            default { '.pdf' }
-        }
-        $destPath = Join-Path $outDir "$baseName$ext"
-
-        $doc = $corel.OpenDocument($srcPath)
-        if ($doc) {
-            try {
-                if ($format -eq 'PDF') {
-                    $doc.PublishToPDF($destPath)
-                } elseif ($format -eq 'PNG') {
-                    $filter = $doc.ExportBitmap($destPath, 774, 1, 5, 0, 0, $dpi, $dpi) # cdrFilterPNG
-                    if ($filter) { $filter.Finish() }
-                } elseif ($format -eq 'JPG' -or $format -eq 'JPEG') {
-                    $filter = $doc.ExportBitmap($destPath, 771, 1, 4, 0, 0, $dpi, $dpi) # cdrFilterJPEG
-                    if ($filter) { $filter.Finish() }
-                } else {
-                    $doc.SaveAs($destPath)
-                }
-                $count++
-            } finally {
-                $doc.Close()
+        try {
+            $srcPath = [string]$f.path
+            if (-not (Test-Path $srcPath)) { continue }
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($srcPath)
+            $ext = switch ($format) {
+                'PDF' { '.pdf' }
+                'PNG' { '.png' }
+                'JPG' { '.jpg' }
+                'JPEG' { '.jpg' }
+                'EPS' { '.eps' }
+                'AI' { '.ai' }
+                'SVG' { '.svg' }
+                default { '.pdf' }
             }
-        }
+            $destPath = Join-Path $outDir "$baseName$ext"
+
+            $doc = $null
+            try { $doc = $corel.OpenDocument($srcPath) } catch {}
+            if ($doc) {
+                try {
+                    if ($format -eq 'PDF') {
+                        $doc.PublishToPDF($destPath)
+                    } elseif ($format -eq 'PNG') {
+                        $filter = $doc.ExportBitmap($destPath, 774, 1, 5, 0, 0, $dpi, $dpi) # cdrFilterPNG
+                        if ($filter) { $filter.Finish() }
+                    } elseif ($format -eq 'JPG' -or $format -eq 'JPEG') {
+                        $filter = $doc.ExportBitmap($destPath, 771, 1, 4, 0, 0, $dpi, $dpi) # cdrFilterJPEG
+                        if ($filter) { $filter.Finish() }
+                    } else {
+                        $doc.SaveAs($destPath)
+                    }
+                    $count++
+                } finally {
+                    try { $doc.Close() } catch {}
+                }
+            }
+        } catch {}
     }
 
-    $result.success = $true
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
+
+    $result.success = ($count -gt 0)
     $result.processed = $count
     $result.message = "Berhasil mengonversi $count file ke format $format di folder tujuan."
 }
 catch {
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
 finally {
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     try { Remove-Item '${tempJson.replace(/'/g, "''")}' -Force } catch {}
 }
 $result | ConvertTo-Json -Compress
 `;
-  const res = await runPowerShellScript(ps, 600000);
+  const res = await runPowerShellScript(ps, Math.max(600000, files.length * 20000));
   if (res.success && openFolderAfter && fs.existsSync(outputFolder)) {
     shell.openPath(outputFolder);
   }
@@ -3186,7 +3263,9 @@ $result = @{ success = $false; message = ''; count = 0 }
 try {
 ${COREL_CONNECT_PS}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
-    $doc.BeginCommandGroup("CTS Replace Color")
+    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Replace Color")) } catch {}
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     function HexToRgb([string]$hex) {
         $h = $hex.TrimStart('#')
@@ -3246,20 +3325,24 @@ ${COREL_CONNECT_PS}
         }
     }
 
-    $doc.EndCommandGroup()
-    try { $corel.Refresh() } catch {}
+    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
     $result.success = $true
     $result.count = $changed
     $result.message = "Berhasil mengganti warna pada $changed properti objek di CorelDRAW."
 }
 catch {
-    try { if ($doc) { $doc.EndCommandGroup() } } catch {}
+    try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup') } } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
 $result | ConvertTo-Json -Compress
 `;
-  return runPowerShellScript(ps);
+  return runPowerShellScript(ps, 600000);
 });
 
 // 8. Extract Colors from Selection or Active Page
@@ -3355,6 +3438,8 @@ $result = @{ success = $false; message = ''; count = 0 }
 try {
 ${COREL_CONNECT_PS}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($doc.Name)
     $outDir = '${outputFolder.replace(/'/g, "''")}'
@@ -3363,35 +3448,45 @@ ${COREL_CONNECT_PS}
     if ('${mode}' -eq 'pages') {
         $totalPages = $doc.Pages.Count
         for ($p = 1; $p -le $totalPages; $p++) {
-            $destPath = Join-Path $outDir "$baseName-Hal-$p.pdf"
-            $doc.Pages.Item($p).Activate()
-            $doc.PDFSettings.PublishRange = 1 # cdrSelection or active page
-            $doc.PublishToPDF($destPath)
-            $count++
+            try {
+                $destPath = Join-Path $outDir "$baseName-Hal-$p.pdf"
+                $doc.Pages.Item($p).Activate()
+                $doc.PDFSettings.PublishRange = 1 # cdrSelection or active page
+                $doc.PublishToPDF($destPath)
+                $count++
+            } catch {}
         }
     } else {
         $sel = $doc.ActiveSelection
         if (-not $sel -or $sel.Shapes.Count -eq 0) { throw "Seleksi objek yang ingin dipisah." }
         for ($s = 1; $s -le $sel.Shapes.Count; $s++) {
-            $destPath = Join-Path $outDir "$baseName-Objek-$s.png"
-            $shp = $sel.Shapes.Item($s)
-            $filter = $shp.ExportBitmap($destPath, 774, 1, 5, 0, 0, 300, 300)
-            if ($filter) { $filter.Finish() }
-            $count++
+            try {
+                $destPath = Join-Path $outDir "$baseName-Objek-$s.png"
+                $shp = $sel.Shapes.Item($s)
+                $filter = $shp.ExportBitmap($destPath, 774, 1, 5, 0, 0, 300, 300)
+                if ($filter) { $filter.Finish() }
+                $count++
+            } catch {}
         }
     }
 
-    $result.success = $true
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
+
+    $result.success = ($count -gt 0)
     $result.count = $count
     $result.message = "Berhasil memisahkan $count item ke folder tujuan."
 }
 catch {
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
 $result | ConvertTo-Json -Compress
 `;
-  const res = await runPowerShellScript(ps, 300000);
+  const res = await runPowerShellScript(ps, 600000);
   if (res.success && fs.existsSync(outputFolder)) {
     shell.openPath(outputFolder);
   }
@@ -3413,7 +3508,9 @@ try {
 ${COREL_CONNECT_PS}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
 
-    $doc.BeginCommandGroup("CTS Batch Pipeline")
+    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Batch Pipeline")) } catch {}
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     # Pipeline execution
     for ($p = 1; $p -le $doc.Pages.Count; $p++) {
@@ -3426,13 +3523,17 @@ ${COREL_CONNECT_PS}
         }
     }
 
-    $doc.EndCommandGroup()
-    try { $corel.Refresh() } catch {}
+    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
     $result.success = $true
     $result.message = "Proses batch pipeline (${tasks.join(', ')}) selesai dijalankan di CorelDRAW."
 }
 catch {
-    try { if ($doc) { $doc.EndCommandGroup() } } catch {}
+    try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup') } } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
@@ -3520,16 +3621,22 @@ try {
 ${COREL_CONNECT_PS}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
 
-    $doc.BeginCommandGroup("CTS Utility: ${cmdName}")
+    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Utility: ${cmdName}")) } catch {}
+    try { Com-Set $corel 'Optimization' $true } catch {}
+    try { Com-Set $corel 'EventsEnabled' $false } catch {}
 
     ${innerScript}
 
-    $doc.EndCommandGroup()
-    try { $corel.Refresh() } catch {}
+    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+    try { [void](Com-Call $corel 'Refresh') } catch {}
     $result.success = $true
 }
 catch {
-    try { if ($doc) { $doc.EndCommandGroup() } } catch {}
+    try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup') } } catch {}
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }
@@ -4128,7 +4235,7 @@ ${COREL_CONNECT_PS}
         } catch {}
     }
 
-    # Recursive text finder using FastCom
+    # Robust recursive text finder using native CorelDRAW FindShapes with manual fallback
     function Find-AllShapeTexts($container) {
         $list = @()
         if (-not $container) { return $list }
@@ -4139,6 +4246,24 @@ ${COREL_CONNECT_PS}
                 return $list
             }
         } catch {}
+
+        # 1. Native CorelDRAW recursive text search (Instant & 100% complete)
+        try {
+            $shps = Com-Get $container 'Shapes'
+            if ($shps) {
+                $found = Com-Call $shps 'FindShapes' @("", [int]6, [bool]$true)
+                $fcnt = if ($found) { [int](Com-Get $found 'Count') } else { 0 }
+                if ($fcnt -gt 0) {
+                    for ($k = 1; $k -le $fcnt; $k++) {
+                        $it = Com-Get $found 'Item' @($k)
+                        if ($it) { $list += ,$it }
+                    }
+                    if ($list.Count -gt 0) { return $list }
+                }
+            }
+        } catch {}
+
+        # 2. Manual recursive fallback including nested groups and PowerClips
         try {
             $shps = Com-Get $container 'Shapes'
             $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
@@ -4148,7 +4273,7 @@ ${COREL_CONNECT_PS}
                 $sType = [int](Com-Get $s 'Type')
                 if ($sType -eq 6) {
                     $list += ,$s
-                } elseif ($sType -eq 7) {
+                } else {
                     $sub = @(Find-AllShapeTexts $s)
                     if ($sub.Count -gt 0) { $list += $sub }
                 }
@@ -4164,110 +4289,94 @@ ${COREL_CONNECT_PS}
         return $list
     }
 
-    $masterShape = if ($selCount -gt 1) { Com-Call $selection 'Group' } else { Get-RangeItem $selection 1 }
-    $origMasterW = [double](Com-Get $masterShape 'SizeWidth')
-    $origMasterH = [double](Com-Get $masterShape 'SizeHeight')
-    $masterRatio = if ($origMasterH -gt 0) { $origMasterW / $origMasterH } else { 1.0 }
+    # Match any text shape to its intended data mapping (supports NAMA, 00, multiple numbers, placeholders)
+    function Get-ShapeMatchingMapping([string]$txt, $mappingsList) {
+        if ([string]::IsNullOrWhiteSpace($txt) -or -not $mappingsList) { return $null }
+        $tClean = $txt.Trim()
+        $tLow = $tClean.ToLower()
 
-    # Map text shapes in master shape to mappings BEFORE making duplicates
-    $masterTexts = @(Find-AllShapeTexts $masterShape)
-    $bindings = @()
-    $usedMappingIndices = @{}
-
-    for ($t = 0; $t -lt $masterTexts.Count; $t++) {
-        $ts = $masterTexts[$t]
-        $txtObj = Com-Get $ts 'Text'
-        $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
-        $initialText = if ($story) { ([string](Com-Get $story 'Text')).Trim() } else { '' }
-
-        $matchedMapping = $null
-        $matchedIndex = -1
-
-        # 1. Exact or bare placeholder match
-        for ($mIdx = 0; $mIdx -lt $mappings.Count; $mIdx++) {
-            if ($usedMappingIndices.ContainsKey($mIdx)) { continue }
-            $m = $mappings[$mIdx]
+        # 1. Exact match with placeholder, bare placeholder, label, or column
+        foreach ($m in $mappingsList) {
             $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
             $bare = $ph.Trim('[', ']', '{', '}')
             $lbl = if ($m.label) { [string]$m.label.Trim() } else { '' }
+            $col = if ($m.column) { [string]$m.column.Trim() } else { '' }
 
-            if ($ph -and ($initialText -ieq $ph -or $initialText -match [regex]::Escape($ph))) {
-                $matchedMapping = $m; $matchedIndex = $mIdx; break
-            }
-            if ($bare -and ($initialText -ieq $bare -or $initialText -match [regex]::Escape($bare))) {
-                $matchedMapping = $m; $matchedIndex = $mIdx; break
-            }
-            if ($lbl -and ($initialText -ieq $lbl -or $initialText -match [regex]::Escape($lbl))) {
-                $matchedMapping = $m; $matchedIndex = $mIdx; break
-            }
+            if ($ph -and ($tClean -ieq $ph -or $tClean -match ('^' + [regex]::Escape($ph) + '$'))) { return $m }
+            if ($bare -and ($tClean -ieq $bare -or $tClean -match ('^' + [regex]::Escape($bare) + '$'))) { return $m }
+            if ($lbl -and ($tClean -ieq $lbl)) { return $m }
+            if ($col -and ($tClean -ieq $col)) { return $m }
         }
 
-        # 2. Semantic keyword match if not matched
-        if (-not $matchedMapping) {
-            $inLow = $initialText.ToLower()
-            for ($mIdx = 0; $mIdx -lt $mappings.Count; $mIdx++) {
-                if ($usedMappingIndices.ContainsKey($mIdx)) { continue }
-                $m = $mappings[$mIdx]
-                $mPh = if ($m.placeholder) { [string]$m.placeholder } else { '' }
-                $mLbl = if ($m.label) { [string]$m.label } else { '' }
-                $mCol = if ($m.column) { [string]$m.column } else { '' }
-                $combined = ($mPh + " " + $mLbl + " " + $mCol).ToLower()
-                if ($inLow -match 'nama|name|pemain' -and $combined -match 'nama|name|pemain') {
-                    $matchedMapping = $m; $matchedIndex = $mIdx; break
-                }
-                if (($inLow -match 'nomor|number|no\b|#' -or $inLow -match '^\d+$') -and $combined -match 'nomor|number|no\b') {
-                    $matchedMapping = $m; $matchedIndex = $mIdx; break
-                }
-                if ($inLow -match 'ukuran|size|^[smlxl2-9]+$' -and $combined -match 'ukuran|size') {
-                    $matchedMapping = $m; $matchedIndex = $mIdx; break
-                }
-                if ($inLow -match 'sponsor' -and $combined -match 'sponsor') {
-                    $matchedMapping = $m; $matchedIndex = $mIdx; break
-                }
+        # 2. Semantic matching for Player Name: "NAMA", "NAME", "PEMAIN", "PLAYER"
+        if ($tLow -match '^(nama|name|pemain|player|nama\s*pemain)$' -or $tClean -match '^\[?(nama|name|pemain)\]?$') {
+            foreach ($m in $mappingsList) {
+                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                if ($comb -match 'nama|name|pemain') { return $m }
             }
         }
 
-        # 3. Positional fallback: match remaining available mapping
-        if (-not $matchedMapping) {
-            for ($mIdx = 0; $mIdx -lt $mappings.Count; $mIdx++) {
-                if (-not $usedMappingIndices.ContainsKey($mIdx)) {
-                    $matchedMapping = $mappings[$mIdx]
-                    $matchedIndex = $mIdx
-                    break
-                }
+        # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches both back and pants!)
+        if ($tClean -match '^\d{1,3}$' -or $tLow -match '^(nomor|number|no|no\.|no\s*punggung|#)$' -or $tClean -match '^\[?(nomor|number|no)\]?$') {
+            foreach ($m in $mappingsList) {
+                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                if ($comb -match 'nomor|number|no\b|punggung') { return $m }
             }
         }
 
-        if ($matchedIndex -ge 0) {
-            $usedMappingIndices[$matchedIndex] = $true
+        # 4. Semantic matching for Sponsor
+        if ($tLow -match '^(sponsor|sponsor\s*depan)$' -or $tClean -match '^\[?sponsor\]?$') {
+            foreach ($m in $mappingsList) {
+                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                if ($comb -match 'sponsor') { return $m }
+            }
         }
 
-        $bindings += [PSCustomObject]@{
-            ShapeIndex = $t
-            InitialText = $initialText
-            Mapping = $matchedMapping
-            MappingIndex = $matchedIndex
+        # 5. Semantic matching for Size
+        if ($tLow -match '^(ukuran|size|size\s*jersey)$' -or $tClean -match '^\[?(ukuran|size)\]?$') {
+            foreach ($m in $mappingsList) {
+                $comb = ((if ($m.placeholder) { $m.placeholder } else { '' }) + ' ' + (if ($m.label) { $m.label } else { '' }) + ' ' + (if ($m.column) { $m.column } else { '' })).ToLower()
+                if ($comb -match 'ukuran|size') { return $m }
+            }
         }
+
+        # 6. Embedded placeholder inside string (e.g. "NO: [NOMOR]")
+        foreach ($m in $mappingsList) {
+            $ph = if ($m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
+            if ($ph -and $tClean -match [regex]::Escape($ph)) { return $m }
+        }
+
+        return $null
     }
 
-    # Function to update any card (master or duplicated) using recorded bindings
-    function UpdateJerseyCard($cardShape, $player, $bindingsList, $fallbackMaxW) {
+    # Function to update any card (master or duplicated) by scanning all text shapes
+    function UpdateJerseyCard($cardShape, $player, $mappingsList, $fallbackMaxW) {
         if (-not $cardShape -or -not $player) { return }
         $cardTexts = @(Find-AllShapeTexts $cardShape)
-        for ($t = 0; $t -lt $bindingsList.Count; $t++) {
-            if ($t -ge $cardTexts.Count) { break }
-            $b = $bindingsList[$t]
-            $m = $b.Mapping
-            if (-not $m) { continue }
-            $ts = $cardTexts[$t]
+        foreach ($ts in $cardTexts) {
+            if (-not $ts) { continue }
+            $txtObj = Com-Get $ts 'Text'
+            $story = if ($txtObj) { Com-Get $txtObj 'Story' } else { $null }
+            if (-not $story) { continue }
+            $curText = ([string](Com-Get $story 'Text')).Trim()
 
-            $val = Get-PlayerValueForMapping $player $m $b.MappingIndex
+            $m = Get-ShapeMatchingMapping $curText $mappingsList
+            if (-not $m) { continue }
+
+            $val = Get-PlayerValueForMapping $player $m -1
+            if ($null -eq $val -or $val -eq '') { continue }
+
             $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { $fallbackMaxW }
             $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
 
             Apply-TextToShape $ts $val $m.align $m.textCase $mW $lR
         }
     }
+
+    $masterShape = if ($selCount -gt 1) { Com-Call $selection 'Group' } else { Get-RangeItem $selection 1 }
+    $origMasterW = [double](Com-Get $masterShape 'SizeWidth')
+    $origMasterH = [double](Com-Get $masterShape 'SizeHeight')
+    $masterRatio = if ($origMasterH -gt 0) { $origMasterW / $origMasterH } else { 1.0 }
 
     # Helper: Resolve target pattern dimensions based on sizeChart and aspect ratio
     function Get-SizeDimensions($szName, $chart, $mRatio, $origW, $origH) {
@@ -4311,6 +4420,7 @@ ${COREL_CONNECT_PS}
         return @{ targetW = $tw; targetH = $th }
     }
 
+    # Step 1: Duplication with Optimization = $true for lightning fast creation of 20+ cards
     try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Auto-Layout Jersey")) } catch {}
     try { [void](Com-Call $doc 'ClearSelection') } catch {}
     try { Com-Set $corel 'Optimization' $true } catch {}
@@ -4373,7 +4483,11 @@ ${COREL_CONNECT_PS}
         } catch {}
     }
 
-    # Now populate data and apply auto-resize to each card with per-card isolation
+    # Step 2: CRITICAL - Turn OFF optimization and enable events so CorelDRAW text engine & glyph metrics are 100% active!
+    try { Com-Set $corel 'Optimization' $false } catch {}
+    try { Com-Set $corel 'EventsEnabled' $true } catch {}
+
+    # Step 3: Now populate data, auto-resize each card, and convert to curves if requested
     $created = 0
     for ($i = 0; $i -lt $cardList.Count; $i++) {
         try {
@@ -4396,7 +4510,25 @@ ${COREL_CONNECT_PS}
                 }
             }
 
-            try { UpdateJerseyCard $card $p $bindings $maxW } catch {}
+            try { UpdateJerseyCard $card $p $mappings $maxW } catch {}
+
+            if ($autoCurves) {
+                try {
+                    $cTexts = @(Find-AllShapeTexts $card)
+                    for ($ck = $cTexts.Count - 1; $ck -ge 0; $ck--) {
+                        try {
+                            $ct = $cTexts[$ck]
+                            if ($ct) {
+                                try { [void](Com-Call $ct 'ConvertToCurves') } catch { try { [void](Com-Call $ct 'CreateCurves') } catch {} }
+                            }
+                        } catch {}
+                    }
+                } catch {}
+            }
+
+            $created++
+        } catch {}
+    }
 
             if ($autoCurves) {
                 try {

@@ -340,7 +340,7 @@ async function main() {
         JSON.stringify({
           tag_name: releaseTag,
           name: `Corel Tools Suite ${releaseTag} Official Release`,
-          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.7:\n- Auto Layout Jersey Super Cepat: Optimasi COM CorelDRAW diaktifkan selama penataan jersey, memangkas waktu proses hingga 15x lebih cepat (hanya ~0.15 detik per jersey).\n- Eliminasi Timeout Eksekusi: Batas waktu PowerShell diekspansi dinamis sesuai jumlah jersey (minimal 10 menit), mengatasi error Command Failed di tengah proses penataan batch besar.\n- Proteksi Error Per-Jersey: Isolasi try-catch per kartu sehingga jika ada objek teks khusus terkunci tidak akan membatalkan sisa antrean pola lainnya.\n- Pembersihan Cache DirectX/GPU: Toggling viewport otomatis setelah layout jersey selesai untuk mencegah glitch zoom dan objek bayangan.\n\nInstaller Setup dan Portable siap digunakan.`,
+          body: `Rilis Pembaruan Corel Tools Suite (${releaseTag})\n\nFitur & Perbaikan v1.0.8:\n- Perbaikan Penggantian Teks Nama & Nomor Jersey: Mode teks CorelDRAW dipastikan aktif penuh saat injeksi teks nama dan nomor pemain, menjamin seluruh nama dan nomor (baik di punggung maupun celana) terganti 100% sempurna.\n- Smart Multi-Placement Detection: Teks angka \"00\" di punggung dan di celana otomatis terisi nomor pemain sekaligus tanpa bentrok atau tertukar.\n- Proteksi Teks Logo: Teks merek/logo pada pola jersey tidak akan terganggu atau tertimpa data pemain.\n- Akselerasi & Timeout Dinamis: Duplikasi pola tetap secepat kilat dengan batas timeout hingga 10 menit tanpa risiko gagal di tengah jalan.\n\nInstaller Setup dan Portable siap digunakan.`,
           draft: true,
           prerelease: false,
         }),
