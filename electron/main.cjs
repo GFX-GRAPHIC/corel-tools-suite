@@ -4461,7 +4461,7 @@ ${COREL_CONNECT_PS}
         }
 
         $visited = 0
-        $maxShapes = 3000
+        $maxShapes = 4000
 
         while ($queue.Count -gt 0 -and $visited -lt $maxShapes) {
             $visited++
@@ -4473,6 +4473,7 @@ ${COREL_CONNECT_PS}
 
             $sType = 0
             try { $sType = [int](Com-Get $curr 'Type') } catch {}
+            if ($sType -eq 0) { try { $sType = [int]$curr.Type } catch {} }
 
             # cdrTextShape = 6
             if ($sType -eq 6) {
@@ -4480,13 +4481,7 @@ ${COREL_CONNECT_PS}
                 continue
             }
 
-            # Fast filter: Non-container shapes (curves = 3, rectangles = 1, ellipses = 2, bitmaps = 4)
-            # cannot contain child shapes. Skip immediately to avoid thousands of slow COM calls!
-            if ($sType -ne 7 -and $sType -ne 8 -and $sType -ne 0) {
-                continue
-            }
-
-            # 1. Inspect Child Shapes inside Group (Type=7), ShapeRange (Type=8), Selection, Page, Layer
+            # 1. Universal inspection of child shapes (Groups, ShapeRanges, Selections, Layers, Page, Effect Groups)
             $childShapes = $null
             try { $childShapes = Com-Get $curr 'Shapes' } catch {}
             if (-not $childShapes) { try { $childShapes = $curr.Shapes } catch {} }
@@ -4504,7 +4499,7 @@ ${COREL_CONNECT_PS}
             if ($childShapes) {
                 $cnt = 0
                 try { $cnt = [int](Com-Get $childShapes 'Count') } catch {}
-                if ($cnt -eq 0) { try { $cnt = [int]$childShapes.Count } catch {} }
+                if ($cnt -le 0) { try { $cnt = [int]$childShapes.Count } catch {} }
 
                 if ($cnt -gt 0) {
                     for ($k = 1; $k -le $cnt; $k++) {
@@ -4515,9 +4510,10 @@ ${COREL_CONNECT_PS}
                     }
                 }
             } elseif ($sType -eq 8 -or $sType -eq 0) {
-                # ShapeRange or Collection directly has Item(k)
+                # Direct ShapeRange or Collection Item(k)
                 $cnt = 0
                 try { $cnt = [int](Com-Get $curr 'Count') } catch {}
+                if ($cnt -le 0) { try { $cnt = [int]$curr.Count } catch {} }
                 if ($cnt -gt 0) {
                     for ($k = 1; $k -le $cnt; $k++) {
                         $ch = $null
@@ -4528,16 +4524,22 @@ ${COREL_CONNECT_PS}
                 }
             }
 
-            # 2. Check shapes inside PowerClip if any
+            # 2. Universal inspection of PowerClip container shapes (supports curves, rectangles, groups, pants containers)
             try {
                 $pc = Com-Get $curr 'PowerClip'
+                if (-not $pc) { try { $pc = $curr.PowerClip } catch {} }
                 if ($pc) {
                     $pcShps = Com-Get $pc 'Shapes'
+                    if (-not $pcShps) { try { $pcShps = $pc.Shapes } catch {} }
                     if ($pcShps) {
-                        $pCnt = [int](Com-Get $pcShps 'Count')
+                        $pCnt = 0
+                        try { $pCnt = [int](Com-Get $pcShps 'Count') } catch {}
+                        if ($pCnt -le 0) { try { $pCnt = [int]$pcShps.Count } catch {} }
                         if ($pCnt -gt 0) {
                             for ($pk = 1; $pk -le $pCnt; $pk++) {
-                                $pch = Com-Get $pcShps 'Item' @($pk)
+                                $pch = $null
+                                try { $pch = Com-Get $pcShps 'Item' @($pk) } catch {}
+                                if (-not $pch) { try { $pch = $pcShps.Item($pk) } catch {} }
                                 if ($pch) { $queue.Enqueue($pch) }
                             }
                         }
@@ -4549,16 +4551,16 @@ ${COREL_CONNECT_PS}
         return $list
     }
 
-    # Helper: Pre-index relative 1-based child shape paths of all text shapes in the master card
+    # Helper: Pre-index relative 1-based child shape paths of all text shapes in the master card (including PowerClips)
     function Get-MasterTextPaths($root) {
         $paths = [System.Collections.Generic.List[object]]::new()
         if ($null -eq $root) { return $paths }
 
         $q = [System.Collections.Queue]::new()
-        $q.Enqueue(@{ Node = $root; Path = [int[]]@() })
+        $q.Enqueue(@{ Node = $root; Path = @() })
         $visited = 0
 
-        while ($q.Count -gt 0 -and $visited -lt 2000) {
+        while ($q.Count -gt 0 -and $visited -lt 4000) {
             $visited++
             $item = $q.Dequeue()
             $currNode = $item.Node
@@ -4570,6 +4572,7 @@ ${COREL_CONNECT_PS}
 
             $sType = 0
             try { $sType = [int](Com-Get $currNode 'Type') } catch {}
+            if ($sType -eq 0) { try { $sType = [int]$currNode.Type } catch {} }
 
             # cdrTextShape = 6
             if ($sType -eq 6) {
@@ -4577,34 +4580,79 @@ ${COREL_CONNECT_PS}
                 continue
             }
 
-            # Only inspect child shapes if Group (7), ShapeRange (8), or root collection (0)
-            if ($sType -eq 7 -or $sType -eq 8 -or $sType -eq 0) {
-                $childShapes = $null
-                try { $childShapes = Com-Get $currNode 'Shapes' } catch {}
-                if (-not $childShapes) { try { $childShapes = $currNode.Shapes } catch {} }
-                if (-not $childShapes -and $sType -eq 7) {
-                    try {
-                        $grp = Com-Get $currNode 'Group'
-                        if ($grp) { $childShapes = Com-Get $grp 'Shapes' }
-                    } catch {}
-                }
+            # 1. Universal inspection of child shapes
+            $childShapes = $null
+            try { $childShapes = Com-Get $currNode 'Shapes' } catch {}
+            if (-not $childShapes) { try { $childShapes = $currNode.Shapes } catch {} }
+            if (-not $childShapes) {
+                try {
+                    $grp = Com-Get $currNode 'Group'
+                    if (-not $grp) { try { $grp = $currNode.Group } catch {} }
+                    if ($grp) {
+                        $childShapes = Com-Get $grp 'Shapes'
+                        if (-not $childShapes) { try { $childShapes = $grp.Shapes } catch {} }
+                    }
+                } catch {}
+            }
 
-                if ($childShapes) {
-                    $cnt = 0
-                    try { $cnt = [int](Com-Get $childShapes 'Count') } catch {}
-                    if ($cnt -gt 0) {
-                        for ($k = 1; $k -le $cnt; $k++) {
-                            $ch = $null
-                            try { $ch = Com-Get $childShapes 'Item' @($k) } catch {}
-                            if (-not $ch) { try { $ch = $childShapes.Item($k) } catch {} }
-                            if ($ch) {
-                                $newPath = [int[]]($currPath + @($k))
-                                $q.Enqueue(@{ Node = $ch; Path = $newPath })
-                            }
+            if ($childShapes) {
+                $cnt = 0
+                try { $cnt = [int](Com-Get $childShapes 'Count') } catch {}
+                if ($cnt -le 0) { try { $cnt = [int]$childShapes.Count } catch {} }
+
+                if ($cnt -gt 0) {
+                    for ($k = 1; $k -le $cnt; $k++) {
+                        $ch = $null
+                        try { $ch = Com-Get $childShapes 'Item' @($k) } catch {}
+                        if (-not $ch) { try { $ch = $childShapes.Item($k) } catch {} }
+                        if ($ch) {
+                            $newPath = @($currPath) + @($k)
+                            $q.Enqueue(@{ Node = $ch; Path = $newPath })
+                        }
+                    }
+                }
+            } elseif ($sType -eq 8 -or $sType -eq 0) {
+                $cnt = 0
+                try { $cnt = [int](Com-Get $currNode 'Count') } catch {}
+                if ($cnt -le 0) { try { $cnt = [int]$currNode.Count } catch {} }
+                if ($cnt -gt 0) {
+                    for ($k = 1; $k -le $cnt; $k++) {
+                        $ch = $null
+                        try { $ch = Com-Get $currNode 'Item' @($k) } catch {}
+                        if (-not $ch) { try { $ch = $currNode.Item($k) } catch {} }
+                        if ($ch) {
+                            $newPath = @($currPath) + @($k)
+                            $q.Enqueue(@{ Node = $ch; Path = $newPath })
                         }
                     }
                 }
             }
+
+            # 2. Universal inspection of PowerClip container shapes
+            try {
+                $pc = Com-Get $currNode 'PowerClip'
+                if (-not $pc) { try { $pc = $currNode.PowerClip } catch {} }
+                if ($pc) {
+                    $pcShps = Com-Get $pc 'Shapes'
+                    if (-not $pcShps) { try { $pcShps = $pc.Shapes } catch {} }
+                    if ($pcShps) {
+                        $pCnt = 0
+                        try { $pCnt = [int](Com-Get $pcShps 'Count') } catch {}
+                        if ($pCnt -le 0) { try { $pCnt = [int]$pcShps.Count } catch {} }
+                        if ($pCnt -gt 0) {
+                            for ($pk = 1; $pk -le $pCnt; $pk++) {
+                                $pch = $null
+                                try { $pch = Com-Get $pcShps 'Item' @($pk) } catch {}
+                                if (-not $pch) { try { $pch = $pcShps.Item($pk) } catch {} }
+                                if ($pch) {
+                                    $newPath = @($currPath) + @("pc:$pk")
+                                    $q.Enqueue(@{ Node = $pch; Path = $newPath })
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {}
         }
         return $paths
     }
@@ -4628,23 +4676,60 @@ ${COREL_CONNECT_PS}
             $curr = $card
             $valid = $true
             for ($pi = 0; $pi -lt $p.Length; $pi++) {
-                $idx = [int]$p[$pi]
-                $shps = $null
-                try { $shps = Com-Get $curr 'Shapes' } catch {}
-                if (-not $shps) { try { $shps = $curr.Shapes } catch {} }
-                if (-not $shps) { $valid = $false; break }
+                $step = [string]$p[$pi]
+                if ($step.StartsWith("pc:")) {
+                    $pk = [int]($step.Substring(3))
+                    $pc = $null
+                    try { $pc = Com-Get $curr 'PowerClip' } catch {}
+                    if (-not $pc) { try { $pc = $curr.PowerClip } catch {} }
+                    if (-not $pc) { $valid = $false; break }
+                    $pcShps = $null
+                    try { $pcShps = Com-Get $pc 'Shapes' } catch {}
+                    if (-not $pcShps) { try { $pcShps = $pc.Shapes } catch {} }
+                    if (-not $pcShps) { $valid = $false; break }
+                    $ch = $null
+                    try { $ch = Com-Get $pcShps 'Item' @($pk) } catch {}
+                    if (-not $ch) { try { $ch = $pcShps.Item($pk) } catch {} }
+                    if (-not $ch) { $valid = $false; break }
+                    $curr = $ch
+                } else {
+                    $idx = [int]$step
+                    $shps = $null
+                    try { $shps = Com-Get $curr 'Shapes' } catch {}
+                    if (-not $shps) { try { $shps = $curr.Shapes } catch {} }
+                    if (-not $shps) {
+                        try {
+                            $grp = Com-Get $curr 'Group'
+                            if (-not $grp) { try { $grp = $curr.Group } catch {} }
+                            if ($grp) {
+                                $shps = Com-Get $grp 'Shapes'
+                                if (-not $shps) { try { $shps = $grp.Shapes } catch {} }
+                            }
+                        } catch {}
+                    }
+                    if (-not $shps) {
+                        # ShapeRange or direct item collection
+                        $ch = $null
+                        try { $ch = Com-Get $curr 'Item' @($idx) } catch {}
+                        if (-not $ch) { try { $ch = $curr.Item($idx) } catch {} }
+                        if (-not $ch) { $valid = $false; break }
+                        $curr = $ch
+                        continue
+                    }
 
-                $ch = $null
-                try { $ch = Com-Get $shps 'Item' @($idx) } catch {}
-                if (-not $ch) { try { $ch = $shps.Item($idx) } catch {} }
-                if (-not $ch) { $valid = $false; break }
-                $curr = $ch
+                    $ch = $null
+                    try { $ch = Com-Get $shps 'Item' @($idx) } catch {}
+                    if (-not $ch) { try { $ch = $shps.Item($idx) } catch {} }
+                    if (-not $ch) { $valid = $false; break }
+                    $curr = $ch
+                }
             }
 
             if ($valid -and $curr) {
                 if ($curr -is [System.Array]) { if ($curr.Length -gt 0) { $curr = $curr[0] } }
                 $t = 0
                 try { $t = [int](Com-Get $curr 'Type') } catch {}
+                if ($t -eq 0) { try { $t = [int]$curr.Type } catch {} }
                 if ($t -eq 6) {
                     $resultTexts += $curr
                 }
@@ -4670,6 +4755,11 @@ ${COREL_CONNECT_PS}
         $tLow = $tClean.ToLower()
         $tNorm = $tClean.Trim('.', '[', ']', '{', '}', ':', ' ', '#', '"', "'", '-', '_')
         $tNormLow = $tNorm.ToLower()
+
+        # Skip layout markers from mapping
+        if ($tNormLow -match '^(kiri|_kiri|kanan|_kanan|depan|_depan|belakang|_belakang|tangan|_tangan|lengan|_lengan|kerah|_kerah|pola|_pola|badan|_badan)$') {
+            return $null
+        }
 
         # 1. Exact match with placeholder, bare placeholder, label, column, or normalized forms
         foreach ($m in $mappingsList) {
@@ -4743,11 +4833,14 @@ ${COREL_CONNECT_PS}
             }
         }
 
-        # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches both back and pants!)
-        if ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$' -or $tClean -match '^\[?(nomor|number|no|00|#)\]?$') {
+        # 3. Semantic matching for Player Number: "00", "0", "10", "99", digits, or "NOMOR", "NUMBER", "NO" (matches back, front, and pants!)
+        if ($tNorm -match '^\d{1,4}$' -or
+            $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$' -or
+            $tNormLow -match '^(?:no|nomor|number)[\s:\.]*\d{1,4}$' -or
+            $tClean -match '^\[?(nomor|number|no|00|#)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = Get-MappingComb $m
-                if ($comb -match 'nomor|number|no\b|punggung|celana|00|#') { return $m }
+                if ($comb -match 'nomor|number|no\b|punggung|celana|dada|tangan|00|#') { return $m }
             }
         }
 
@@ -4759,8 +4852,12 @@ ${COREL_CONNECT_PS}
             }
         }
 
-        # 5. Semantic matching for Size: "UKURAN", "SIZE", ".SIZE", "SIZE JERSEY", or standard size badges (S, M, L, XL, etc.)
-        if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz)$' -or $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all)$' -or $tClean -match '^\[?(ukuran|size|sz)\]?$') {
+        # 5. Semantic matching for Size (supports: UKURAN, SIZE, SZ, LABEL SIZE, SIZE L, SIZE: L, S, M, L, XL, etc.)
+        if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz|label\s*size|size\s*label|label\s*ukuran|ukuran\s*label|size\s*tag|tag\s*size)$' -or
+            $tNormLow -match '^(?:size|ukuran|sz)[\s:\-_]+(?:xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all|\d{1,2}|\[?(?:size|ukuran|sz)\]?)?$' -or
+            $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all|all\s*size)$' -or
+            $tNormLow -match '^(xs|s|m|l|xl|xxl)\s*anak$' -or
+            $tClean -match '^\[?(ukuran|size|sz)\]?$') {
             foreach ($m in $mappingsList) {
                 $comb = Get-MappingComb $m
                 if ($comb -match 'ukuran|size|sz') { return $m }
@@ -4821,6 +4918,17 @@ ${COREL_CONNECT_PS}
             $curText = $curText.Trim()
             if ([string]::IsNullOrWhiteSpace($curText)) { continue }
 
+            $tClean = $curText.Trim()
+            $tLow = $tClean.ToLower()
+            $tNorm = $tClean.Trim('.', '[', ']', '{', '}', ':', ' ', '#', '"', "'", '-', '_')
+            $tNormLow = $tNorm.ToLower()
+
+            # Skip layout markers (kiri, kanan, depan, belakang, kerah, tangan, pola, badan)
+            if ($tNormLow -match '^(kiri|_kiri|kanan|_kanan|depan|_depan|belakang|_belakang|tangan|_tangan|lengan|_lengan|kerah|_kerah|pola|_pola|badan|_badan)$') {
+                Write-CtsLog "  Shape Text '$curText' -> Skipped (Layout Marker)"
+                continue
+            }
+
             $m = Get-ShapeMatchingMapping $curText $mappingsList
             Write-CtsLog "  Shape Text '$curText' -> Matched: $(if ($m) { $m.label + ' / ' + $m.placeholder } else { 'NONE' })"
 
@@ -4839,16 +4947,23 @@ ${COREL_CONNECT_PS}
             }
             if (-not $m -or [string]::IsNullOrWhiteSpace($val)) {
                 # Intelligent Semantic Direct Fallback for Size, Name, and Number:
-                $tNorm = $curText.Trim('.', '[', ']', '{', '}', ':', ' ', '#', '"', "'", '-', '_')
-                $tNormLow = $tNorm.ToLower()
-
-                if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz|xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all)$') {
+                if ($tNormLow -match '^(ukuran|size|size\s*jersey|sz|label\s*size|size\s*label|label\s*ukuran|ukuran\s*label|size\s*tag|tag\s*size)$' -or
+                    $tNormLow -match '^(?:size|ukuran|sz)[\s:\-_]+(?:xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all|\d{1,2}|\[?(?:size|ukuran|sz)\]?)?$' -or
+                    $tNormLow -match '^(xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl|5xl|all|all\s*size)$' -or
+                    $tNormLow -match '^(xs|s|m|l|xl|xxl)\s*anak$' -or
+                    $tClean -match '^\[?(ukuran|size|sz)\]?$') {
                     $pSz = Get-FieldValue $player 'Ukuran'
                     if (-not $pSz) { $pSz = Get-FieldValue $player 'Size' }
                     if (-not $pSz) { $pSz = Get-FieldValue $player '[SIZE]' }
                     if (-not $pSz) { $pSz = Get-FieldValue $player '[UKURAN]' }
                     if ($pSz) {
-                        $val = $pSz
+                        if ($curText -match '^((?:SIZE|UKURAN|SZ)\s*[:\-]\s*)') {
+                            $val = $matches[1] + $pSz.Trim().ToUpper()
+                        } elseif ($curText -match '^((?:SIZE|UKURAN|SZ)\s+)(?:XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|5XL|ALL|\d{1,2})$') {
+                            $val = $matches[1] + $pSz.Trim().ToUpper()
+                        } else {
+                            $val = $pSz.Trim().ToUpper()
+                        }
                         $align = 'center'; $textCase = 'upper'; $mW = 15.0; $lR = $true
                         Write-CtsLog "  Direct Auto-Match Size: '$curText' -> '$val'"
                     }
@@ -4861,14 +4976,21 @@ ${COREL_CONNECT_PS}
                         $align = 'center'; $textCase = 'upper'; $mW = $fallbackMaxW; $lR = $true
                         Write-CtsLog "  Direct Auto-Match Name: '$curText' -> '$val'"
                     }
-                } elseif ($tNorm -match '^\d{1,4}$' -or $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$') {
+                } elseif ($tNorm -match '^\d{1,4}$' -or
+                          $tNormLow -match '^(nomor|number|no|no\.|no\s*punggung|no\s*dada|no\s*celana|nomor\s*punggung|nomor\s*dada|nomor\s*celana|#|00)$' -or
+                          $tNormLow -match '^(?:no|nomor|number)[\s:\.]*\d{1,4}$' -or
+                          $tClean -match '^\[?(nomor|number|no|00|#)\]?$') {
                     $pNum = Get-FieldValue $player 'Nomor'
                     if (-not $pNum) { $pNum = Get-FieldValue $player 'Number' }
                     if (-not $pNum) { $pNum = Get-FieldValue $player '00' }
                     if (-not $pNum) { $pNum = Get-FieldValue $player '[00]' }
                     if (-not $pNum) { $pNum = Get-FieldValue $player '[NOMOR]' }
                     if ($pNum) {
-                        $val = $pNum
+                        if ($curText -match '^((?:NO|NOMOR|NUMBER)\s*[:\.]\s*)') {
+                            $val = $matches[1] + $pNum.Trim()
+                        } else {
+                            $val = $pNum.Trim()
+                        }
                         $align = 'center'; $textCase = 'none'; $mW = 20.0; $lR = $true
                         Write-CtsLog "  Direct Auto-Match Number: '$curText' -> '$val'"
                     }
@@ -4882,6 +5004,10 @@ ${COREL_CONNECT_PS}
             $ph = if ($m -and $m.placeholder) { [string]$m.placeholder.Trim() } else { '' }
             if ($ph -and $curText -match [regex]::Escape($ph) -and $curText -ne $ph) {
                 $finalVal = $curText -replace [regex]::Escape($ph), [string]$val
+            } elseif ($curText -match '^((?:SIZE|UKURAN|SZ)\s*[:\-]\s*)') {
+                $finalVal = $matches[1] + [string]$val
+            } elseif ($curText -match '^((?:NO|NOMOR|NUMBER)\s*[:\.]\s*)') {
+                $finalVal = $matches[1] + [string]$val
             }
 
             Apply-TextToShape $ts $finalVal $align $textCase $mW $lR
