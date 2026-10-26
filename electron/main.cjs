@@ -21,6 +21,7 @@ let corelAiTracerWindow = null;
 let corelCertMergerWindow = null;
 let corelLayoutPolaWindow = null;
 let corelLayoutPolaPreviewWindow = null;
+let corelTutorialPlayerWindow = null;
 let layoutPolaSharedState = null;
 let activeJerseySessionData = null;
 
@@ -438,6 +439,48 @@ function createCorelLayoutPolaPreviewWindow() {
     }
   });
   return corelLayoutPolaPreviewWindow;
+}
+
+function openTutorialPlayerWindow(videoId, title) {
+  if (!videoId || typeof videoId !== 'string') return null;
+  const safeId = videoId.replace(/[^\w-]/g, '').slice(0, 11);
+  if (!safeId) return null;
+
+  const windowTitle = title ? `Video Tutorial - ${title}` : 'Video Tutorial - Corel Tools Suite';
+
+  if (corelTutorialPlayerWindow && !corelTutorialPlayerWindow.isDestroyed()) {
+    corelTutorialPlayerWindow.focus();
+    corelTutorialPlayerWindow.setTitle(windowTitle);
+    corelTutorialPlayerWindow.loadURL(`https://www.youtube-nocookie.com/embed/${safeId}?autoplay=1&rel=0`, {
+      httpReferrer: 'https://www.google.com/'
+    });
+    return corelTutorialPlayerWindow;
+  }
+
+  corelTutorialPlayerWindow = new BrowserWindow({
+    width: 960,
+    height: 580,
+    minWidth: 480,
+    minHeight: 320,
+    backgroundColor: '#0f172a',
+    title: windowTitle,
+    icon: getAppIcon(),
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  corelTutorialPlayerWindow.loadURL(`https://www.youtube-nocookie.com/embed/${safeId}?autoplay=1&rel=0`, {
+    httpReferrer: 'https://www.google.com/'
+  });
+
+  corelTutorialPlayerWindow.on('closed', () => {
+    corelTutorialPlayerWindow = null;
+  });
+
+  return corelTutorialPlayerWindow;
 }
 
 function createWindow() {
@@ -5825,6 +5868,16 @@ ipcMain.handle('corel:open-file-explorer', async (_event, filePath) => {
     return { success: false, message: 'File tidak ditemukan.' };
   } catch (err) {
     return { success: false, message: err?.message || 'Gagal membuka folder.' };
+  }
+});
+
+ipcMain.handle('corel:open-tutorial-player', async (_event, payload) => {
+  try {
+    const { videoId, title } = payload || {};
+    openTutorialPlayerWindow(videoId, title);
+    return { success: true };
+  } catch (err) {
+    return { success: false, message: err?.message };
   }
 });
 

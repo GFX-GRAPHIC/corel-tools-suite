@@ -89,6 +89,7 @@ const api = {
   copyImageToClipboard: (payload) => ipcRenderer.invoke('corel:copy-image-clipboard', payload),
   readImageFromClipboard: () => ipcRenderer.invoke('corel:read-image-clipboard'),
   savePatternImage: (payload) => ipcRenderer.invoke('corel:save-pattern-image', payload),
+  openTutorialPlayer: (payload) => ipcRenderer.invoke('corel:open-tutorial-player', payload),
   openExternalUrl: (url) => ipcRenderer.invoke('corel:open-external-url', url),
   openFileInExplorer: (filePath) => ipcRenderer.invoke('corel:open-file-explorer', filePath),
   onTracerClipboardReady: (callback) => {

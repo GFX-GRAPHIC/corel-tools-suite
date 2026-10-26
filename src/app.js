@@ -6644,11 +6644,6 @@ Catatan: Lengan Panjang
   }
 
   function openYouTubeModal(url, title) {
-    const modal = document.getElementById('modalYouTubeTutorial');
-    const playerContainer = document.getElementById('containerYouTubePlayer');
-    const titleEl = document.getElementById('lblYouTubeModalTitle');
-    if (!modal || !playerContainer) return;
-
     const videoId = parseYouTubeId(url);
     if (!videoId) {
       showToast('Link video tutorial belum tersedia.', false);
@@ -6656,6 +6651,16 @@ Catatan: Lengan Panjang
     }
 
     activeYouTubeUrl = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
+
+    // Buka jendela pemutar video native terverifikasi (bebas Error 153 & Error 152)
+    if (window.electronAPI && window.electronAPI.openTutorialPlayer) {
+      window.electronAPI.openTutorialPlayer({ videoId, title });
+      return;
+    }
+    const modal = document.getElementById('modalYouTubeTutorial');
+    const playerContainer = document.getElementById('containerYouTubePlayer');
+    const titleEl = document.getElementById('lblYouTubeModalTitle');
+    if (!modal || !playerContainer) return;
 
     if (titleEl) {
       titleEl.textContent = title ? ('Video Tutorial: ' + title) : 'Video Tutorial';
