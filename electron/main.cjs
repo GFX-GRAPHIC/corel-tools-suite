@@ -5830,8 +5830,13 @@ ipcMain.handle('corel:open-file-explorer', async (_event, filePath) => {
 
 ipcMain.handle('corel:open-external-url', async (_event, url) => {
   try {
-    if (url) {
-      await shell.openExternal(url);
+    if (url && typeof url === 'string') {
+      const trimmed = url.trim();
+      // Whitelist only secure HTTPS URLs
+      if (!/^https:\/\//i.test(trimmed)) {
+        return { success: false, message: 'Protokol URL tidak diizinkan.' };
+      }
+      await shell.openExternal(trimmed);
       return { success: true };
     }
     return { success: false, message: 'URL kosong.' };

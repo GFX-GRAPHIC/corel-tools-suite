@@ -6621,6 +6621,21 @@ Catatan: Lengan Panjang
     return match ? match[1] : '';
   }
 
+  // Security: Strict Whitelist & Data Sanitizer
+  function sanitizeTutorialData(rawData) {
+    if (!rawData || typeof rawData !== 'object') return {};
+    const clean = {};
+    for (const [key, val] of Object.entries(rawData)) {
+      if (typeof key === 'string' && typeof val === 'string') {
+        const videoId = parseYouTubeId(val);
+        if (videoId) {
+          clean[key] = 'https://www.youtube.com/watch?v=' + videoId;
+        }
+      }
+    }
+    return clean;
+  }
+
   function getTutorialUrlForFeature(featureId, viewId) {
     if (!cloudTutorials) return '';
     return (featureId && cloudTutorials[featureId]) ||
@@ -6634,26 +6649,20 @@ Catatan: Lengan Panjang
     const titleEl = document.getElementById('lblYouTubeModalTitle');
     if (!modal || !playerContainer) return;
 
-    activeYouTubeUrl = url || '';
     const videoId = parseYouTubeId(url);
     if (!videoId) {
-      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-        if (window.electronAPI && window.electronAPI.openExternalUrl) {
-          window.electronAPI.openExternalUrl(url);
-        } else {
-          window.open(url, '_blank');
-        }
-        return;
-      }
       showToast('Link video tutorial belum tersedia.', false);
       return;
     }
+
+    activeYouTubeUrl = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
 
     if (titleEl) {
       titleEl.textContent = title ? ('Video Tutorial: ' + title) : 'Video Tutorial';
     }
 
-    playerContainer.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    // Secure sandboxed embed with youtube-nocookie
+    playerContainer.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>';
     modal.style.display = 'flex';
   }
 
@@ -6680,7 +6689,7 @@ Catatan: Lengan Panjang
   const btnYouTubeOpenExternal = document.getElementById('btnYouTubeOpenExternal');
   if (btnYouTubeOpenExternal) {
     btnYouTubeOpenExternal.addEventListener('click', () => {
-      if (activeYouTubeUrl) {
+      if (activeYouTubeUrl && parseYouTubeId(activeYouTubeUrl)) {
         if (window.electronAPI && window.electronAPI.openExternalUrl) {
           window.electronAPI.openExternalUrl(activeYouTubeUrl);
         } else {
@@ -6711,7 +6720,7 @@ Catatan: Lengan Panjang
     try {
       const cached = localStorage.getItem('cts_tutorial_links');
       if (cached) {
-        cloudTutorials = JSON.parse(cached);
+        cloudTutorials = sanitizeTutorialData(JSON.parse(cached));
         updateAllTutorialBadges();
       }
     } catch {}
@@ -6727,8 +6736,8 @@ Catatan: Lengan Panjang
       if (res.ok) {
         const data = await res.json();
         if (data && typeof data === 'object') {
-          cloudTutorials = data;
-          localStorage.setItem('cts_tutorial_links', JSON.stringify(data));
+          cloudTutorials = sanitizeTutorialData(data);
+          localStorage.setItem('cts_tutorial_links', JSON.stringify(cloudTutorials));
           updateAllTutorialBadges();
         }
       }
@@ -6737,7 +6746,7 @@ Catatan: Lengan Panjang
         try {
           const localRes = await fetch('tutorials.json');
           if (localRes.ok) {
-            cloudTutorials = await localRes.json();
+            cloudTutorials = sanitizeTutorialData(await localRes.json());
             updateAllTutorialBadges();
           }
         } catch {}
