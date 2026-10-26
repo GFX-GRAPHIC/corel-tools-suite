@@ -365,6 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     footerActionStatus.innerText = `Mode: ${viewName.toUpperCase()}`;
+    if (viewName === 'panduan' && typeof loadTutorialLinksCloud === 'function') {
+      loadTutorialLinksCloud();
+    }
   }
 
   // Sidebar clicks
@@ -6636,11 +6639,47 @@ Catatan: Lengan Panjang
     return clean;
   }
 
+  const FEATURE_ALIASES = {
+    'downsaver': ['downsaver', 'penurun', 'versi', 'cdrversion'],
+    'enumerator': ['enumerator', 'penomoran', 'nomor', 'numerator'],
+    'merger': ['merger', 'gabungan', 'sertifikat', 'certmerger'],
+    'jersey': ['jersey', 'autolayout', 'pola', 'olahraga'],
+    'layoutPola': ['layoutPola', 'layoutpola', 'nesting'],
+    'pesanan': ['pesanan', 'ordersorter', 'order', 'rekap'],
+    'tracer': ['tracer', 'aitracer', 'trace', 'vektor'],
+    'split': ['split', 'pecah', 'potong'],
+    'konversi': ['konversi', 'convert', 'format'],
+    'warna': ['warna', 'color', 'cmyk', 'palet'],
+    'ukuran': ['ukuran', 'size', 'dimensi'],
+    'batch': ['batch', 'massal'],
+    'multicorel': ['multicorel', 'multicore', 'multi']
+  };
+
   function getTutorialUrlForFeature(featureId, viewId) {
-    if (!cloudTutorials) return '';
-    return (featureId && cloudTutorials[featureId]) ||
-           (viewId && cloudTutorials[viewId]) ||
-           '';
+    if (!cloudTutorials || typeof cloudTutorials !== 'object') return '';
+    const fId = (featureId || '').toLowerCase().trim();
+    const vId = (viewId || '').toLowerCase().trim();
+
+    for (const [k, url] of Object.entries(cloudTutorials)) {
+      const lowerK = k.toLowerCase().trim();
+      if ((fId && lowerK === fId) || (vId && lowerK === vId)) {
+        if (url && parseYouTubeId(url)) return url;
+      }
+    }
+
+    for (const [canonical, aliases] of Object.entries(FEATURE_ALIASES)) {
+      const isTarget = aliases.some(a => a.toLowerCase() === fId || a.toLowerCase() === vId);
+      if (isTarget) {
+        for (const alias of aliases) {
+          for (const [k, url] of Object.entries(cloudTutorials)) {
+            if (k.toLowerCase().trim() === alias.toLowerCase()) {
+              if (url && parseYouTubeId(url)) return url;
+            }
+          }
+        }
+      }
+    }
+    return '';
   }
 
   function openYouTubeModal(url, title) {
@@ -6721,18 +6760,30 @@ Catatan: Lengan Panjang
     });
   }
 
-  async function loadTutorialLinksCloud() {
-    try {
-      const cached = localStorage.getItem('cts_tutorial_links');
-      if (cached) {
-        cloudTutorials = sanitizeTutorialData(JSON.parse(cached));
-        updateAllTutorialBadges();
-      }
-    } catch {}
+  let currentOpenGuideItem = null;
+
+  function refreshTutorialUI() {
+    updateAllTutorialBadges();
+    if (typeof renderGuideList === 'function') renderGuideList();
+    if (currentOpenGuideItem && guideDetailContainer && guideDetailContainer.style.display === 'block') {
+      openGuideDetail(currentOpenGuideItem);
+    }
+  }
+
+  async function loadTutorialLinksCloud(forceRefresh = false) {
+    if (!forceRefresh) {
+      try {
+        const cached = localStorage.getItem('cts_tutorial_links');
+        if (cached) {
+          cloudTutorials = sanitizeTutorialData(JSON.parse(cached));
+          refreshTutorialUI();
+        }
+      } catch {}
+    }
 
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 4000);
+      const timer = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(GITHUB_TUTORIALS_URL + '?t=' + Date.now(), {
         signal: controller.signal,
         cache: 'no-store'
@@ -6742,21 +6793,27 @@ Catatan: Lengan Panjang
         const data = await res.json();
         if (data && typeof data === 'object') {
           cloudTutorials = sanitizeTutorialData(data);
-          localStorage.setItem('cts_tutorial_links', JSON.stringify(cloudTutorials));
-          updateAllTutorialBadges();
+          try { localStorage.setItem('cts_tutorial_links', JSON.stringify(cloudTutorials)); } catch {}
+          refreshTutorialUI();
+          return Object.keys(cloudTutorials).length;
         }
       }
-    } catch {
-      if (Object.keys(cloudTutorials).length === 0) {
-        try {
-          const localRes = await fetch('tutorials.json');
-          if (localRes.ok) {
-            cloudTutorials = sanitizeTutorialData(await localRes.json());
-            updateAllTutorialBadges();
-          }
-        } catch {}
-      }
+    } catch (err) {
+      console.log('[Tutorials] Cloud sync note:', err?.message);
     }
+
+    // Local fallback if cloud was empty
+    if (Object.keys(cloudTutorials).length === 0) {
+      try {
+        const localRes = await fetch('tutorials.json?t=' + Date.now(), { cache: 'no-store' });
+        if (localRes.ok) {
+          cloudTutorials = sanitizeTutorialData(await localRes.json());
+          refreshTutorialUI();
+          return Object.keys(cloudTutorials).length;
+        }
+      } catch {}
+    }
+    return Object.keys(cloudTutorials).length;
   }
 
   // Global click listener for .btn-tool-tutorial in all tool headers
@@ -6874,6 +6931,7 @@ Catatan: Lengan Panjang
 
   function openGuideDetail(item) {
     if (!guideDetailContainer || !guideListContainer) return;
+    currentOpenGuideItem = item;
 
     guideListContainer.style.display = 'none';
     guideDetailContainer.style.display = 'block';
@@ -6927,7 +6985,10 @@ Catatan: Lengan Panjang
 
     guideDetailContainer.innerHTML = '<div class="guide-detail-header">' +
       '<button class="btn-secondary" id="btnBackToGuideList">← Kembali ke Daftar Panduan</button>' +
-      (item.viewId ? '<button class="btn-primary" id="btnLaunchFeatureFromGuide">🚀 Langsung Buka Fitur Ini</button>' : '') +
+      '<div style="display: flex; gap: 8px;">' +
+        '<button type="button" class="btn-secondary" id="btnRefreshDetailTutorial" style="height: 32px; font-size: 11.5px;" title="Segarkan status video tutorial dari GitHub">🔄 Segarkan Video</button>' +
+        (item.viewId ? '<button class="btn-primary" id="btnLaunchFeatureFromGuide">🚀 Langsung Buka Fitur Ini</button>' : '') +
+      '</div>' +
     '</div>' +
     '<div style="margin-bottom: 16px;">' +
       '<span class="guide-card-badge">' + item.badge + '</span>' +
@@ -6968,8 +7029,26 @@ Catatan: Lengan Panjang
     const btnBack = document.getElementById('btnBackToGuideList');
     if (btnBack) {
       btnBack.addEventListener('click', () => {
+        currentOpenGuideItem = null;
         guideDetailContainer.style.display = 'none';
         guideListContainer.style.display = 'grid';
+      });
+    }
+
+    const btnRefreshDetail = document.getElementById('btnRefreshDetailTutorial');
+    if (btnRefreshDetail) {
+      btnRefreshDetail.addEventListener('click', async () => {
+        btnRefreshDetail.textContent = '⏳ Memeriksa...';
+        btnRefreshDetail.disabled = true;
+        try {
+          const count = await loadTutorialLinksCloud(true);
+          showToast('Link video tutorial disinkronkan (' + count + ' aktif)', true);
+        } catch {
+          showToast('Gagal menyinkronkan dari GitHub.', false);
+        } finally {
+          btnRefreshDetail.textContent = '🔄 Segarkan Video';
+          btnRefreshDetail.disabled = false;
+        }
       });
     }
 
