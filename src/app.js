@@ -6661,8 +6661,8 @@ Catatan: Lengan Panjang
       titleEl.textContent = title ? ('Video Tutorial: ' + title) : 'Video Tutorial';
     }
 
-    // Embed YouTube player with valid referrer policy (fixes Error 153)
-    playerContainer.innerHTML = '<iframe src="https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0&enablejsapi=1" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+    // Format resmi bawaan YouTube Embed
+    playerContainer.innerHTML = '<iframe width="100%" height="100%" src="https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>';
     modal.style.display = 'flex';
   }
 

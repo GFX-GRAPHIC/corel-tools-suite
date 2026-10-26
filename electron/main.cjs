@@ -480,34 +480,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Fix YouTube embed Error 153 by injecting valid Referer/Origin headers
-  const youtubeFilter = {
-    urls: [
-      '*://*.youtube.com/*',
-      '*://*.youtube-nocookie.com/*',
-      '*://*.googlevideo.com/*'
-    ]
-  };
-
-  session.defaultSession.webRequest.onBeforeSendHeaders(youtubeFilter, (details, callback) => {
-    details.requestHeaders['Referer'] = 'https://www.youtube.com/';
-    details.requestHeaders['Origin'] = 'https://www.youtube.com';
-    callback({ cancel: false, requestHeaders: details.requestHeaders });
-  });
-
-  session.defaultSession.webRequest.onHeadersReceived(youtubeFilter, (details, callback) => {
-    const responseHeaders = Object.assign({}, details.responseHeaders);
-    delete responseHeaders['x-frame-options'];
-    delete responseHeaders['X-Frame-Options'];
-    if (responseHeaders['content-security-policy']) {
-      delete responseHeaders['content-security-policy'];
-    }
-    if (responseHeaders['Content-Security-Policy']) {
-      delete responseHeaders['Content-Security-Policy'];
-    }
-    callback({ cancel: false, responseHeaders });
-  });
-
   createWindow();
 
   app.on('activate', () => {
