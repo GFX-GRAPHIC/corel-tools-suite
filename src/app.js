@@ -6606,6 +6606,195 @@ Catatan: Lengan Panjang
   const btnOpenFirstRunGuide = document.getElementById('btnOpenFirstRunGuide');
   const btnSkipFirstRunGuide = document.getElementById('btnSkipFirstRunGuide');
 
+  // ==========================================
+  // Cloud YouTube Video Tutorial System
+  // ==========================================
+  const GITHUB_TUTORIALS_URL = 'https://raw.githubusercontent.com/GFX-GRAPHIC/corel-tools-suite/master/tutorials.json';
+  const GITHUB_TUTORIALS_EDIT_URL = 'https://github.com/GFX-GRAPHIC/corel-tools-suite/blob/master/tutorials.json';
+  let cloudTutorials = {};
+  let activeYouTubeUrl = '';
+
+  function parseYouTubeId(url) {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/i);
+    return match ? match[1] : '';
+  }
+
+  function getTutorialUrlForFeature(featureId, viewId) {
+    if (!cloudTutorials) return '';
+    return (featureId && cloudTutorials[featureId]) ||
+           (viewId && cloudTutorials[viewId]) ||
+           '';
+  }
+
+  function openYouTubeModal(url, title) {
+    const modal = document.getElementById('modalYouTubeTutorial');
+    const playerContainer = document.getElementById('containerYouTubePlayer');
+    const titleEl = document.getElementById('lblYouTubeModalTitle');
+    if (!modal || !playerContainer) return;
+
+    activeYouTubeUrl = url || '';
+    const videoId = parseYouTubeId(url);
+    if (!videoId) {
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        if (window.electronAPI && window.electronAPI.openExternalUrl) {
+          window.electronAPI.openExternalUrl(url);
+        } else {
+          window.open(url, '_blank');
+        }
+        return;
+      }
+      showToast('Link video tutorial belum tersedia.', false);
+      return;
+    }
+
+    if (titleEl) {
+      titleEl.textContent = title ? ('Video Tutorial: ' + title) : 'Video Tutorial';
+    }
+
+    playerContainer.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    modal.style.display = 'flex';
+  }
+
+  function closeYouTubeModal() {
+    const modal = document.getElementById('modalYouTubeTutorial');
+    const playerContainer = document.getElementById('containerYouTubePlayer');
+    if (modal) modal.style.display = 'none';
+    if (playerContainer) playerContainer.innerHTML = '';
+    activeYouTubeUrl = '';
+  }
+
+  const btnYouTubeModalClose = document.getElementById('btnYouTubeModalClose');
+  if (btnYouTubeModalClose) {
+    btnYouTubeModalClose.addEventListener('click', closeYouTubeModal);
+  }
+
+  const modalYouTubeTutorial = document.getElementById('modalYouTubeTutorial');
+  if (modalYouTubeTutorial) {
+    modalYouTubeTutorial.addEventListener('click', (e) => {
+      if (e.target === modalYouTubeTutorial) closeYouTubeModal();
+    });
+  }
+
+  const btnYouTubeOpenExternal = document.getElementById('btnYouTubeOpenExternal');
+  if (btnYouTubeOpenExternal) {
+    btnYouTubeOpenExternal.addEventListener('click', () => {
+      if (activeYouTubeUrl) {
+        if (window.electronAPI && window.electronAPI.openExternalUrl) {
+          window.electronAPI.openExternalUrl(activeYouTubeUrl);
+        } else {
+          window.open(activeYouTubeUrl, '_blank');
+        }
+      }
+    });
+  }
+
+  function updateAllTutorialBadges() {
+    document.querySelectorAll('.btn-tool-tutorial').forEach(btn => {
+      const gid = btn.dataset.guideId;
+      if (!gid) return;
+      const url = getTutorialUrlForFeature(gid, gid);
+      if (url && parseYouTubeId(url)) {
+        btn.classList.add('has-video');
+        btn.innerHTML = '▶ Video Tutorial';
+        btn.title = 'Tonton Video Tutorial Praktik di YouTube';
+      } else {
+        btn.classList.remove('has-video');
+        btn.innerHTML = '🎬 Tutorial';
+        btn.title = 'Buka Panduan Langkah-Langkah Penggunaan';
+      }
+    });
+  }
+
+  async function loadTutorialLinksCloud() {
+    try {
+      const cached = localStorage.getItem('cts_tutorial_links');
+      if (cached) {
+        cloudTutorials = JSON.parse(cached);
+        updateAllTutorialBadges();
+      }
+    } catch {}
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(GITHUB_TUTORIALS_URL + '?t=' + Date.now(), {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          cloudTutorials = data;
+          localStorage.setItem('cts_tutorial_links', JSON.stringify(data));
+          updateAllTutorialBadges();
+        }
+      }
+    } catch {
+      if (Object.keys(cloudTutorials).length === 0) {
+        try {
+          const localRes = await fetch('tutorials.json');
+          if (localRes.ok) {
+            cloudTutorials = await localRes.json();
+            updateAllTutorialBadges();
+          }
+        } catch {}
+      }
+    }
+  }
+
+  // Global click listener for .btn-tool-tutorial in all tool headers
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-tool-tutorial');
+    if (!btn) return;
+    const guideId = btn.dataset.guideId;
+    if (!guideId) return;
+    const videoUrl = getTutorialUrlForFeature(guideId, guideId);
+    const items = getGuideItems();
+    const item = items.find(i => i.id === guideId || i.viewId === guideId);
+    const title = item ? item.name : 'Video Tutorial';
+    if (videoUrl && parseYouTubeId(videoUrl)) {
+      openYouTubeModal(videoUrl, title);
+    } else {
+      switchView('panduan');
+      if (item) {
+        openGuideDetail(item);
+      }
+    }
+  });
+
+  // Settings: Button Sync Tutorials from Cloud
+  const btnSyncTutorialsCloud = document.getElementById('btnSyncTutorialsCloud');
+  if (btnSyncTutorialsCloud) {
+    btnSyncTutorialsCloud.addEventListener('click', async () => {
+      btnSyncTutorialsCloud.disabled = true;
+      btnSyncTutorialsCloud.textContent = '⏳ Menyinkronkan...';
+      try {
+        await loadTutorialLinksCloud();
+        showToast('Link video tutorial berhasil disinkronkan dari GitHub!', true);
+      } catch (err) {
+        showToast('Gagal menyinkronkan: ' + (err.message || 'Koneksi gagal'), false);
+      } finally {
+        btnSyncTutorialsCloud.disabled = false;
+        btnSyncTutorialsCloud.textContent = '🔄 Segarkan Link dari Cloud';
+      }
+    });
+  }
+
+  // Settings: Button Open tutorials.json on GitHub
+  const btnOpenTutorialsOnGithub = document.getElementById('btnOpenTutorialsOnGithub');
+  if (btnOpenTutorialsOnGithub) {
+    btnOpenTutorialsOnGithub.addEventListener('click', () => {
+      if (window.electronAPI && window.electronAPI.openExternalUrl) {
+        window.electronAPI.openExternalUrl(GITHUB_TUTORIALS_EDIT_URL);
+      } else {
+        window.open(GITHUB_TUTORIALS_EDIT_URL, '_blank');
+      }
+    });
+  }
+
   let activeGuideCategory = 'all';
   let activeGuideSearch = '';
 
@@ -6694,6 +6883,34 @@ Catatan: Lengan Panjang
       persiapanHtml = '<ul class="guide-step-list" style="list-style-type: disc;">' + item.persiapan.map(p => '<li>' + p + '</li>').join('') + '</ul>';
     }
 
+    const videoUrl = getTutorialUrlForFeature(item.id, item.viewId);
+    let videoCardHtml = '';
+    if (videoUrl && parseYouTubeId(videoUrl)) {
+      videoCardHtml = '<div class="guide-video-card-ready">' +
+        '<div style="display: flex; align-items: center; gap: 12px;">' +
+          '<div style="background: #ef4444; color: #ffffff; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-size: 13px; font-weight: 700; color: #f8fafc;">Video Tutorial Praktik Tersedia</div>' +
+            '<div style="font-size: 11.5px; color: #cbd5e1;">Tonton langkah kerja nyata di CorelDRAW melalui video YouTube.</div>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="btn-watch-video" id="btnPlayGuideVideo">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' +
+          '<span>Tonton Video</span>' +
+        '</button>' +
+      '</div>';
+    } else {
+      videoCardHtml = '<div class="guide-video-card-pending">' +
+        '<span style="font-size: 20px;">🎬</span>' +
+        '<div style="flex: 1;">' +
+          '<div style="font-size: 12px; font-weight: 700; color: #94a3b8;">Video Tutorial Sedang Disiapkan</div>' +
+          '<div style="font-size: 11px; color: #64748b;">Video tutorial praktik untuk fitur ini sedang dalam tahap perekaman. Anda dapat langsung mengikuti panduan tertulis di bawah.</div>' +
+        '</div>' +
+      '</div>';
+    }
+
     guideDetailContainer.innerHTML = '<div class="guide-detail-header">' +
       '<button class="btn-secondary" id="btnBackToGuideList">← Kembali ke Daftar Panduan</button>' +
       (item.viewId ? '<button class="btn-primary" id="btnLaunchFeatureFromGuide">🚀 Langsung Buka Fitur Ini</button>' : '') +
@@ -6703,35 +6920,36 @@ Catatan: Lengan Panjang
       '<h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-top: 4px; margin-bottom: 6px;">' + item.name + '</h2>' +
       '<p style="font-size: 13px; color: #94a3b8;">' + item.shortDesc + '</p>' +
     '</div>' +
-
+    videoCardHtml +
     '<div class="guide-detail-section">' +
       '<div class="guide-section-title">🎯 Fungsi & Kegunaan</div>' +
       '<div class="guide-section-text">' + item.fungsi + '</div>' +
     '</div>' +
-
     '<div class="guide-detail-section">' +
       '<div class="guide-section-title">💡 Kapan Digunakan</div>' +
       '<div class="guide-section-text">' + item.kapanDigunakan + '</div>' +
     '</div>' +
-
     (persiapanHtml ? '<div class="guide-detail-section"><div class="guide-section-title">📋 Persiapan Sebelum Pakai</div>' + persiapanHtml + '</div>' : '') +
-
     '<div class="guide-detail-section">' +
       '<div class="guide-section-title">🚀 Langkah-Langkah Penggunaan</div>' +
       stepsHtml +
     '</div>' +
-
     (settingsHtml ? '<div class="guide-detail-section"><div class="guide-section-title">⚙️ Penjelasan Opsi & Pengaturan</div>' + settingsHtml + '</div>' : '') +
-
     '<div class="guide-detail-section">' +
       '<div class="guide-section-title">✅ Hasil yang Diharapkan</div>' +
       '<div class="guide-section-text">' + item.hasil + '</div>' +
     '</div>' +
-
     '<div class="guide-detail-section" style="margin-bottom: 0;">' +
       '<div class="guide-section-title">⚠️ Catatan Penting</div>' +
       '<div class="guide-section-text">' + item.catatan + '</div>' +
     '</div>';
+
+    const btnPlayGuide = document.getElementById('btnPlayGuideVideo');
+    if (btnPlayGuide && videoUrl) {
+      btnPlayGuide.addEventListener('click', () => {
+        openYouTubeModal(videoUrl, item.name);
+      });
+    }
 
     const btnBack = document.getElementById('btnBackToGuideList');
     if (btnBack) {
@@ -6811,6 +7029,7 @@ Catatan: Lengan Panjang
 
   // Initial render when view becomes active
   renderGuideList();
+  loadTutorialLinksCloud();
 
   // ========================================================
   // 14. LAYOUT POLA (AUTO-NESTING LEMBAR CETAK) CONTROLLER

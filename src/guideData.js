@@ -290,6 +290,90 @@ var GUIDE_DATA = [
     ],
     hasil: 'Seluruh tools otomasi langsung terhubung dan siap digunakan di CorelDRAW yang Anda inginkan.',
     catatan: 'Pendaftaran dilakukan langsung di akun pengguna Windows Anda (HKCU) sehingga tidak membutuhkan akses administrator atau repot dengan CMD.'
+  },
+  {
+    id: 'layoutPola',
+    name: 'Auto-Nesting Lembar Cetak Pola (Layout Pola)',
+    viewId: 'layout-pola',
+    category: 'produksi',
+    categoryLabel: 'Produksi & Cetak',
+    badge: 'Nesting Roll Sublim / DTF',
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>`,
+    shortDesc: 'Menata posisi puluhan pola potong secara rapat dan otomatis untuk menghemat bahan kain atau media cetak.',
+    fungsi: 'Algoritma nesting otomatis yang menyusun objek-objek pola jersey, tas, atau pakaian ke dalam lebar bahan kain tertentu dengan jarak (gap) presisi agar bahan tidak terbuang percuma.',
+    kapanDigunakan: 'Saat ingin mencetak banyak potongan pola pakaian pada printer sublimasi gulungan (roll-to-roll) atau lembaran DTF/kain meteran.',
+    persiapan: [
+      'Buka dokumen CorelDRAW yang berisi pola-pola yang sudah siap dipotong/dicetak.',
+      'Seleksi (blok) semua objek pola di CorelDRAW yang ingin ditata.'
+    ],
+    langkah: [
+      'Buka menu Layout Pola di aplikasi Corel Tools Suite.',
+      'Klik tombol "Baca Seleksi dari CorelDRAW". Sistem akan mendeteksi seluruh ukuran pola yang dipilih.',
+      'Tentukan "Lebar Bahan" (misalnya 150 cm atau 180 cm) dan "Jarak Antar Pola" (misal 1 cm).',
+      'Pilih orientasi rotasi (Bebas, 90 derajat, atau Tetap Tegak).',
+      'Lihat simulasi tata letak pada layar pratinjau (Interactive Preview).',
+      'Klik tombol "Terapkan ke CorelDRAW". Seluruh objek pola di CorelDRAW akan langsung berpindah tertata rapi sesuai hasil nesting.'
+    ],
+    pengaturan: [
+      { opsi: 'Lebar Bahan (cm)', arti: 'Lebar efektif media gulungan kain atau kertas sublim.' },
+      { opsi: 'Jarak / Gap (cm)', arti: 'Jarak sela aman antar pola potong agar tidak saling menimpa saat gunting/laser.' },
+      { opsi: 'Rotasi Objek', arti: 'Izin memutar pola untuk mencari celah paling hemat bahan.' }
+    ],
+    hasil: 'Pola tersusun padat dan efisien, menghemat penggunaan bahan baku percetakan hingga 20-30%.',
+    catatan: 'Objek pola yang telah digrup akan diperlakukan sebagai satu kesatuan utuh saat penataan.'
+  },
+  {
+    id: 'ukuran',
+    name: 'Resize & Pengubah Ukuran Objek Presisi',
+    viewId: 'ukuran',
+    category: 'desain',
+    categoryLabel: 'Desain & Vektor',
+    badge: 'Presisi Sentimeter',
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>`,
+    shortDesc: 'Mengubah dimensi panjang dan lebar objek terpilih di CorelDRAW secara instan dengan presisi tinggi.',
+    fungsi: 'Menyesuaikan ukuran objek atau grup desain ke dalam ukuran sentimeter (cm) yang pasti, serta opsi langsung memposisikan objek tepat di tengah halaman kerja.',
+    kapanDigunakan: 'Saat menyiapkan ukuran standar stiker, kartu nama, spanduk, atau plakat sesuai permintaan cetak.',
+    persiapan: [
+      'Pilih (seleksi) objek atau grup desain di CorelDRAW.'
+    ],
+    langkah: [
+      'Buka menu Ukuran & Layout di Corel Tools Suite.',
+      'Masukkan angka Lebar (cm) dan Tinggi (cm) yang diinginkan.',
+      'Centang opsi "Rata Tengah Halaman" jika ingin objek langsung diletakkan di tengah lembar kerja.',
+      'Klik tombol "Ubah Ukuran". Objek di CorelDRAW akan langsung berubah sesuai dimensi yang dimasukkan.'
+    ],
+    pengaturan: [
+      { opsi: 'Lebar (cm)', arti: 'Ukuran lebar baru objek dalam satuan sentimeter.' },
+      { opsi: 'Tinggi (cm)', arti: 'Ukuran tinggi baru objek dalam satuan sentimeter.' },
+      { opsi: 'Rata Tengah Halaman', arti: 'Memposisikan titik pusat objek tepat di tengah halaman (Center to Page).' }
+    ],
+    hasil: 'Dimensi objek CorelDRAW berubah akurat tanpa perlu mengubahnya manual lewat toolbar.',
+    catatan: 'Pastikan objek terpilih di CorelDRAW sebelum menekan tombol eksekusi.'
+  },
+  {
+    id: 'batch',
+    name: 'Batch Processing & Pipeline Otomatis',
+    viewId: 'batch',
+    category: 'otomasi',
+    categoryLabel: 'Otomasi Massal',
+    badge: 'Multi-Task',
+    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><rect width="8" height="8" x="2" y="2" rx="1"/><rect width="8" height="8" x="14" y="2" rx="1"/><rect width="8" height="8" x="14" y="14" rx="1"/><rect width="8" height="8" x="2" y="14" rx="1"/></svg>`,
+    shortDesc: 'Menjalankan rangkaian tugas berulang (convert text, clean layers, cleanup) dalam sekali klik.',
+    fungsi: 'Menggabungkan beberapa tugas pembersihan dan standarisasi file pra-cetak menjadi satu rantai eksekusi otomatis.',
+    kapanDigunakan: 'Saat ingin memfinalisasi file desain sebelum dikirim ke mesin cetak agar bebas dari font hilang dan sampah layer.',
+    persiapan: [
+      'Buka file desain di CorelDRAW.'
+    ],
+    langkah: [
+      'Buka menu Batch di Corel Tools Suite.',
+      'Pilih tugas-tugas yang ingin dijalankan (misal: Convert All Text to Curves + Bersihkan Guidelines).',
+      'Klik tombol "Jalankan Batch Pipeline".'
+    ],
+    pengaturan: [
+      { opsi: 'Daftar Tugas Pipeline', arti: 'Rangkaian tindakan pra-cetak yang akan dieksekusi berurutan.' }
+    ],
+    hasil: 'Dokumen CorelDRAW bersih, rapi, dan siap cetak tanpa risiko teks berantakan.',
+    catatan: 'Disarankan menyimpan salinan file cadangan sebelum menjalankan pipeline massal.'
   }
 ];
 
