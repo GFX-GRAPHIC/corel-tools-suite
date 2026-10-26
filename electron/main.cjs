@@ -1375,6 +1375,152 @@ ${getCorelFindAppPs()}
             }
         }
     }
+
+    function Get-RangeCount($r) {
+        if ($null -eq $r) { return 0 }
+        try {
+            $cnt = Com-Get $r "Count"
+            if ($null -ne $cnt -and [int]$cnt -gt 0) { return [int]$cnt }
+        } catch {}
+        try {
+            $shps = Com-Get $r "Shapes"
+            if ($null -ne $shps) {
+                $sc = Com-Get $shps "Count"
+                if ($null -ne $sc -and [int]$sc -gt 0) { return [int]$sc }
+            }
+        } catch {}
+        try {
+            $sType = Com-Get $r "Type"
+            if ($null -ne $sType -and [int]$sType -gt 0) { return 1 }
+        } catch {}
+        try {
+            $sId = Com-Get $r "StaticID"
+            if ($null -ne $sId -and [int]$sId -gt 0) { return 1 }
+        } catch {}
+        return 0
+    }
+
+    function Get-RangeItem($r, [int]$idx) {
+        if ($null -eq $r) { return $null }
+        if ($idx -eq 1) {
+            try {
+                $cnt = Com-Get $r "Count"
+                if ($null -eq $cnt) {
+                    $sType = Com-Get $r "Type"
+                    if ($null -ne $sType -and [int]$sType -gt 0) { return ,$r }
+                    $sId = Com-Get $r "StaticID"
+                    if ($null -ne $sId -and [int]$sId -gt 0) { return ,$r }
+                }
+            } catch {}
+        }
+        try {
+            $it = Com-Get $r "Item" @($idx)
+            if ($null -ne $it) {
+                if ($it -is [System.Array]) { if ($it.Length -gt 0) { $it = $it[0] } }
+                return ,$it
+            }
+        } catch {}
+        try {
+            $shps = Com-Get $r "Shapes"
+            if ($null -ne $shps) {
+                $it2 = Com-Get $shps "Item" @($idx)
+                if ($null -ne $it2) {
+                    if ($it2 -is [System.Array]) { if ($it2.Length -gt 0) { $it2 = $it2[0] } }
+                    return ,$it2
+                }
+            }
+        } catch {}
+        if ($idx -eq 1) {
+            try {
+                $sId = Com-Get $r "StaticID"
+                if ($null -ne $sId -and [int]$sId -gt 0) { return ,$r }
+            } catch {}
+        }
+        return $null
+    }
+
+    function Get-CorelSelection($cApp, $dDoc) {
+        $sel = $null
+        $cnt = 0
+
+        # Tier 1: cApp.ActiveSelectionRange
+        if ($cApp) {
+            try {
+                $cand = Com-Get $cApp "ActiveSelectionRange"
+                $cnt = Get-RangeCount $cand
+                if ($cnt -gt 0) { return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $null } }
+            } catch {}
+        }
+
+        # Tier 2: dDoc.SelectionRange
+        if ($dDoc) {
+            try {
+                $cand = Com-Get $dDoc "SelectionRange"
+                $cnt = Get-RangeCount $cand
+                if ($cnt -gt 0) { return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $null } }
+            } catch {}
+        }
+
+        # Tier 3: cApp.ActiveSelection
+        if ($cApp) {
+            try {
+                $cand = Com-Get $cApp "ActiveSelection"
+                $cnt = Get-RangeCount $cand
+                if ($cnt -gt 0) { return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $null } }
+            } catch {}
+        }
+
+        # Tier 4: dDoc.ActiveSelection
+        if ($dDoc) {
+            try {
+                $cand = Com-Get $dDoc "ActiveSelection"
+                $cnt = Get-RangeCount $cand
+                if ($cnt -gt 0) { return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $null } }
+            } catch {}
+        }
+
+        # Tier 5: dDoc.Selection
+        if ($dDoc) {
+            try {
+                $cand = Com-Get $dDoc "Selection"
+                $cnt = Get-RangeCount $cand
+                if ($cnt -gt 0) { return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $null } }
+            } catch {}
+        }
+
+        # Tier 6: Multi-document search: when multiple documents/tabs are open in CorelDRAW
+        if ($cApp) {
+            try {
+                $allDocs = Com-Get $cApp "Documents"
+                $docTotal = if ($allDocs) { [int](Com-Get $allDocs "Count") } else { 0 }
+                if ($docTotal -gt 1) {
+                    $curDocName = if ($dDoc) { [string](Com-Get $dDoc "Name") } else { "" }
+                    for ($di = 1; $di -le $docTotal; $di++) {
+                        $oDoc = Com-Get $allDocs "Item" @($di)
+                        if (-not $oDoc) { continue }
+                        $oName = [string](Com-Get $oDoc "Name")
+                        if ($curDocName -and $oName -eq $curDocName) { continue }
+
+                        $cand = Com-Get $oDoc "SelectionRange"
+                        $cnt = Get-RangeCount $cand
+                        if ($cnt -gt 0) {
+                            try { [void](Com-Call $oDoc "Activate") } catch {}
+                            return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $oDoc }
+                        }
+
+                        $cand = Com-Get $oDoc "ActiveSelection"
+                        $cnt = Get-RangeCount $cand
+                        if ($cnt -gt 0) {
+                            try { [void](Com-Call $oDoc "Activate") } catch {}
+                            return [PSCustomObject]@{ Selection = $cand; Count = $cnt; SelCount = $cnt; SwitchedDoc = $oDoc }
+                        }
+                    }
+                }
+            } catch {}
+        }
+
+        return [PSCustomObject]@{ Selection = $null; Count = 0; SelCount = 0; SwitchedDoc = $null }
+    }
   `;
 }
 
@@ -1510,8 +1656,25 @@ if ($realProcs -and $realProcs.Count -gt 0) {
                 if ($adName) { $res.activeDoc = $adName }
                 $adPath = [string](Com-Get $ad "FullFileName")
                 if ($adPath) { $res.docPath = $adPath }
+                $sCnt = 0
                 $sr = Com-Get $ad "SelectionRange"
-                if ($sr) { $res.selectionCount = [int](Com-Get $sr "Count") }
+                if ($sr) {
+                    $c = Com-Get $sr "Count"
+                    if ($c) { $sCnt = [int]$c }
+                }
+                if ($sCnt -eq 0) {
+                    $as = Com-Get $corel "ActiveSelection"
+                    if ($as) {
+                        $c = Com-Get $as "Count"
+                        if ($c -and [int]$c -gt 0) {
+                            $sCnt = [int]$c
+                        } else {
+                            $st = Com-Get $as "Type"
+                            if ($st -and [int]$st -gt 0) { $sCnt = 1 }
+                        }
+                    }
+                }
+                $res.selectionCount = $sCnt
                 $pgs = Com-Get $ad "Pages"
                 if ($pgs) { $res.pageCount = [int](Com-Get $pgs "Count") }
             }
@@ -1818,30 +1981,6 @@ ${COREL_CONNECT_PS}
         return $c
     }
 
-    function Get-RangeCount($r) {
-        if ($null -eq $r) { return 0 }
-        $subShps = Com-Get $r "Shapes"
-        if ($null -ne $subShps) {
-            $sc = Com-Get $subShps "Count"
-            if ($null -ne $sc) { return [int]$sc }
-        }
-        $cnt = Com-Get $r "Count"
-        if ($null -ne $cnt) { return [int]$cnt }
-        return 0
-    }
-
-    function Get-RangeItem($r, [int]$idx) {
-        if ($null -eq $r) { return $null }
-        $it = Com-Get $r "Item" @($idx)
-        if ($null -ne $it) { return ,$it }
-        $subShps = Com-Get $r "Shapes"
-        if ($null -ne $subShps) {
-            $it2 = Com-Get $subShps "Item" @($idx)
-            if ($null -ne $it2) { return ,$it2 }
-        }
-        return $null
-    }
-
     function Get-ValidTargetLayer($pageObj, $docObj) {
         $lyr = $null
         if ($pageObj) {
@@ -1951,20 +2090,10 @@ ${COREL_CONNECT_PS}
     $totalNumbers = $numList.Count
     if ($totalNumbers -eq 0) { throw "Jumlah nomor yang dihasilkan adalah 0." }
 
-    $sel = Com-Get $doc "SelectionRange"
-    $selCount = Get-RangeCount $sel
-    if ($selCount -eq 0) {
-        $sel = Com-Get $corel "ActiveSelectionRange"
-        $selCount = Get-RangeCount $sel
-    }
-    if ($selCount -eq 0) {
-        $sel = Com-Get $corel "ActiveSelection"
-        $selCount = Get-RangeCount $sel
-    }
-    if ($selCount -eq 0) {
-        $sel = Com-Call $doc "Selection"
-        $selCount = Get-RangeCount $sel
-    }
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
     if ($mode -eq 'inplace' -or ($selCount -gt 1 -and $mode -ne 'grid')) {
         $shapeList = @()
@@ -2154,6 +2283,9 @@ ${COREL_CONNECT_PS}
         }
         if (-not $masterShape) {
             $masterShape = Get-RangeItem $sel 1
+        }
+        if (-not $masterShape -and $selCount -eq 1 -and $sel) {
+            $masterShape = $sel
         }
         if (-not $masterShape) {
             throw "Gagal membaca objek seleksi master di CorelDRAW."
@@ -2443,38 +2575,6 @@ trap {
     }
     $res | ConvertTo-Json -Compress
     exit 0
-}
-
-function Get-RangeCount($r) {
-    if (-not $r) { return 0 }
-    try {
-        $cnt = Com-Get $r 'Count'
-        if ($null -ne $cnt) { return [int]$cnt }
-    } catch {}
-    try {
-        $shps = Com-Get $r 'Shapes'
-        if ($shps) {
-            $cnt2 = Com-Get $shps 'Count'
-            if ($null -ne $cnt2) { return [int]$cnt2 }
-        }
-    } catch {}
-    return 0
-}
-
-function Get-RangeItem($r, [int]$idx) {
-    if (-not $r) { return $null }
-    try {
-        $it = Com-Get $r 'Item' @($idx)
-        if ($it) { return ,$it }
-    } catch {}
-    try {
-        $shps = Com-Get $r 'Shapes'
-        if ($shps) {
-            $it2 = Com-Get $shps 'Item' @($idx)
-            if ($it2) { return ,$it2 }
-        }
-    } catch {}
-    return $null
 }
 
 # Helper function: Convert string casing (Sentence case, lowercase, UPPERCASE, Title Case, tOGGLE cASE)
@@ -2836,13 +2936,9 @@ ${COREL_CONNECT_PS}
 
     if ($mode -eq 'inplace') {
         # IN-PLACE: update active page or active selection only using first row
-        $targetContainer = $null
-        try {
-            $aSel = Com-Get $doc 'ActiveSelection'
-            if ((Get-RangeCount $aSel) -gt 0) {
-                $targetContainer = $aSel
-            }
-        } catch {}
+        $selInfo = Get-CorelSelection $corel $doc
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+        $targetContainer = if ($selInfo.SelCount -gt 0) { $selInfo.Selection } else { $null }
         if (-not $targetContainer) {
             $targetContainer = Com-Get $doc 'ActivePage'
             if (-not $targetContainer) {
@@ -2868,12 +2964,10 @@ ${COREL_CONNECT_PS}
     elseif ($mode -eq 'grid') {
         try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm, 3 = mm)
 
-        $sel = $null
-        try { $sel = Com-Get $corel 'ActiveSelection' } catch {}
-        if (-not $sel -or (Get-RangeCount $sel) -eq 0) {
-            try { $sel = Com-Get $doc 'Selection' } catch {}
-        }
-        $selCount = Get-RangeCount $sel
+        $selInfo = Get-CorelSelection $corel $doc
+        $sel = $selInfo.Selection
+        $selCount = [int]$selInfo.SelCount
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
         $masterPage = Com-Get $doc 'ActivePage'
         if (-not $masterPage) {
@@ -2887,9 +2981,23 @@ ${COREL_CONNECT_PS}
             $masterShape = Com-Call $sel 'Group'
         } elseif ($selCount -eq 1) {
             $masterShape = Get-RangeItem $sel 1
+            if (-not $masterShape -and $sel) { $masterShape = $sel }
         } else {
             $mpShapes = Com-Get $masterPage 'Shapes'
             $mpCount = if ($mpShapes) { [int](Com-Get $mpShapes 'Count') } else { 0 }
+            if ($mpCount -eq 0) {
+                try {
+                    $dtLayer = Com-Get (Com-Get $masterPage 'Layers') 'Item' @('Desktop')
+                    if ($dtLayer) {
+                        $dtShapes = Com-Get $dtLayer 'Shapes'
+                        $dtCount = if ($dtShapes) { [int](Com-Get $dtShapes 'Count') } else { 0 }
+                        if ($dtCount -gt 0) {
+                            $mpShapes = $dtShapes
+                            $mpCount = $dtCount
+                        }
+                    }
+                } catch {}
+            }
             if ($mpCount -eq 0) {
                 throw "Dokumen CorelDRAW masih kosong. Silakan buka desain sertifikat/voucher atau seleksi objek master terlebih dahulu."
             }
@@ -3018,10 +3126,30 @@ ${COREL_CONNECT_PS}
         }
         try { [void](Com-Call $masterPage 'Activate') } catch {}
 
+        $selInfo = Get-CorelSelection $corel $doc
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
         $mpShapes = Com-Get $masterPage 'Shapes'
         $mpCount = if ($mpShapes) { [int](Com-Get $mpShapes 'Count') } else { 0 }
         if ($mpCount -eq 0) {
-            throw "Halaman template sertifikat masih kosong."
+            try {
+                $dtLayer = Com-Get (Com-Get $masterPage 'Layers') 'Item' @('Desktop')
+                if ($dtLayer) {
+                    $dtShapes = Com-Get $dtLayer 'Shapes'
+                    $dtCount = if ($dtShapes) { [int](Com-Get $dtShapes 'Count') } else { 0 }
+                    if ($dtCount -gt 0) {
+                        $mpShapes = $dtShapes
+                        $mpCount = $dtCount
+                    }
+                }
+            } catch {}
+        }
+        if ($mpCount -eq 0 -and $selInfo.SelCount -gt 0) {
+            $mpShapes = $selInfo.Selection
+            $mpCount = [int]$selInfo.SelCount
+        }
+        if ($mpCount -eq 0) {
+            throw "Halaman template sertifikat masih kosong. Buka desain sertifikat atau seleksi objek master terlebih dahulu."
         }
 
         $initialMasterTexts = @(Get-AllTextShapes $masterPage)
@@ -3314,13 +3442,45 @@ ${COREL_CONNECT_PS}
     $srcRgb = HexToRgb '${sourceHex}'
     $dstRgb = HexToRgb '${targetHex}'
 
-    $targetContainer = if ($doc.ActiveSelection -and $doc.ActiveSelection.Shapes.Count -gt 0) { $doc.ActiveSelection } else { $doc.ActivePage }
-    $allShapes = $targetContainer.Shapes.FindShapes()
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
+    $allShapes = @()
+    if ($selCount -gt 0 -and $sel) {
+        if ($selCount -eq 1) {
+            $singleShp = Get-RangeItem $sel 1
+            if ($singleShp) {
+                $allShapes += $singleShp
+                try {
+                    $subF = $singleShp.Shapes.FindShapes()
+                    if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+                } catch {}
+            }
+        } else {
+            try {
+                $subF = $sel.Shapes.FindShapes()
+                if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+            } catch {
+                for ($si = 1; $si -le $selCount; $si++) {
+                    $shp = Get-RangeItem $sel $si
+                    if ($shp) { $allShapes += $shp }
+                }
+            }
+        }
+    }
+    if ($allShapes.Count -eq 0) {
+        $actPg = $doc.ActivePage
+        if ($actPg -and $actPg.Shapes) {
+            $subF = $actPg.Shapes.FindShapes()
+            if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+        }
+    }
 
     $changed = 0
-    if ($allShapes) {
-        for ($i = 1; $i -le $allShapes.Count; $i++) {
-            $s = $allShapes.Item($i)
+    foreach ($s in $allShapes) {
+        if (-not $s) { continue }
             # Check Fill
             if ([bool]${replaceFill ? '$true' : '$false'}) {
                 try {
@@ -3387,27 +3547,60 @@ $colors = @()
 ${COREL_CONNECT_PS}
 
 if ($corel -and $doc) {
-    $target = if ($doc.ActiveSelection -and $doc.ActiveSelection.Shapes.Count -gt 0) { $doc.ActiveSelection } else { $doc.ActivePage }
-    $shapes = $target.Shapes.FindShapes()
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
-    if ($shapes) {
-        for ($i = 1; $i -le [math]::Min(100, $shapes.Count); $i++) {
-            $s = $shapes.Item($i)
+    $allShapes = @()
+    if ($selCount -gt 0 -and $sel) {
+        if ($selCount -eq 1) {
+            $singleShp = Get-RangeItem $sel 1
+            if ($singleShp) {
+                $allShapes += $singleShp
+                try {
+                    $subF = $singleShp.Shapes.FindShapes()
+                    if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+                } catch {}
+            }
+        } else {
             try {
-                if ($s.Fill.Type -eq 1) {
-                    $c = $s.Fill.UniformColor
-                    $hex = "#{0:X2}{1:X2}{2:X2}" -f $c.RGBRed, $c.RGBGreen, $c.RGBBlue
-                    if ($colors -notcontains $hex) { $colors += $hex }
+                $subF = $sel.Shapes.FindShapes()
+                if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+            } catch {
+                for ($si = 1; $si -le $selCount; $si++) {
+                    $shp = Get-RangeItem $sel $si
+                    if ($shp) { $allShapes += $shp }
                 }
-            } catch {}
-            try {
-                if ($s.Outline.Type -ne 0) {
-                    $c = $s.Outline.Color
-                    $hex = "#{0:X2}{1:X2}{2:X2}" -f $c.RGBRed, $c.RGBGreen, $c.RGBBlue
-                    if ($colors -notcontains $hex) { $colors += $hex }
-                }
-            } catch {}
+            }
         }
+    }
+    if ($allShapes.Count -eq 0) {
+        $actPg = $doc.ActivePage
+        if ($actPg -and $actPg.Shapes) {
+            $subF = $actPg.Shapes.FindShapes()
+            if ($subF) { for ($fi = 1; $fi -le $subF.Count; $fi++) { $allShapes += $subF.Item($fi) } }
+        }
+    }
+
+    $limit = [math]::Min(100, $allShapes.Count)
+    for ($i = 0; $i -lt $limit; $i++) {
+        $s = $allShapes[$i]
+        if (-not $s) { continue }
+        try {
+            if ($s.Fill.Type -eq 1) {
+                $c = $s.Fill.UniformColor
+                $hex = "#{0:X2}{1:X2}{2:X2}" -f $c.RGBRed, $c.RGBGreen, $c.RGBBlue
+                if ($colors -notcontains $hex) { $colors += $hex }
+            }
+        } catch {}
+        try {
+            if ($s.Outline.Type -ne 0) {
+                $c = $s.Outline.Color
+                $hex = "#{0:X2}{1:X2}{2:X2}" -f $c.RGBRed, $c.RGBGreen, $c.RGBBlue
+                if ($colors -notcontains $hex) { $colors += $hex }
+            }
+        } catch {}
     }
 }
 
@@ -3434,8 +3627,12 @@ ${COREL_CONNECT_PS}
     $doc.Unit = 3 # cdrCentimeter
     $doc.BeginCommandGroup("CTS Resize")
 
-    $sel = $doc.ActiveSelection
-    if (-not $sel -or $sel.Shapes.Count -eq 0) {
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
+    if ($selCount -eq 0 -or -not $sel) {
         throw "Silakan seleksi objek di CorelDRAW terlebih dahulu."
     }
 
@@ -3490,15 +3687,20 @@ ${COREL_CONNECT_PS}
             } catch {}
         }
     } else {
-        $sel = $doc.ActiveSelection
-        if (-not $sel -or $sel.Shapes.Count -eq 0) { throw "Seleksi objek yang ingin dipisah." }
-        for ($s = 1; $s -le $sel.Shapes.Count; $s++) {
+        $selInfo = Get-CorelSelection $corel $doc
+        $sel = $selInfo.Selection
+        $selCount = [int]$selInfo.SelCount
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+        if ($selCount -eq 0 -or -not $sel) { throw "Seleksi objek yang ingin dipisah." }
+        for ($s = 1; $s -le $selCount; $s++) {
             try {
                 $destPath = Join-Path $outDir "$baseName-Objek-$s.png"
-                $shp = $sel.Shapes.Item($s)
-                $filter = $shp.ExportBitmap($destPath, 774, 1, 5, 0, 0, 300, 300)
-                if ($filter) { $filter.Finish() }
-                $count++
+                $shp = Get-RangeItem $sel $s
+                if ($shp) {
+                    $filter = Com-Call $shp 'ExportBitmap' @($destPath, 774, 1, 5, 0, 0, 300, 300)
+                    if ($filter) { Com-Call $filter 'Finish' }
+                    $count++
+                }
             } catch {}
         }
     }
@@ -3614,12 +3816,20 @@ ipcMain.handle('corel:execute-utility', async (_event, command) => {
     case 'ungroup':
       cmdName = 'Ungroup All Objects';
       innerScript = `
-        $sel = $doc.ActiveSelection
-        if ($sel -and $sel.Shapes.Count -gt 0) {
-            $sel.UngroupAll()
+        $selInfo = Get-CorelSelection $corel $doc
+        $sel = $selInfo.Selection
+        $selCount = [int]$selInfo.SelCount
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+        if ($selCount -gt 0 -and $sel) {
+            try { [void](Com-Call $sel 'UngroupAll') } catch { try { [void]$sel.UngroupAll() } catch {} }
             $result.message = "Objek terseleksi berhasil di-ungroup secara menyeluruh."
         } else {
-            $doc.ActivePage.Shapes.All().UngroupAll()
+            $actPg = Com-Get $doc 'ActivePage'
+            $pgShps = if ($actPg) { Com-Get $actPg 'Shapes' } else { $null }
+            if ($pgShps) {
+                $allRange = Com-Call $pgShps 'All'
+                if ($allRange) { try { [void](Com-Call $allRange 'UngroupAll') } catch {} }
+            }
             $result.message = "Seluruh objek pada halaman aktif berhasil di-ungroup."
         }
       `;
@@ -3727,22 +3937,49 @@ try {
 ${COREL_CONNECT_PS}
     if (-not $doc) { throw "Buka dokumen di CorelDRAW terlebih dahulu." }
 
-    $page = $doc.ActivePage
-    if (-not $page) { $page = $doc.Pages.Item(1) }
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
+    $page = Com-Get $doc 'ActivePage'
+    if (-not $page) { $page = Com-Get (Com-Get $doc 'Pages') 'Item' @(1) }
 
     $corel.Optimization = $true
     $corel.EventsEnabled = $false
     $doc.BeginCommandGroup("Convert All Text to Curves")
 
-    $textShapes = $page.Shapes.FindShapes($null, 6, $true)
-    $convertedCount = $textShapes.Count
-    if ($convertedCount -gt 0) {
-        for ($i = $convertedCount; $i -ge 1; $i--) {
-            try {
-                $ts = $textShapes.Item($i)
-                $ts.ConvertToCurves()
-            } catch {}
+    $textShapes = $null
+    if ($selCount -gt 0 -and $sel) {
+        try { $textShapes = Com-Call $sel "FindShapes" @($null, 6, $true) } catch {}
+    }
+    if (-not $textShapes -or [int](Com-Get $textShapes "Count") -eq 0) {
+        $pgShapes = if ($page) { Com-Get $page 'Shapes' } else { $null }
+        if ($pgShapes) {
+            $textShapes = Com-Call $pgShapes "FindShapes" @($null, 6, $true)
         }
+    }
+
+    $convertedCount = 0
+    if ($textShapes) {
+        $cnt = [int](Com-Get $textShapes "Count")
+        if ($cnt -gt 0) {
+            for ($i = $cnt; $i -ge 1; $i--) {
+                try {
+                    $ts = Com-Get $textShapes "Item" @($i)
+                    if ($ts) { [void](Com-Call $ts "ConvertToCurves"); $convertedCount++ }
+                } catch {}
+            }
+        }
+    }
+    if ($convertedCount -eq 0 -and $selCount -eq 1 -and $sel) {
+        try {
+            $sType = [int](Com-Get $sel "Type")
+            if ($sType -eq 6 -or $sType -eq 4) {
+                [void](Com-Call $sel "ConvertToCurves")
+                $convertedCount = 1
+            }
+        } catch {}
     }
 
     $doc.EndCommandGroup()
@@ -3832,21 +4069,20 @@ ${COREL_CONNECT_PS}
         if (-not $container) { return $list }
         try {
             $cType = [int](Com-Get $container 'Type')
-            if ($cType -eq 6) {
+            if ($cType -eq 6 -or $cType -eq 4) {
                 $list += ,$container
                 return $list
             }
         } catch {}
         try {
-            $shps = Com-Get $container 'Shapes'
-            $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
+            $cnt = Get-RangeCount $container
             for ($i = 1; $i -le $cnt; $i++) {
-                $s = Com-Get $shps 'Item' @($i)
+                $s = Get-RangeItem $container $i
                 if (-not $s) { continue }
                 $sType = [int](Com-Get $s 'Type')
-                if ($sType -eq 6) {
+                if ($sType -eq 6 -or $sType -eq 4) {
                     $list += ,$s
-                } elseif ($sType -eq 7) {
+                } elseif ($sType -eq 7 -or $sType -eq 5) {
                     $sub = @(Get-AllTextShapes $s)
                     if ($sub.Count -gt 0) { $list += $sub }
                 }
@@ -3855,14 +4091,17 @@ ${COREL_CONNECT_PS}
         return $list
     }
 
-    $sel = Com-Get $doc 'ActiveSelection'
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
     $texts = @()
     if ($sel) {
         $texts = @(Get-AllTextShapes $sel)
     }
     if (-not $texts -or $texts.Count -eq 0) {
         $actPg = Com-Get $doc 'ActivePage'
-        $texts = @(Get-AllTextShapes $actPg)
+        if ($actPg) { $texts = @(Get-AllTextShapes $actPg) }
     }
 
     if (-not $texts -or $texts.Count -eq 0) {
@@ -4001,107 +4240,12 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    function Get-RangeItem($r, [int]$idx) {
-        if (-not $r) { return $null }
-        if ($r -is [System.Array]) {
-            if ($r.Length -gt 0) { $r = $r[0] } else { return $null }
-        }
-        try {
-            $shps = Com-Get $r 'Shapes'
-            if ($shps) {
-                $it2 = Com-Get $shps 'Item' @($idx)
-                if ($it2) {
-                    if ($it2 -is [System.Array]) { if ($it2.Length -gt 0) { $it2 = $it2[0] } }
-                    return $it2
-                }
-            }
-        } catch {}
-        try {
-            $it = Com-Get $r 'Item' @($idx)
-            if ($it) {
-                if ($it -is [System.Array]) { if ($it.Length -gt 0) { $it = $it[0] } }
-                return $it
-            }
-        } catch {}
-        return $null
-    }
-
     # Resolve Active Selection from CorelDRAW using robust cascading strategy
-    $selection = $null
-    $selShapes = $null
-    $selCount  = 0
-
-    # 1. Try ActiveSelectionRange from Corel Application
-    try {
-        $cand = Com-Get $corel 'ActiveSelectionRange'
-        if ($cand) {
-            $shps = Com-Get $cand 'Shapes'
-            $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
-            if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
-        }
-    } catch {}
-
-    # 2. Try Selection from Document
-    if ($selCount -eq 0) {
-        try {
-            $cand = Com-Get $doc 'Selection'
-            if ($cand) {
-                $shps = Com-Get $cand 'Shapes'
-                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
-                if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
-            }
-        } catch {}
-    }
-
-    # 3. Try SelectionRange from Document
-    if ($selCount -eq 0) {
-        try {
-            $cand = Com-Get $doc 'SelectionRange'
-            if ($cand) {
-                $shps = Com-Get $cand 'Shapes'
-                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
-                if ($c -gt 0) { $selection = $cand; $selShapes = $shps; $selCount = $c }
-            }
-        } catch {}
-    }
-
-    # 4. Try ActiveSelection from Application
-    if ($selCount -eq 0) {
-        try {
-            $cand = Com-Get $corel 'ActiveSelection'
-            if ($cand) {
-                $shps = Com-Get $cand 'Shapes'
-                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
-                if ($c -gt 0) {
-                    $selection = $cand; $selShapes = $shps; $selCount = $c
-                } else {
-                    $sType = Com-Get $cand 'Type'
-                    if ($null -ne $sType -and [int]$sType -gt 0) {
-                        $selection = $cand; $selCount = 1
-                    }
-                }
-            }
-        } catch {}
-    }
-
-    # 5. Try ActiveSelection from Document
-    if ($selCount -eq 0) {
-        try {
-            $cand = Com-Get $doc 'ActiveSelection'
-            if ($cand) {
-                $shps = Com-Get $cand 'Shapes'
-                $c = if ($shps) { [int](Com-Get $shps 'Count') } else { [int](Com-Get $cand 'Count') }
-                if ($c -gt 0) {
-                    $selection = $cand; $selShapes = $shps; $selCount = $c
-                } else {
-                    $sType = Com-Get $cand 'Type'
-                    if ($null -ne $sType -and [int]$sType -gt 0) {
-                        $selection = $cand; $selCount = 1
-                    }
-                }
-            }
-        } catch {}
-    }
+    $selInfo = Get-CorelSelection $corel $doc
+    $selection = $selInfo.Selection
+    $selCount = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+    $selShapes = if ($selection) { Com-Get $selection 'Shapes' } else { $null }
 
     if ($selCount -eq 0 -or -not $selection) {
         throw "Silakan pilih (seleksi/blok) 1 grup master pola jersey di CorelDRAW terlebih dahulu."
@@ -5473,14 +5617,11 @@ ${COREL_CONNECT_PS}
     if ($doc) {
         $origUnit = Com-Get $doc 'Unit'
         try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
-        $sel = Com-Get $corel 'ActiveSelection'
-        $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
-        $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-        if ($cnt -eq 0) {
-            $sel = Com-Get $doc 'Selection'
-            $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
-            $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-        }
+        $selInfo = Get-CorelSelection $corel $doc
+        $sel = $selInfo.Selection
+        $cnt = [int]$selInfo.SelCount
+        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
+
         if ($sel -and $cnt -gt 0) {
             $result.success = $true
             $result.count = $cnt
@@ -5542,17 +5683,16 @@ ${COREL_CONNECT_PS}
     $origUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    $sel = Com-Get $corel 'ActiveSelection'
-    $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
-    $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-    if ($cnt -eq 0) {
-        $sel = Com-Get $doc 'Selection'
-        $shps = if ($sel) { Com-Get $sel 'Shapes' } else { $null }
-        $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-    }
-    if ($cnt -eq 0) { throw "Pilih bentuk pola target di CorelDRAW untuk di-PowerClip." }
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $cnt = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
-    $targetShape = if ($cnt -gt 1) { Com-Call $sel 'Group' } else { Com-Get $shps 'Item' @(1) }
+    if ($cnt -eq 0 -or -not $sel) { throw "Pilih bentuk pola target di CorelDRAW untuk di-PowerClip." }
+
+    $targetShape = if ($cnt -gt 1) { Com-Call $sel 'Group' } else { Get-RangeItem $sel 1 }
+    if (-not $targetShape -and $sel) { $targetShape = $sel }
+    if (-not $targetShape) { throw "Gagal membaca bentuk pola target di CorelDRAW." }
     $w = [double](Com-Get $targetShape 'SizeWidth')
     $h = [double](Com-Get $targetShape 'SizeHeight')
     $cx = [double](Com-Get $targetShape 'CenterX')
@@ -6070,55 +6210,12 @@ ${COREL_CONNECT_PS}
     $origDocUnit = Com-Get $doc 'Unit'
     try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
 
-    function Get-RangeCount($r) {
-        if ($null -eq $r) { return 0 }
-        try {
-            $cnt = Com-Get $r "Count"
-            if ($null -ne $cnt -and [int]$cnt -gt 0) { return [int]$cnt }
-        } catch {}
-        try {
-            $subShps = Com-Get $r "Shapes"
-            if ($null -ne $subShps) {
-                $sc = Com-Get $subShps "Count"
-                if ($null -ne $sc -and [int]$sc -gt 0) { return [int]$sc }
-            }
-        } catch {}
-        return 0
-    }
+    $selInfo = Get-CorelSelection $corel $doc
+    $sel = $selInfo.Selection
+    $cnt = [int]$selInfo.SelCount
+    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
-    function Get-RangeItem($r, [int]$idx) {
-        if ($null -eq $r) { return $null }
-        $it = $null
-        try {
-            $it = Com-Get $r "Item" @($idx)
-            if ($null -ne $it) { return ,$it }
-        } catch {}
-        try {
-            $subShps = Com-Get $r "Shapes"
-            if ($null -ne $subShps) {
-                $it = Com-Get $subShps "Item" @($idx)
-                if ($null -ne $it) { return ,$it }
-            }
-        } catch {}
-        return $null
-    }
-
-    $sel = Com-Get $corel 'ActiveSelectionRange'
-    $cnt = Get-RangeCount $sel
-    if ($cnt -eq 0) {
-        $sel = Com-Get $corel 'ActiveSelection'
-        $cnt = Get-RangeCount $sel
-    }
-    if ($cnt -eq 0) {
-        $sel = Com-Get $doc 'Selection'
-        $cnt = Get-RangeCount $sel
-    }
-    if ($cnt -eq 0) {
-        $sel = Com-Get $doc 'SelectionRange'
-        $cnt = Get-RangeCount $sel
-    }
-
-    if ($cnt -eq 0) {
+    if ($cnt -eq 0 -or -not $sel) {
         throw "Silakan seleksi (blok) objek-objek pola di CorelDRAW terlebih dahulu."
     }
 
@@ -6263,7 +6360,7 @@ ${COREL_CONNECT_PS}
         return 0.0
     }
 
-    # Build shape map of all shapes on active page by StaticID
+    # Build shape map of all shapes on active page and desktop by StaticID
     $shapeMap = @{}
     $actPg = Com-Get $doc 'ActivePage'
     $allShapes = if ($actPg) { Com-Get $actPg 'Shapes' } else { $null }
@@ -6275,6 +6372,22 @@ ${COREL_CONNECT_PS}
             $shapeMap[$sId] = $curShp
         }
     }
+    try {
+        $dtLayer = Com-Get (Com-Get $actPg 'Layers') 'Item' @('Desktop')
+        if ($dtLayer) {
+            $dtShps = Com-Get $dtLayer 'Shapes'
+            $dtCnt = if ($dtShps) { [int](Com-Get $dtShps 'Count') } else { 0 }
+            for ($dIdx = 1; $dIdx -le $dtCnt; $dIdx++) {
+                $dShp = Com-Get $dtShps 'Item' @($dIdx)
+                if ($dShp) {
+                    $dId = [int](Com-Get $dShp 'StaticID')
+                    if (-not $shapeMap.ContainsKey($dId)) {
+                        $shapeMap[$dId] = $dShp
+                    }
+                }
+            }
+        }
+    } catch {}
 
     # Determine reference box origin (Left, Top)
     $minLeft = 999999.0
