@@ -74,13 +74,12 @@ try {
     $autoCurves = [bool]${autoCurvesVal}
     $doubleNumber = [bool]${doubleNumberVal}
 
-    # 1. Connect to active CorelDRAW COM instance
 ${getCorelConnectPs()}
 
     if (-not $doc) {
         throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW. Silakan buka file desain di CorelDRAW."
     }
-    Com-Set $doc "Unit" 3 # cdrCentimeter
+    $doc.Unit = 3 # cdrCentimeter
 
     function Get-FormattedNum([int]$val, [int]$dig, [string]$pfx, [string]$sfx) {
         $numPart = [string]$val
@@ -99,54 +98,67 @@ ${getCorelConnectPs()}
         return $false
     }
 
-    # Deep recursive shape text search (100% reliable across groups and nested groups)
-    function Get-DeepTextShapes($shape) {
-        $results = @()
-        if ($null -eq $shape) { return $results }
+    # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
+    function Get-DeepTextShapes($container) {
+        $found = @()
+        if (-not $container) { return $found }
+
+        # 1. Direct text shape (cdrTextShape = 6)
         try {
-            $shpType = [int](Com-Get $shape "Type")
-            if ($shpType -eq 6) { # cdrTextShape
-                $results += ,$shape
-                return $results
+            if ($container.Type -eq 6) {
+                $found += $container
+                return $found
             }
-            # Group or composite shape with Shapes collection
-            $sub = Com-Get $shape "Shapes"
-            if ($sub) {
-                $cnt = [int](Com-Get $sub "Count")
-                for ($i = 1; $i -le $cnt; $i++) {
-                    $child = Com-Get $sub "Item" @($i)
-                    if ($child) {
-                        $childTexts = Get-DeepTextShapes $child
-                        if ($childTexts -and $childTexts.Count -gt 0) {
-                            $results += $childTexts
-                        }
-                    }
-                }
-            }
-            # PowerClip nested shapes
-            $pc = Com-Get $shape "PowerClip"
-            if ($pc) {
-                $pcShapes = Com-Get $pc "Shapes"
-                if ($pcShapes) {
-                    $cnt = [int](Com-Get $pcShapes "Count")
-                    for ($i = 1; $i -le $cnt; $i++) {
-                        $child = Com-Get $pcShapes "Item" @($i)
-                        if ($child) {
-                            $childTexts = Get-DeepTextShapes $child
-                            if ($childTexts -and $childTexts.Count -gt 0) {
-                                $results += $childTexts
-                            }
+        } catch {}
+
+        # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
+        try {
+            if ($container.PowerClip) {
+                $pc = $container.PowerClip
+                if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
+                    for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
+                        $pcChild = $pc.Shapes.Item($pi)
+                        if ($pcChild) {
+                            $pcTexts = Get-DeepTextShapes $pcChild
+                            if ($pcTexts -and $pcTexts.Count -gt 0) { $found += $pcTexts }
                         }
                     }
                 }
             }
         } catch {}
-        return $results
+
+        # 3. Check if container has .Shapes (Group, Layer, Page)
+        try {
+            if ($container.Shapes -and $container.Shapes.Count -gt 0) {
+                for ($si = 1; $si -le $container.Shapes.Count; $si++) {
+                    $child = $container.Shapes.Item($si)
+                    if ($child) {
+                        $childTexts = Get-DeepTextShapes $child
+                        if ($childTexts -and $childTexts.Count -gt 0) { $found += $childTexts }
+                    }
+                }
+            }
+        } catch {}
+
+        # 4. Check if container is a ShapeRange or Selection
+        try {
+            if ($container.Count -and $container.Count -gt 0) {
+                for ($ri = 1; $ri -le $container.Count; $ri++) {
+                    $item = $container.Item($ri)
+                    if ($item) {
+                        $itemTexts = Get-DeepTextShapes $item
+                        if ($itemTexts -and $itemTexts.Count -gt 0) { $found += $itemTexts }
+                    }
+                }
+            }
+        } catch {}
+
+        return $found
     }
 
-    # Updates number text inside any shape (single text or grouped ticket)
+    # Updates number text inside any shape (single text, group, or PowerClip container)
     function Update-ShapeNumberText($targetShape, [string]$numText, [bool]$allowMulti) {
-        if ($null -eq $targetShape) { return 0 }
+        if (-not $targetShape) { return 0 }
         $textShapes = @(Get-DeepTextShapes $targetShape)
         if ($textShapes.Count -eq 0) { return 0 }
 
@@ -154,11 +166,10 @@ ${getCorelConnectPs()}
         # Pass 1: Replace matching placeholders
         foreach ($ts in $textShapes) {
             try {
-                $txtObj = Com-Get $ts "Text"
-                $story = if ($txtObj) { Com-Get $txtObj "Story" } else { $null }
-                $raw = if ($story) { [string](Com-Get $story "Text") } else { "" }
+                $story = $ts.Text.Story
+                $raw = if ($story) { [string]$story.Text } else { "" }
                 if (Is-NumberPlaceholder $raw) {
-                    Com-Set $story "Text" $numText
+                    $story.Text = $numText
                     $updated++
                     if (-not $allowMulti) { break }
                 }
@@ -169,10 +180,9 @@ ${getCorelConnectPs()}
         if ($updated -eq 0) {
             foreach ($ts in $textShapes) {
                 try {
-                    $txtObj = Com-Get $ts "Text"
-                    $story = if ($txtObj) { Com-Get $txtObj "Story" } else { $null }
+                    $story = $ts.Text.Story
                     if ($story) {
-                        Com-Set $story "Text" $numText
+                        $story.Text = $numText
                         $updated++
                         if (-not $allowMulti) { break }
                     }
@@ -180,42 +190,6 @@ ${getCorelConnectPs()}
             }
         }
         return $updated
-    }
-
-    function Get-ValidTargetLayer($pageObj, $docObj) {
-        $lyr = $null
-        if ($pageObj) {
-            $lyr = Com-Get $pageObj "ActiveLayer"
-            if ($lyr) {
-                $isSpec = [bool](Com-Get $lyr "IsSpecialLayer")
-                $isEdit = [bool](Com-Get $lyr "Editable")
-                if ($isSpec -or -not $isEdit) { $lyr = $null }
-            }
-            if (-not $lyr) {
-                $lyrs = Com-Get $pageObj "Layers"
-                $lyrsCount = if ($lyrs) { [int](Com-Get $lyrs "Count") } else { 0 }
-                if ($lyrs -and $lyrsCount -gt 0) {
-                    for ($li = 1; $li -le $lyrsCount; $li++) {
-                        $candLyr = Com-Get $lyrs "Item" @($li)
-                        if ($candLyr) {
-                            $isSpec = [bool](Com-Get $candLyr "IsSpecialLayer")
-                            $isEdit = [bool](Com-Get $candLyr "Editable")
-                            if (-not $isSpec -and $isEdit) {
-                                $lyr = $candLyr
-                                break
-                            }
-                        }
-                    }
-                    if (-not $lyr) {
-                        $lyr = Com-Get $lyrs "Item" @(1)
-                    }
-                }
-            }
-        }
-        if (-not $lyr -and $docObj) {
-            $lyr = Com-Get $docObj "ActiveLayer"
-        }
-        return ,$lyr
     }
 
     $numList = @()
@@ -228,7 +202,6 @@ ${getCorelConnectPs()}
     $selInfo = Get-CorelSelection $corel $doc
     $sel = $selInfo.Selection
     $selCount = [int]$selInfo.SelCount
-    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
     # ==========================================
     # MODE A: INPLACE MODE (Multiple selected tickets on active page)
@@ -240,16 +213,16 @@ ${getCorelConnectPs()}
             if ($s) {
                 $shapeList += [PSCustomObject]@{
                     Shape = $s
-                    PosX = [double](Com-Get $s "PositionX")
-                    PosY = [double](Com-Get $s "PositionY")
-                    Height = [double](Com-Get $s "SizeHeight")
+                    PosX = [double]$s.PositionX
+                    PosY = [double]$s.PositionY
+                    Height = [double]$s.SizeHeight
                 }
             }
         }
 
-        Com-Set $corel "Optimization" $true
-        Com-Set $corel "EventsEnabled" $false
-        try { [void](Com-Call $doc "BeginCommandGroup" @("CTS Numerator Inplace")) } catch {}
+        $corel.Optimization = $true
+        $corel.EventsEnabled = $false
+        $doc.BeginCommandGroup("CTS Numerator Inplace")
 
         $rowTol = 1.0
         if ($shapeList.Count -gt 0 -and $shapeList[0].Height -gt 0) {
@@ -271,46 +244,26 @@ ${getCorelConnectPs()}
     # MODE B: PAGE MODE (1 or more tickets per page, duplicated across pages)
     # ==========================================
     elseif ($mode -eq 'page') {
-        $masterPage = Com-Get $doc "ActivePage"
-        if (-not $masterPage) {
-            $pgs = Com-Get $doc "Pages"
-            if ($pgs -and ([int](Com-Get $pgs "Count")) -gt 0) {
-                $masterPage = Com-Get $pgs "Item" @(1)
-            }
-        }
-        if (-not $masterPage) {
-            throw "Gagal membaca halaman aktif di CorelDRAW."
-        }
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        if (-not $masterPage) { throw "Gagal membaca halaman aktif di CorelDRAW." }
 
-        Com-Set $corel "Optimization" $true
-        Com-Set $corel "EventsEnabled" $false
-        try { [void](Com-Call $doc "BeginCommandGroup" @("CTS Numerator Page")) } catch {}
+        $corel.Optimization = $true
+        $corel.EventsEnabled = $false
+        $doc.BeginCommandGroup("CTS Numerator Page")
 
-        $mpShapes = Com-Get $masterPage "Shapes"
-        $allPageTexts = @()
-        if ($mpShapes) {
-            $mpCount = [int](Com-Get $mpShapes "Count")
-            for ($si = 1; $si -le $mpCount; $si++) {
-                $shp = Com-Get $mpShapes "Item" @($si)
-                if ($shp) {
-                    $found = Get-DeepTextShapes $shp
-                    if ($found -and $found.Count -gt 0) {
-                        $allPageTexts += $found
-                    }
-                }
-            }
-        }
+        $allPageTexts = @(Get-DeepTextShapes $masterPage)
 
         $textList = @()
         foreach ($t in $allPageTexts) {
-            $storyObj = Com-Get (Com-Get $t "Text") "Story"
-            $rawText = if ($storyObj) { [string](Com-Get $storyObj "Text") } else { "" }
+            $rawText = ""
+            try { $rawText = [string]$t.Text.Story.Text } catch {}
             if (Is-NumberPlaceholder $rawText) {
                 $textList += [PSCustomObject]@{
                     Shape = $t
-                    PosX = [double](Com-Get $t "PositionX")
-                    PosY = [double](Com-Get $t "PositionY")
-                    Height = [double](Com-Get $t "SizeHeight")
+                    PosX = [double]$t.PositionX
+                    PosY = [double]$t.PositionY
+                    Height = [double]$t.SizeHeight
                 }
             }
         }
@@ -319,9 +272,9 @@ ${getCorelConnectPs()}
             foreach ($t in $allPageTexts) {
                 $textList += [PSCustomObject]@{
                     Shape = $t
-                    PosX = [double](Com-Get $t "PositionX")
-                    PosY = [double](Com-Get $t "PositionY")
-                    Height = [double](Com-Get $t "SizeHeight")
+                    PosX = [double]$t.PositionX
+                    PosY = [double]$t.PositionY
+                    Height = [double]$t.SizeHeight
                 }
             }
         }
@@ -339,57 +292,28 @@ ${getCorelConnectPs()}
         for ($i = 0; $i -lt $countPage1; $i++) {
             $numVal = Get-FormattedNum $numList[$i] $digits $prefix $suffix
             if ($i -lt $textList.Count -and $textList[$i].Shape) {
-                $storyObj = Com-Get (Com-Get $textList[$i].Shape "Text") "Story"
-                if ($storyObj) { Com-Set $storyObj "Text" $numVal }
+                try { $textList[$i].Shape.Text.Story.Text = $numVal } catch {}
             }
         }
 
         if ($totalPages -gt 1) {
+            [void]$masterPage.Shapes.All().Copy()
             for ($p = 2; $p -le $totalPages; $p++) {
-                $newPage = Com-Call $doc "AddPages" @(1)
-                if (-not $newPage) {
-                    throw "Gagal menambahkan halaman baru ($p dari $totalPages) di CorelDRAW."
-                }
-                try { [void](Com-Call $newPage "Activate") } catch {}
-                $targetLyr = Get-ValidTargetLayer $newPage $doc
-                if ($mpShapes -and $targetLyr) {
-                    $mpCount = [int](Com-Get $mpShapes "Count")
-                    for ($msIdx = $mpCount; $msIdx -ge 1; $msIdx--) {
-                        $ms = Com-Get $mpShapes "Item" @($msIdx)
-                        if ($ms) {
-                            $dupMs = Com-Call $ms "Duplicate" @(0.0, 0.0)
-                            if ($dupMs) {
-                                try { [void](Com-Call $dupMs "MoveToLayer" @($targetLyr)) } catch {}
-                            }
-                        }
-                    }
-                }
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
+                [void]$doc.ActiveLayer.Paste()
 
-                $npShapes = Com-Get $newPage "Shapes"
-                $newPageTexts = @()
-                if ($npShapes) {
-                    $npCount = [int](Com-Get $npShapes "Count")
-                    for ($nsi = 1; $nsi -le $npCount; $nsi++) {
-                        $nshp = Com-Get $npShapes "Item" @($nsi)
-                        if ($nshp) {
-                            $nfound = Get-DeepTextShapes $nshp
-                            if ($nfound -and $nfound.Count -gt 0) {
-                                $newPageTexts += $nfound
-                            }
-                        }
-                    }
-                }
-
+                $newPageTexts = @(Get-DeepTextShapes $newPage)
                 $newTextList = @()
                 foreach ($t in $newPageTexts) {
-                    $storyObj = Com-Get (Com-Get $t "Text") "Story"
-                    $rawText = if ($storyObj) { [string](Com-Get $storyObj "Text") } else { "" }
+                    $rawText = ""
+                    try { $rawText = [string]$t.Text.Story.Text } catch {}
                     if (Is-NumberPlaceholder $rawText) {
                         $newTextList += [PSCustomObject]@{
                             Shape = $t
-                            PosX = [double](Com-Get $t "PositionX")
-                            PosY = [double](Com-Get $t "PositionY")
-                            Height = [double](Com-Get $t "SizeHeight")
+                            PosX = [double]$t.PositionX
+                            PosY = [double]$t.PositionY
+                            Height = [double]$t.SizeHeight
                         }
                     }
                 }
@@ -398,9 +322,9 @@ ${getCorelConnectPs()}
                     foreach ($t in $newPageTexts) {
                         $newTextList += [PSCustomObject]@{
                             Shape = $t
-                            PosX = [double](Com-Get $t "PositionX")
-                            PosY = [double](Com-Get $t "PositionY")
-                            Height = [double](Com-Get $t "SizeHeight")
+                            PosX = [double]$t.PositionX
+                            PosY = [double]$t.PositionY
+                            Height = [double]$t.SizeHeight
                         }
                     }
                 }
@@ -416,8 +340,7 @@ ${getCorelConnectPs()}
                 for ($i = 0; $i -lt $countThisPage; $i++) {
                     $numVal = Get-FormattedNum $numList[$startIndex + $i] $digits $prefix $suffix
                     if ($i -lt $newTextList.Count -and $newTextList[$i].Shape) {
-                        $storyObj = Com-Get (Com-Get $newTextList[$i].Shape "Text") "Story"
-                        if ($storyObj) { Com-Set $storyObj "Text" $numVal }
+                        try { $newTextList[$i].Shape.Text.Story.Text = $numVal } catch {}
                     }
                 }
             }
@@ -436,108 +359,142 @@ ${getCorelConnectPs()}
 
         $masterShape = $null
         if ($selCount -gt 1) {
-            try { $masterShape = Com-Call $sel "Group" } catch {}
+            try { $masterShape = $sel.Group() } catch {}
             if (-not $masterShape) {
-                $as = Com-Get $corel "ActiveSelection"
-                if ($as) { try { $masterShape = Com-Call $as "Group" } catch {} }
+                try { $masterShape = $corel.ActiveSelection.Group() } catch {}
             }
-            if (-not $masterShape) {
-                $sr = Com-Get $doc "SelectionRange"
-                if ($sr) { try { $masterShape = Com-Call $sr "Group" } catch {} }
+        } elseif ($selCount -eq 1) {
+            $single = Get-RangeItem $sel 1
+            if (-not $single) { $single = $sel }
+
+            # SMART AUTO-DETECTION: Check if the selected shape has NO texts, but has texts sitting inside its bounds
+            $existingTexts = @(Get-DeepTextShapes $single)
+            if ($existingTexts.Count -eq 0 -and $doc.ActivePage) {
+                $bLeft = [double]$single.PositionX
+                $bTop = [double]$single.PositionY
+                $bRight = $bLeft + [double]$single.SizeWidth
+                $bBottom = $bTop - [double]$single.SizeHeight
+
+                $insideShapes = @($single)
+                $pShapes = $doc.ActivePage.Shapes
+                if ($pShapes) {
+                    for ($pi = 1; $pi -le $pShapes.Count; $pi++) {
+                        $cand = $pShapes.Item($pi)
+                        if ($cand.StaticID -eq $single.StaticID) { continue }
+                        $cx = [double]$cand.CenterX
+                        $cy = [double]$cand.CenterY
+                        if ($cx -ge ($bLeft - 0.2) -and $cx -le ($bRight + 0.2) -and $cy -le ($bTop + 0.2) -and $cy -ge ($bBottom - 0.2)) {
+                            $insideShapes += $cand
+                        }
+                    }
+                }
+                if ($insideShapes.Count -gt 1) {
+                    try {
+                        $doc.ClearSelection()
+                        for ($si = 0; $si -lt $insideShapes.Count; $si++) {
+                            $insideShapes[$si].Selected = $true
+                        }
+                        $masterShape = $corel.ActiveSelection.Group()
+                    } catch {
+                        $masterShape = $single
+                    }
+                } else {
+                    $masterShape = $single
+                }
+            } else {
+                $masterShape = $single
             }
         }
-        if (-not $masterShape) {
-            $masterShape = Get-RangeItem $sel 1
-        }
-        if (-not $masterShape -and $selCount -eq 1 -and $sel) {
-            $masterShape = $sel
-        }
+
         if (-not $masterShape) {
             throw "Gagal membaca objek seleksi master di CorelDRAW."
         }
 
-        $w = [double](Com-Get $masterShape "SizeWidth")
-        $h = [double](Com-Get $masterShape "SizeHeight")
+        $w = [double]$masterShape.SizeWidth
+        $h = [double]$masterShape.SizeHeight
+        $origX = [double]$masterShape.PositionX
+        $origY = [double]$masterShape.PositionY
 
         $perPage = $cols * $rows
         $totalPages = [math]::Ceiling($totalNumbers / $perPage)
-        $masterPage = Com-Get $doc "ActivePage"
-        if (-not $masterPage) {
-            $pgs = Com-Get $doc "Pages"
-            if ($pgs -and ([int](Com-Get $pgs "Count")) -gt 0) {
-                $masterPage = Com-Get $pgs "Item" @(1)
-            }
-        }
-        $page1Layer = Com-Get $masterShape "Layer"
-        if (-not $page1Layer) { $page1Layer = Get-ValidTargetLayer $masterPage $doc }
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
 
-        Com-Set $corel "Optimization" $true
-        Com-Set $corel "EventsEnabled" $false
-        try { [void](Com-Call $doc "BeginCommandGroup" @("CTS Numerator Grid")) } catch {}
+        $corel.Optimization = $true
+        $corel.EventsEnabled = $false
+        $doc.BeginCommandGroup("CTS Numerator Grid")
 
-        # 1. Grid Page 1 (cells other than (0,0) which is the masterShape itself)
+        # 1. Tata susunan grid lengkap di Halaman 1 selagi master masih utuh
+        $page1Shapes = @()
         for ($r = 0; $r -lt $rows; $r++) {
             for ($c = 0; $c -lt $cols; $c++) {
-                if ($r -eq 0 -and $c -eq 0) { continue }
-                $s = ($r * $cols) + $c
-                $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
-                if ($itemIdx -lt $totalNumbers) {
-                    try {
-                        $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
-                        $ox = [double]($c * ($w + $spacingX))
-                        $oy = [double](-($r * ($h + $spacingY)))
-                        $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
-                        if ($dup) {
-                            Update-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
-                        }
-                    } catch {}
+                $targetPosX = $origX + ($c * ($w + $spacingX))
+                $targetPosY = $origY - ($r * ($h + $spacingY))
+
+                if ($r -eq 0 -and $c -eq 0) {
+                    $masterShape.PositionX = $targetPosX
+                    $masterShape.PositionY = $targetPosY
+                    $page1Shapes += $masterShape
+                } else {
+                    $dup = $masterShape.Duplicate()
+                    $dup.PositionX = $targetPosX
+                    $dup.PositionY = $targetPosY
+                    $page1Shapes += $dup
                 }
             }
         }
 
-        # 2. Grid Pages 2..TotalPages (stamp using masterShape)
+        # 2. Isi nomor urut pada Halaman 1 per grup voucher
+        for ($s = 0; $s -lt $perPage; $s++) {
+            $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
+            if ($itemIdx -lt $totalNumbers) {
+                $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
+                Update-ShapeNumberText $page1Shapes[$s] $formattedNum $doubleNumber | Out-Null
+            } else {
+                try { $page1Shapes[$s].Delete() } catch {}
+            }
+        }
+
+        # 3. Duplicate Page 1 ke Pages 2..TotalPages dan isi semua nomor
         if ($totalPages -gt 1) {
+            $masterPage.Activate()
+            [void]$masterPage.Shapes.All().Copy()
+
             for ($p = 2; $p -le $totalPages; $p++) {
-                $newPage = Com-Call $doc "AddPages" @(1)
-                if (-not $newPage) { continue }
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
                 $pIdx = $p - 1
-                $targetLyr = Get-ValidTargetLayer $newPage $doc
-                if ($targetLyr) {
-                    try { [void](Com-Call $masterShape "MoveToLayer" @($targetLyr)) } catch {}
+
+                [void]$doc.ActiveLayer.Paste()
+
+                $newShapes = @()
+                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
+                    $shp = $newPage.Shapes.Item($k)
+                    $newShapes += [PSCustomObject]@{
+                        Shape = $shp
+                        PosX = [double]$shp.PositionX
+                        PosY = [double]$shp.PositionY
+                        Height = [double]$shp.SizeHeight
+                    }
                 }
 
-                for ($r = 0; $r -lt $rows; $r++) {
-                    for ($c = 0; $c -lt $cols; $c++) {
-                        $s = ($r * $cols) + $c
-                        $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
-                        if ($itemIdx -lt $totalNumbers) {
-                            try {
-                                $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
-                                $ox = [double]($c * ($w + $spacingX))
-                                $oy = [double](-($r * ($h + $spacingY)))
-                                $dup = Com-Call $masterShape "Duplicate" @($ox, $oy)
-                                if ($dup) {
-                                    Update-ShapeNumberText $dup $formattedNum $doubleNumber | Out-Null
-                                }
-                            } catch {}
-                        }
+                $rowTol = [math]::Max(0.2, $h * 0.35)
+                $sortedVouchers = @($newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false })
+
+                for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
+                    $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
+                    if ($itemIdx -lt $totalNumbers) {
+                        $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
+                        Update-ShapeNumberText $sortedVouchers[$s].Shape $formattedNum $doubleNumber | Out-Null
+                    } else {
+                        try { $sortedVouchers[$s].Shape.Delete() } catch {}
                     }
                 }
             }
-
-            if ($page1Layer) {
-                try { [void](Com-Call $masterShape "MoveToLayer" @($page1Layer)) } catch {}
-            }
         }
 
-        # 3. Update the masterShape at (0,0) of Page 1 with the first number
-        try {
-            $firstNum = Get-FormattedNum $numList[0] $digits $prefix $suffix
-            Update-ShapeNumberText $masterShape $firstNum $doubleNumber | Out-Null
-        } catch {}
-
         if ($masterPage) {
-            try { [void](Com-Call $masterPage "Activate") } catch {}
+            try { $masterPage.Activate() } catch {}
         }
 
         $result.count = $totalNumbers
@@ -546,51 +503,24 @@ ${getCorelConnectPs()}
 
     # Optional: Convert all text shapes to curves
     if ($autoCurves) {
-        $pgs = Com-Get $doc "Pages"
-        $pgsCount = if ($pgs) { [int](Com-Get $pgs "Count") } else { 0 }
-        for ($p = 1; $p -le $pgsCount; $p++) {
+        for ($p = 1; $p -le $doc.Pages.Count; $p++) {
             try {
-                $pageObj = Com-Get $pgs "Item" @($p)
-                $pShapes = Com-Get $pageObj "Shapes"
-                if ($pShapes) {
-                    $psCount = [int](Com-Get $pShapes "Count")
-                    for ($si = 1; $si -le $psCount; $si++) {
-                        $shp = Com-Get $pShapes "Item" @($si)
-                        if ($shp) {
-                            $texts = Get-DeepTextShapes $shp
-                            foreach ($tItem in $texts) {
-                                try { [void](Com-Call $tItem "ConvertToCurves") } catch {}
-                            }
-                        }
-                    }
+                $pObj = $doc.Pages.Item($p)
+                $pTexts = @(Get-DeepTextShapes $pObj)
+                for ($ti = $pTexts.Count - 1; $ti -ge 0; $ti--) {
+                    try { [void]$pTexts[$ti].ConvertToCurves() } catch {}
                 }
             } catch {}
         }
     }
 
-    try { [void](Com-Call $doc "ClearSelection") } catch {}
-    try { [void](Com-Call $corel "ClearSelection") } catch {}
-    try { [void](Com-Call $doc "EndCommandGroup") } catch {}
-    try { Com-Set $corel "EventsEnabled" $true } catch {}
-    try { Com-Set $corel "Optimization" $false } catch {}
-
-    # Comprehensive Viewport & Tile Cache Invalidation
-    try {
-        $win = Com-Get $corel 'ActiveWindow'
-        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
-        if ($win) {
-            $curMode = Com-Get $win 'ViewMode'
-            if ($null -ne $curMode) {
-                try { Com-Set $win 'ViewMode' 1 } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-                try { Com-Set $win 'ViewMode' $curMode } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            } else {
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            }
-        }
-    } catch {}
-    try { [void](Com-Call $corel "Refresh") } catch {}
+    try { $doc.ClearSelection() } catch {}
+    try { $corel.ClearSelection() } catch {}
+    try { $doc.EndCommandGroup() } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+    try { $corel.Refresh() } catch {}
+    if ($corel.ActiveWindow) { try { $corel.ActiveWindow.Refresh() } catch {} }
 
     $result.success = $true
     $result.message = "Berhasil membuat $($result.count) nomorator pada $($result.totalPages) halaman di CorelDRAW!"
@@ -598,11 +528,11 @@ ${getCorelConnectPs()}
 catch {
     $errLine = $_.InvocationInfo.ScriptLineNumber
     try {
-        if ($doc) { [void](Com-Call $doc "EndCommandGroup") }
+        if ($doc) { [void]$doc.EndCommandGroup() }
         if ($corel) {
-            try { Com-Set $corel "EventsEnabled" $true } catch {}
-            try { Com-Set $corel "Optimization" $false } catch {}
-            try { [void](Com-Call $corel "Refresh") } catch {}
+            $corel.Optimization = $false
+            $corel.EventsEnabled = $true
+            $corel.Refresh()
         }
     } catch {}
     $result.success = $false

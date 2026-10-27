@@ -18,32 +18,28 @@ try {
 ${getCorelConnectPs()}
     if (-not $doc) { throw "Tidak ada dokumen terbuka di CorelDRAW." }
 
-    $origDocUnit = Com-Get $doc 'Unit'
-    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
 
     $selInfo = Get-CorelSelection $corel $doc
     $sel = $selInfo.Selection
     $cnt = [int]$selInfo.SelCount
-    if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
     if ($cnt -eq 0 -or -not $sel) {
         throw "Silakan seleksi (blok) objek-objek pola di CorelDRAW terlebih dahulu."
     }
 
     function Get-ShapeLeft([object]$shp) {
-        if ($null -eq $shp) { return 0.0 }
-        $v = Com-Get $shp 'LeftX'
-        if ($null -ne $v) { return [double]$v }
-        $v = Com-Get $shp 'PositionX'
-        if ($null -ne $v) { return [double]$v }
+        if (-not $shp) { return 0.0 }
+        try { if ($shp.LeftX -ne $null) { return [double]$shp.LeftX } } catch {}
+        try { if ($shp.PositionX -ne $null) { return [double]$shp.PositionX } } catch {}
         return 0.0
     }
     function Get-ShapeTop([object]$shp) {
-        if ($null -eq $shp) { return 0.0 }
-        $v = Com-Get $shp 'TopY'
-        if ($null -ne $v) { return [double]$v }
-        $v = Com-Get $shp 'PositionY'
-        if ($null -ne $v) { return [double]$v }
+        if (-not $shp) { return 0.0 }
+        try { if ($shp.TopY -ne $null) { return [double]$shp.TopY } } catch {}
+        try { if ($shp.PositionY -ne $null) { return [double]$shp.PositionY } } catch {}
         return 0.0
     }
 
@@ -51,13 +47,13 @@ ${getCorelConnectPs()}
     for ($i = 1; $i -le $cnt; $i++) {
         $s = Get-RangeItem $sel $i
         if (-not $s) { continue }
-        $sId = [int](Com-Get $s 'StaticID')
-        $w = [math]::Round([double](Com-Get $s 'SizeWidth'), 2)
-        $h = [math]::Round([double](Com-Get $s 'SizeHeight'), 2)
+        $sId = [int]$s.StaticID
+        $w = [math]::Round([double]$s.SizeWidth, 2)
+        $h = [math]::Round([double]$s.SizeHeight, 2)
         $left = [math]::Round([double](Get-ShapeLeft $s), 2)
         $top = [math]::Round([double](Get-ShapeTop $s), 2)
-        $name = [string](Com-Get $s 'Name')
-        $type = [int](Com-Get $s 'Type')
+        $name = [string]$s.Name
+        $type = [int]$s.Type
 
         $rawItems += [PSCustomObject]@{
             index = $i
@@ -97,7 +93,7 @@ ${getCorelConnectPs()}
     $result.items = $filteredItems
     $result.message = "Berhasil mendeteksi $($filteredItems.Count) pola di CorelDRAW."
 
-    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
+    if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
 }
 catch {
     $result.success = $false
@@ -146,51 +142,47 @@ ${getCorelConnectPs()}
     $margin = [double]$data.marginCm
     $itemList = $data.items
 
-    $origDocUnit = Com-Get $doc 'Unit'
-    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter (4 = cm)
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
 
-    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Layout Pola")) } catch {}
-    try { [void](Com-Call $doc 'ClearSelection' @()) } catch {}
-    try { Com-Set $corel 'Optimization' $true } catch {}
-    try { Com-Set $corel 'EventsEnabled' $false } catch {}
+    try { $doc.BeginCommandGroup("CTS Layout Pola") } catch {}
+    try { $doc.ClearSelection() } catch {}
+    try { $corel.Optimization = $true } catch {}
+    try { $corel.EventsEnabled = $false } catch {}
 
     function Get-ShapeLeft([object]$shp) {
-        if ($null -eq $shp) { return 0.0 }
-        $v = Com-Get $shp 'LeftX'
-        if ($null -ne $v) { return [double]$v }
-        $v = Com-Get $shp 'PositionX'
-        if ($null -ne $v) { return [double]$v }
+        if (-not $shp) { return 0.0 }
+        try { if ($shp.LeftX -ne $null) { return [double]$shp.LeftX } } catch {}
+        try { if ($shp.PositionX -ne $null) { return [double]$shp.PositionX } } catch {}
         return 0.0
     }
     function Get-ShapeTop([object]$shp) {
-        if ($null -eq $shp) { return 0.0 }
-        $v = Com-Get $shp 'TopY'
-        if ($null -ne $v) { return [double]$v }
-        $v = Com-Get $shp 'PositionY'
-        if ($null -ne $v) { return [double]$v }
+        if (-not $shp) { return 0.0 }
+        try { if ($shp.TopY -ne $null) { return [double]$shp.TopY } } catch {}
+        try { if ($shp.PositionY -ne $null) { return [double]$shp.PositionY } } catch {}
         return 0.0
     }
 
     $shapeMap = @{}
-    $actPg = Com-Get $doc 'ActivePage'
-    $allShapes = if ($actPg) { Com-Get $actPg 'Shapes' } else { $null }
-    $totalPageShapes = if ($allShapes) { [int](Com-Get $allShapes 'Count') } else { 0 }
+    $actPg = $doc.ActivePage
+    $allShapes = if ($actPg) { $actPg.Shapes } else { $null }
+    $totalPageShapes = if ($allShapes) { [int]$allShapes.Count } else { 0 }
     for ($sIdx = 1; $sIdx -le $totalPageShapes; $sIdx++) {
-        $curShp = Com-Get $allShapes 'Item' @($sIdx)
+        $curShp = $allShapes.Item($sIdx)
         if ($curShp) {
-            $sId = [int](Com-Get $curShp 'StaticID')
-            $shapeMap[$sId] = $curShp
+            $shapeMap[[int]$curShp.StaticID] = $curShp
         }
     }
     try {
-        $dtLayer = Com-Get (Com-Get $actPg 'Layers') 'Item' @('Desktop')
+        $dtLayer = $actPg.Layers.Item('Desktop')
         if ($dtLayer) {
-            $dtShps = Com-Get $dtLayer 'Shapes'
-            $dtCnt = if ($dtShps) { [int](Com-Get $dtShps 'Count') } else { 0 }
+            $dtShps = $dtLayer.Shapes
+            $dtCnt = if ($dtShps) { [int]$dtShps.Count } else { 0 }
             for ($dIdx = 1; $dIdx -le $dtCnt; $dIdx++) {
-                $dShp = Com-Get $dtShps 'Item' @($dIdx)
+                $dShp = $dtShps.Item($dIdx)
                 if ($dShp) {
-                    $dId = [int](Com-Get $dShp 'StaticID')
+                    $dId = [int]$dShp.StaticID
                     if (-not $shapeMap.ContainsKey($dId)) {
                         $shapeMap[$dId] = $dShp
                     }
@@ -211,8 +203,8 @@ ${getCorelConnectPs()}
             $s = $shapeMap[$id]
             $sl = [double](Get-ShapeLeft $s)
             $st = [double](Get-ShapeTop $s)
-            $sw = [double](Com-Get $s 'SizeWidth')
-            $sh = [double](Com-Get $s 'SizeHeight')
+            $sw = [double]$s.SizeWidth
+            $sh = [double]$s.SizeHeight
             $sr = $sl + $sw
             $sb = $st - $sh
             $minLeft = [math]::Min($minLeft, $sl)
@@ -246,14 +238,11 @@ ${getCorelConnectPs()}
     if ($createBox -and -not $hasExistingBox) {
         $right = $boxLeft + $boxW
         $bottom = $boxTop - $boxH
-        $actLayer = Com-Get $doc 'ActiveLayer'
-        $rect = if ($actLayer) { Com-Call $actLayer 'CreateRectangle' @([double]$boxLeft, [double]$boxTop, [double]$right, [double]$bottom) } else { $null }
+        $actLayer = $doc.ActiveLayer
+        $rect = if ($actLayer) { $actLayer.CreateRectangle($boxLeft, $boxTop, $right, $bottom) } else { $null }
         if ($rect) {
             try {
-                $outline = Com-Get $rect 'Outline'
-                if ($outline) {
-                    Com-Call $outline 'SetProperties' @([double]0.05)
-                }
+                if ($rect.Outline) { $rect.Outline.SetProperties(0.05) }
             } catch {}
         }
     }
@@ -263,39 +252,36 @@ ${getCorelConnectPs()}
         $id = [int]$it.staticId
         if (-not $shapeMap.ContainsKey($id)) { continue }
         $shp = $shapeMap[$id]
-        if ($null -eq $shp) { continue }
+        if (-not $shp) { continue }
 
         try {
             $targetRot = if ($it.rotate) { [double]$it.rotate } else { 0.0 }
-            $curW = [double](Com-Get $shp 'SizeWidth')
-            $curH = [double](Com-Get $shp 'SizeHeight')
+            $curW = [double]$shp.SizeWidth
+            $curH = [double]$shp.SizeHeight
             $origW = if ($it.origWidthCm) { [double]$it.origWidthCm } else { $curW }
             $origH = if ($it.origHeightCm) { [double]$it.origHeightCm } else { $curH }
 
             if ($targetRot -eq 90 -or $targetRot -eq 270) {
                 if ($origW -gt $origH -and $curW -gt $curH) {
-                    try { Com-Call $shp 'Rotate' @([double]90.0) } catch {}
+                    try { $shp.Rotate(90.0) } catch {}
                 } elseif ($origW -lt $origH -and $curW -lt $curH) {
-                    try { Com-Call $shp 'Rotate' @([double]90.0) } catch {}
+                    try { $shp.Rotate(90.0) } catch {}
                 }
             } else {
                 if ($origW -gt $origH -and $curW -lt $curH) {
-                    try { Com-Call $shp 'Rotate' @([double]-90.0) } catch {}
+                    try { $shp.Rotate(-90.0) } catch {}
                 } elseif ($origW -lt $origH -and $curW -gt $curH) {
-                    try { Com-Call $shp 'Rotate' @([double]-90.0) } catch {}
+                    try { $shp.Rotate(-90.0) } catch {}
                 }
 
                 if ($targetRot -eq 180) {
                     $curRot = 0.0
-                    try {
-                        $rVal = Com-Get $shp 'RotationAngle'
-                        if ($null -ne $rVal) { $curRot = [double]$rVal }
-                    } catch {}
+                    try { if ($shp.RotationAngle -ne $null) { $curRot = [double]$shp.RotationAngle } } catch {}
                     $diffRot = 180.0 - $curRot
                     while ($diffRot -gt 180.0) { $diffRot -= 360.0 }
                     while ($diffRot -lt -180.0) { $diffRot += 360.0 }
                     if ([math]::Abs($diffRot) -gt 0.5) {
-                        try { Com-Call $shp 'Rotate' @([double]$diffRot) } catch {}
+                        try { $shp.Rotate($diffRot) } catch {}
                     }
                 }
             }
@@ -305,17 +291,17 @@ ${getCorelConnectPs()}
 
             $moveSuccess = $false
             try {
-                Com-Call $shp 'SetPosition' @([double]$targetLeft, [double]$targetTop)
+                $shp.SetPosition($targetLeft, $targetTop)
                 $moveSuccess = $true
             } catch {
                 try {
-                    Com-Set $shp 'PositionX' $targetLeft
-                    Com-Set $shp 'PositionY' $targetTop
+                    $shp.PositionX = $targetLeft
+                    $shp.PositionY = $targetTop
                     $moveSuccess = $true
                 } catch {
                     try {
-                        Com-Set $shp 'LeftX' $targetLeft
-                        Com-Set $shp 'TopY' $targetTop
+                        $shp.LeftX = $targetLeft
+                        $shp.TopY = $targetTop
                         $moveSuccess = $true
                     } catch {}
                 }
@@ -325,39 +311,24 @@ ${getCorelConnectPs()}
         } catch {}
     }
 
-    try { [void](Com-Call $doc 'EndCommandGroup' @()) } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { [void](Com-Call $doc 'ClearSelection' @()) } catch {}
-
-    try {
-        $win = Com-Get $corel 'ActiveWindow'
-        if (-not $win) { $win = Com-Get $doc 'ActiveWindow' }
-        if ($win) {
-            $curMode = Com-Get $win 'ViewMode'
-            if ($null -ne $curMode) {
-                try { Com-Set $win 'ViewMode' 1 } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-                try { Com-Set $win 'ViewMode' $curMode } catch {}
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            } else {
-                try { [void](Com-Call $win 'Refresh' @()) } catch {}
-            }
-        }
-    } catch {}
-    try { [void](Com-Call $corel 'Refresh') } catch {}
+    try { $doc.EndCommandGroup() } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $doc.ClearSelection() } catch {}
+    try { $corel.Refresh() } catch {}
+    if ($corel.ActiveWindow) { try { $corel.ActiveWindow.Refresh() } catch {} }
 
     $result.success = ($moved -gt 0)
     $result.movedCount = $moved
     $result.message = "Berhasil menata $moved pola ke dalam kotak ($boxW cm x $boxH cm)."
 
-    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
+    if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
 }
 catch {
-    try { if ($doc) { [void](Com-Call $doc 'EndCommandGroup' @()) } } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { [void](Com-Call $corel 'Refresh') } catch {}
+    try { if ($doc) { $doc.EndCommandGroup() } } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.Refresh() } catch {}
     $result.success = $false
     $result.message = "$($_.Exception.Message)"
 }

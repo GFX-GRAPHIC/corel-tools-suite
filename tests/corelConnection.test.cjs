@@ -36,16 +36,10 @@ test('CorelConnection - Preferred version getters and setters', () => {
 
 test('CorelConnection - PowerShell snippet generators contain required COM functions', () => {
   const helpersPs = corelConn.getCorelProcessHelpersPs();
-  assert.ok(helpersPs.includes('function Get-RealCorelProcesses'), 'Helpers must declare Get-RealCorelProcesses');
   assert.ok(helpersPs.includes('function Get-CorelVerFromProcess'), 'Helpers must declare Get-CorelVerFromProcess');
-
-  const fastComPs = corelConn.getFastComBootstrapPs();
-  assert.ok(fastComPs.includes('public static class FastCom'), 'FastCom must declare C# class');
-  assert.ok(fastComPs.includes('function Com-Get'), 'Must declare Com-Get');
-  assert.ok(fastComPs.includes('function Com-Set'), 'Must declare Com-Set');
-  assert.ok(fastComPs.includes('function Com-Call'), 'Must declare Com-Call');
 
   const connectPs = corelConn.getCorelConnectPs();
   assert.ok(connectPs.includes('function Get-CorelSelection'), 'Connect snippet must declare Get-CorelSelection');
   assert.ok(connectPs.includes('function Get-RangeItem'), 'Connect snippet must declare Get-RangeItem');
+  assert.ok(connectPs.includes('function Get-RangeCount'), 'Connect snippet must declare Get-RangeCount');
 });

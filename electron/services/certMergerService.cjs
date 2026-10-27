@@ -104,83 +104,49 @@ function parseExcelFile(payload) {
       const headers = [];
       for (let colIdx = 0; colIdx < maxCols; colIdx++) {
         const letter = indexToLetter(colIdx);
-        const rawName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
-        const name = rawName || `Kolom ${letter}`;
-        let sample = '';
-        for (const r of rows) {
-          if (r[letter] && r[letter].trim() !== '') {
-            sample = r[letter].trim();
-            if (sample.length > 25) sample = sample.substring(0, 22) + '...';
-            break;
-          }
-        }
-        const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
-        headers.push({ letter, name, sample, label });
+        const originalName = headerRow[colIdx] ? String(headerRow[colIdx]).trim() : '';
+        const displayName = originalName ? `${letter} : ${originalName}` : letter;
+        headers.push({
+          letter,
+          originalName,
+          displayName,
+          placeholder: `[${originalName || letter}]`,
+        });
       }
 
-      sheetsData[sName] = { headers, rows, totalRows: rows.length, headerRowIdx, rawData };
+      sheetsData[sName] = {
+        headers,
+        rows,
+        totalRows: rows.length,
+        headerRowIdx,
+        rawData: rawData.slice(0, 15),
+      };
     }
 
-    const primary = sheetsData[activeSheet] || { headers: [], rows: [], totalRows: 0, headerRowIdx: 0, rawData: [] };
     return {
       success: true,
       filePath: targetPath,
       sheetNames,
       activeSheet,
-      sheetsData,
-      headers: primary.headers,
-      rows: primary.rows,
-      totalRows: primary.totalRows,
-      headerRowIdx: primary.headerRowIdx,
-      rawData: primary.rawData
+      sheets: sheetsData,
+      headers: sheetsData[activeSheet]?.headers || [],
+      rows: sheetsData[activeSheet]?.rows || [],
+      totalRows: sheetsData[activeSheet]?.totalRows || 0,
+      headerRowIdx: sheetsData[activeSheet]?.headerRowIdx || 0,
     };
   } catch (err) {
     return { success: false, message: `Gagal membaca Excel: ${err?.message || err}` };
   }
 }
 
-async function executeCertMergerWorkflow(payload) {
-  const {
-    rows = [],
-    mappings = [],
-    mode = 'page',
-    autoCurves = true,
-    cols = 2,
-    gridRows = 5,
-    spacingX = 0.5,
-    spacingY = 0.5,
-    gridOrder = 'left_right',
-  } = payload || {};
-
-  if (!rows || rows.length === 0) {
-    return { success: false, message: 'Tidak ada data baris Excel yang diproses.' };
-  }
-  if (!mappings || mappings.length === 0) {
-    return { success: false, message: 'Tidak ada pemetaan variabel teks yang ditentukan.' };
-  }
-
+async function executeCertMerger(payload) {
   const tempDir = app.getPath('temp');
-  const timestamp = Date.now();
-  const tempJsonPath = path.join(tempDir, `corel_cert_data_${timestamp}.json`);
+  const tempJsonPath = path.join(tempDir, `corel_cert_data_${Date.now()}.json`);
 
   try {
-    fs.writeFileSync(
-      tempJsonPath,
-      JSON.stringify({
-        rows,
-        mappings,
-        mode,
-        autoCurves,
-        cols: Number(cols) || 2,
-        gridRows: Number(gridRows) || 5,
-        spacingX: Number(spacingX) >= 0 ? Number(spacingX) : 0.5,
-        spacingY: Number(spacingY) >= 0 ? Number(spacingY) : 0.5,
-        gridOrder: gridOrder || 'left_right'
-      }),
-      'utf-8'
-    );
-  } catch (err) {
-    return { success: false, message: `Gagal menyiapkan file data: ${err.message}` };
+    fs.writeFileSync(tempJsonPath, JSON.stringify(payload || {}), 'utf-8');
+  } catch (e) {
+    return { success: false, message: `Gagal menyimpan data sementara: ${e.message}` };
   }
 
   const psScript = `
@@ -199,254 +165,265 @@ trap {
     exit 0
 }
 
-function Convert-TextCase($str, $caseType) {
-    if ([string]::IsNullOrEmpty($str) -or -not $caseType -or $caseType -eq 'none') { return $str }
-    switch ($caseType.ToLower()) {
-        'upper' { return $str.ToUpper() }
-        'lower' { return $str.ToLower() }
-        'title' {
-            try {
-                $ti = (Get-Culture).TextInfo
-                return $ti.ToTitleCase($str.ToLower())
-            } catch {
-                return $str
-            }
+function Convert-TextCase([string]$text, [string]$caseMode) {
+    if (-not $text) { return "" }
+    switch ($caseMode.ToLower()) {
+        'upper'    { return $text.ToUpper() }
+        'lower'    { return $text.ToLower() }
+        'title'    {
+            $ti = (Get-Culture).TextInfo
+            return $ti.ToTitleCase($text.ToLower())
         }
         'sentence' {
-            $lower = $str.ToLower()
-            if ($lower.Length -gt 0) {
-                return $lower.Substring(0, 1).ToUpper() + $lower.Substring(1)
-            }
-            return $lower
+            if ($text.Length -le 1) { return $text.ToUpper() }
+            return $text.Substring(0, 1).ToUpper() + $text.Substring(1).ToLower()
         }
-        'toggle' {
-            $chars = $str.ToCharArray()
+        'toggle'   {
+            $chars = $text.ToCharArray()
             for ($i = 0; $i -lt $chars.Length; $i++) {
-                if ([char]::IsUpper($chars[$i])) {
-                    $chars[$i] = [char]::ToLower($chars[$i])
-                } elseif ([char]::IsLower($chars[$i])) {
-                    $chars[$i] = [char]::ToUpper($chars[$i])
-                }
+                if ([char]::IsUpper($chars[$i])) { $chars[$i] = [char]::ToLower($chars[$i]) }
+                elseif ([char]::IsLower($chars[$i])) { $chars[$i] = [char]::ToUpper($chars[$i]) }
             }
-            return (-join $chars)
+            return -join $chars
         }
-        default { return $str }
+        default { return $text }
     }
 }
 
-function Replace-ShapeText($shp, $findText, $replaceVal, $optWidth, $optHeight, $lockRatio, $fitMode, $align, $docPage, $textCase = 'none') {
-    if (-not $shp) { return $false }
+function Replace-ShapeText($shp, [string]$findText, [string]$replaceVal, [double]$optWidth, [double]$optHeight, [bool]$lockRatio, [string]$fitMode, [string]$align, $docPage, [string]$textCase) {
     $replaced = $false
-    $sType = 0
-    try { $sType = [int](Com-Get $shp 'Type') } catch {}
-    if ($sType -eq 6) {
-        $hasMatch = $false
-        $story = $null
-        $cur = ""
-        try {
-            $txtObj = Com-Get $shp 'Text'
-            if ($txtObj) {
-                $story = Com-Get $txtObj 'Story'
-                if ($story) {
-                    $cur = [string](Com-Get $story 'Text')
-                    if ($cur -and $cur -match [regex]::Escape($findText)) {
-                        $hasMatch = $true
-                    }
-                }
-            }
-        } catch {}
+    if (-not $shp) { return $false }
 
-        if ($hasMatch -and $story) {
-            if ($textCase -and $textCase -ne 'none') {
-                $replaceVal = Convert-TextCase $replaceVal $textCase
-            }
+    try {
+        if ($shp.Type -eq 6) {
+            $story = $shp.Text.Story
+            $cur = [string]$story.Text
+            $hasMatch = $false
 
-            $origCenterX = [double](Com-Get $shp 'CenterX')
-            $origCenterY = [double](Com-Get $shp 'CenterY')
-            $origLeft = [double](Com-Get $shp 'PositionX')
-            $origTop = [double](Com-Get $shp 'PositionY')
-            $origW = [double](Com-Get $shp 'SizeWidth')
-            $origH = [double](Com-Get $shp 'SizeHeight')
-
-            try {
+            if ($cur -and $findText) {
                 if ($cur.Trim() -ieq $findText.Trim()) {
-                    Com-Set $story 'Text' ([string]$replaceVal)
-                    $replaced = $true
-                } else {
-                    $pattern = [regex]::Escape($findText)
-                    $newStr = [regex]::Replace($cur, $pattern, [string]$replaceVal, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-                    Com-Set $story 'Text' $newStr
-                    $replaced = $true
+                    $hasMatch = $true
+                } elseif ($cur -match [regex]::Escape($findText)) {
+                    $hasMatch = $true
                 }
-            } catch {}
+            }
 
-            if ($replaced) {
+            if ($hasMatch) {
                 if ($textCase -and $textCase -ne 'none') {
-                    $cdrCaseEnum = switch ($textCase.ToLower()) {
-                        'sentence' { 1 }
-                        'lower'    { 2 }
-                        'upper'    { 3 }
-                        'title'    { 4 }
-                        'toggle'   { 5 }
-                        default    { 0 }
-                    }
-                    if ($cdrCaseEnum -gt 0) {
-                        try { Com-Set $story 'Case' $cdrCaseEnum } catch {}
-                    }
+                    $replaceVal = Convert-TextCase $replaceVal $textCase
                 }
 
-                try {
-                    if ($align -eq 'center' -or $align -eq 'page_center') {
-                        Com-Set $story 'Alignment' 3 # cdrCenterAlignment
-                    } elseif ($align -eq 'left') {
-                        Com-Set $story 'Alignment' 1 # cdrLeftAlignment
-                    } elseif ($align -eq 'right') {
-                        Com-Set $story 'Alignment' 2 # cdrRightAlignment
-                    }
-                } catch {}
+                $origCenterX = [double]$shp.CenterX
+                $origCenterY = [double]$shp.CenterY
+                $origLeft = [double]$shp.PositionX
+                $origTop = [double]$shp.PositionY
+                $origW = [double]$shp.SizeWidth
+                $origH = [double]$shp.SizeHeight
 
                 try {
-                    $targetW = [double]$optWidth
-                    $targetH = [double]$optHeight
-                    $isLocked = [bool]$lockRatio
-                    $modeFit = if ($fitMode) { [string]$fitMode } else { 'max' }
-
-                    $curW = [double](Com-Get $shp 'SizeWidth')
-                    $curH = [double](Com-Get $shp 'SizeHeight')
-
-                    if ($modeFit -eq 'max') {
-                        $scale = 1.0
-                        if ($targetW -gt 0 -and $curW -gt $targetW) {
-                            $scale = $targetW / $curW
-                        }
-                        if ($targetH -gt 0 -and $curH -gt $targetH) {
-                            $scaleH = $targetH / $curH
-                            if ($isLocked) {
-                                $scale = [math]::Min($scale, $scaleH)
-                            }
-                        }
-                        if ($scale -lt 0.999) {
-                            $newW = $curW * $scale
-                            $newH = if ($isLocked) { $curH * $scale } else { $curH }
-                            try { [void](Com-Call $shp 'SetSize' @([double]$newW, [double]$newH)) } catch {
-                                Com-Set $shp 'SizeWidth' ([double]$newW)
-                                if ($isLocked) { Com-Set $shp 'SizeHeight' ([double]$newH) }
-                            }
-                        }
+                    if ($cur.Trim() -ieq $findText.Trim()) {
+                        $story.Text = [string]$replaceVal
+                        $replaced = $true
                     } else {
-                        if ($targetW -gt 0 -and $targetH -gt 0) {
-                            if ($isLocked) {
-                                if ($curW -gt 0 -and $curH -gt 0) {
-                                    $scaleW = $targetW / $curW
-                                    $scaleH = $targetH / $curH
-                                    $scale = [math]::Min($scaleW, $scaleH)
-                                    $newW = $curW * $scale
-                                    $newH = $curH * $scale
-                                    try { [void](Com-Call $shp 'SetSize' @([double]$newW, [double]$newH)) } catch {
-                                        Com-Set $shp 'SizeWidth' ([double]$newW)
-                                        Com-Set $shp 'SizeHeight' ([double]$newH)
-                                    }
-                                }
-                            } else {
-                                try { [void](Com-Call $shp 'SetSize' @([double]$targetW, [double]$targetH)) } catch {
-                                    Com-Set $shp 'SizeWidth' ([double]$targetW)
-                                    Com-Set $shp 'SizeHeight' ([double]$targetH)
-                                }
-                            }
-                        } elseif ($targetW -gt 0) {
-                            if ($curW -gt 0) {
-                                $scale = $targetW / $curW
-                                if ($isLocked -and $curH -gt 0) {
-                                    $newH = $curH * $scale
-                                    try { [void](Com-Call $shp 'SetSize' @([double]$targetW, [double]$newH)) } catch {
-                                        Com-Set $shp 'SizeWidth' ([double]$targetW)
-                                        Com-Set $shp 'SizeHeight' ([double]$newH)
-                                    }
-                                } else {
-                                    Com-Set $shp 'SizeWidth' ([double]$targetW)
-                                }
-                            }
-                        } elseif ($targetH -gt 0) {
-                            if ($curH -gt 0) {
-                                $scale = $targetH / $curH
-                                if ($isLocked -and $curW -gt 0) {
-                                    $newW = $curW * $scale
-                                    try { [void](Com-Call $shp 'SetSize' @([double]$newW, [double]$targetH)) } catch {
-                                        Com-Set $shp 'SizeWidth' ([double]$newW)
-                                        Com-Set $shp 'SizeHeight' ([double]$targetH)
-                                    }
-                                } else {
-                                    Com-Set $shp 'SizeHeight' ([double]$targetH)
-                                }
-                            }
-                        }
+                        $pattern = [regex]::Escape($findText)
+                        $newStr = [regex]::Replace($cur, $pattern, [string]$replaceVal, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+                        $story.Text = $newStr
+                        $replaced = $true
                     }
                 } catch {}
 
-                try {
-                    if ($align -eq 'page_center') {
-                        $pCenter = $null
-                        if ($docPage) {
-                            try { $pCenter = [double](Com-Get $docPage 'CenterX') } catch {}
+                if ($replaced) {
+                    if ($textCase -and $textCase -ne 'none') {
+                        $cdrCaseEnum = switch ($textCase.ToLower()) {
+                            'sentence' { 1 }
+                            'lower'    { 2 }
+                            'upper'    { 3 }
+                            'title'    { 4 }
+                            'toggle'   { 5 }
+                            default    { 0 }
                         }
-                        if ($pCenter -and $pCenter -gt 0) {
-                            Com-Set $shp 'CenterX' ([double]$pCenter)
-                        } else {
-                            Com-Set $shp 'CenterX' ([double]$origCenterX)
+                        if ($cdrCaseEnum -gt 0) {
+                            try { $story.Case = $cdrCaseEnum } catch {}
                         }
-                        Com-Set $shp 'CenterY' ([double]$origCenterY)
-                    } elseif ($align -eq 'center' -or -not $align) {
-                        Com-Set $shp 'CenterX' ([double]$origCenterX)
-                        Com-Set $shp 'CenterY' ([double]$origCenterY)
-                    } elseif ($align -eq 'left') {
-                        Com-Set $shp 'PositionX' ([double]$origLeft)
-                        Com-Set $shp 'CenterY' ([double]$origCenterY)
-                    } elseif ($align -eq 'right') {
-                        $nowW = [double](Com-Get $shp 'SizeWidth')
-                        Com-Set $shp 'PositionX' ([double](($origLeft + $origW) - $nowW))
-                        Com-Set $shp 'CenterY' ([double]$origCenterY)
                     }
-                } catch {}
+
+                    try {
+                        if ($align -eq 'center' -or $align -eq 'page_center') {
+                            $story.Alignment = 3 # cdrCenterAlignment
+                        } elseif ($align -eq 'left') {
+                            $story.Alignment = 1 # cdrLeftAlignment
+                        } elseif ($align -eq 'right') {
+                            $story.Alignment = 2 # cdrRightAlignment
+                        }
+                    } catch {}
+
+                    try {
+                        $targetW = [double]$optWidth
+                        $targetH = [double]$optHeight
+                        $isLocked = [bool]$lockRatio
+                        $modeFit = if ($fitMode) { [string]$fitMode } else { 'max' }
+
+                        $curW = [double]$shp.SizeWidth
+                        $curH = [double]$shp.SizeHeight
+
+                        if ($modeFit -eq 'max') {
+                            $scale = 1.0
+                            if ($targetW -gt 0 -and $curW -gt $targetW) {
+                                $scale = $targetW / $curW
+                            }
+                            if ($targetH -gt 0 -and $curH -gt $targetH) {
+                                $scaleH = $targetH / $curH
+                                if ($isLocked) {
+                                    $scale = [math]::Min($scale, $scaleH)
+                                }
+                            }
+                            if ($scale -lt 0.999) {
+                                $newW = $curW * $scale
+                                $newH = if ($isLocked) { $curH * $scale } else { $curH }
+                                try { $shp.SetSize($newW, $newH) } catch {
+                                    $shp.SizeWidth = $newW
+                                    if ($isLocked) { $shp.SizeHeight = $newH }
+                                }
+                            }
+                        } else {
+                            if ($targetW -gt 0 -and $targetH -gt 0) {
+                                if ($isLocked) {
+                                    if ($curW -gt 0 -and $curH -gt 0) {
+                                        $scaleW = $targetW / $curW
+                                        $scaleH = $targetH / $curH
+                                        $scale = [math]::Min($scaleW, $scaleH)
+                                        $newW = $curW * $scale
+                                        $newH = $curH * $scale
+                                        try { $shp.SetSize($newW, $newH) } catch {
+                                            $shp.SizeWidth = $newW
+                                            $shp.SizeHeight = $newH
+                                        }
+                                    }
+                                } else {
+                                    try { $shp.SetSize($targetW, $targetH) } catch {
+                                        $shp.SizeWidth = $targetW
+                                        $shp.SizeHeight = $targetH
+                                    }
+                                }
+                            } elseif ($targetW -gt 0) {
+                                if ($curW -gt 0) {
+                                    $scale = $targetW / $curW
+                                    if ($isLocked -and $curH -gt 0) {
+                                        $newH = $curH * $scale
+                                        try { $shp.SetSize($targetW, $newH) } catch {
+                                            $shp.SizeWidth = $targetW
+                                            $shp.SizeHeight = $newH
+                                        }
+                                    } else {
+                                        $shp.SizeWidth = $targetW
+                                    }
+                                }
+                            } elseif ($targetH -gt 0) {
+                                if ($curH -gt 0) {
+                                    $scale = $targetH / $curH
+                                    if ($isLocked -and $curW -gt 0) {
+                                        $newW = $curW * $scale
+                                        try { $shp.SetSize($newW, $targetH) } catch {
+                                            $shp.SizeWidth = $newW
+                                            $shp.SizeHeight = $targetH
+                                        }
+                                    } else {
+                                        $shp.SizeHeight = $targetH
+                                    }
+                                }
+                            }
+                        }
+                    } catch {}
+
+                    try {
+                        if ($align -eq 'page_center') {
+                            $pCenter = $null
+                            if ($docPage) {
+                                try { $pCenter = [double]$docPage.CenterX } catch {}
+                            }
+                            if (-not $pCenter) {
+                                try { $pCenter = [double]$shp.Layer.Page.CenterX } catch {}
+                            }
+                            if ($pCenter -and $pCenter -gt 0) {
+                                $shp.CenterX = $pCenter
+                            } else {
+                                $shp.CenterX = $origCenterX
+                            }
+                            $shp.CenterY = $origCenterY
+                        } elseif ($align -eq 'center' -or -not $align) {
+                            $shp.CenterX = $origCenterX
+                            $shp.CenterY = $origCenterY
+                        } elseif ($align -eq 'left') {
+                            $shp.PositionX = $origLeft
+                            $shp.CenterY = $origCenterY
+                        } elseif ($align -eq 'right') {
+                            $shp.PositionX = ($origLeft + $origW) - $shp.SizeWidth
+                            $shp.CenterY = $origCenterY
+                        }
+                    } catch {}
+                }
             }
         }
-    }
+    } catch {}
     return $replaced
 }
 
-function Get-AllTextShapes($container) {
-    $list = @()
-    if (-not $container) { return $list }
+# Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
+function Get-DeepTextShapes($container) {
+    $found = @()
+    if (-not $container) { return $found }
+
+    # 1. Direct text shape (cdrTextShape = 6)
     try {
-        $cType = [int](Com-Get $container 'Type')
-        if ($cType -eq 6) {
-            $list += ,$container
-            return $list
+        if ($container.Type -eq 6) {
+            $found += $container
+            return $found
         }
     } catch {}
 
+    # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
     try {
-        $shps = Com-Get $container 'Shapes'
-        $cnt = if ($shps) { [int](Com-Get $shps 'Count') } else { 0 }
-        for ($k = 1; $k -le $cnt; $k++) {
-            $s = Com-Get $shps 'Item' @($k)
-            if (-not $s) { continue }
-            $sType = [int](Com-Get $s 'Type')
-            if ($sType -eq 6) {
-                $list += ,$s
-            } elseif ($sType -eq 7) {
-                $sub = @(Get-AllTextShapes $s)
-                if ($sub.Count -gt 0) { $list += $sub }
-            }
-            try {
-                $pc = Com-Get $s 'PowerClip'
-                if ($pc) {
-                    $pcSub = @(Get-AllTextShapes $pc)
-                    if ($pcSub.Count -gt 0) { $list += $pcSub }
+        if ($container.PowerClip) {
+            $pc = $container.PowerClip
+            if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
+                for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
+                    $pcChild = $pc.Shapes.Item($pi)
+                    if ($pcChild) {
+                        $pcTexts = Get-DeepTextShapes $pcChild
+                        if ($pcTexts -and $pcTexts.Count -gt 0) { $found += $pcTexts }
+                    }
                 }
-            } catch {}
+            }
         }
     } catch {}
-    return $list
+
+    # 3. Check if container has .Shapes (Group, Layer, Page)
+    try {
+        if ($container.Shapes -and $container.Shapes.Count -gt 0) {
+            for ($si = 1; $si -le $container.Shapes.Count; $si++) {
+                $child = $container.Shapes.Item($si)
+                if ($child) {
+                    $childTexts = Get-DeepTextShapes $child
+                    if ($childTexts -and $childTexts.Count -gt 0) { $found += $childTexts }
+                }
+            }
+        }
+    } catch {}
+
+    # 4. Check if container is a ShapeRange or Selection
+    try {
+        if ($container.Count -and $container.Count -gt 0) {
+            for ($ri = 1; $ri -le $container.Count; $ri++) {
+                $item = $container.Item($ri)
+                if ($item) {
+                    $itemTexts = Get-DeepTextShapes $item
+                    if ($itemTexts -and $itemTexts.Count -gt 0) { $found += $itemTexts }
+                }
+            }
+        }
+    } catch {}
+
+    return $found
 }
 
 function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
@@ -482,8 +459,8 @@ function Convert-TextsToCurves($textList) {
     for ($k = $textList.Count - 1; $k -ge 0; $k--) {
         try {
             $t = $textList[$k]
-            if ($t -and [int](Com-Get $t 'Type') -eq 6) {
-                try { [void](Com-Call $t 'ConvertToCurves') } catch {}
+            if ($t -and $t.Type -eq 6) {
+                try { [void]$t.ConvertToCurves() } catch {}
             }
         } catch {}
     }
@@ -511,33 +488,31 @@ ${getCorelConnectPs()}
         throw "Tidak ada dokumen template yang terbuka di CorelDRAW. Buka file sertifikat Anda terlebih dahulu."
     }
 
-    try { Com-Set $corel 'Optimization' $true } catch {}
-    try { Com-Set $corel 'EventsEnabled' $false } catch {}
-    try { [void](Com-Call $doc 'BeginCommandGroup' @("CTS Batch Certificate Mail Merge")) } catch {}
+    $corel.Optimization = $true
+    $corel.EventsEnabled = $false
+    $doc.BeginCommandGroup("CTS Batch Certificate Mail Merge")
     $origDocUnit = $null
-    try { $origDocUnit = Com-Get $doc 'Unit' } catch {}
-    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter
+    try { $origDocUnit = $doc.Unit } catch {}
+    $doc.Unit = 4 # cdrCentimeter
 
     $totalRows = $rows.Count
 
     if ($mode -eq 'inplace') {
         $selInfo = Get-CorelSelection $corel $doc
-        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
         $targetContainer = if ($selInfo.SelCount -gt 0) { $selInfo.Selection } else { $null }
         if (-not $targetContainer) {
-            $targetContainer = Com-Get $doc 'ActivePage'
+            $targetContainer = $doc.ActivePage
             if (-not $targetContainer) {
-                $pgs = Com-Get $doc 'Pages'
-                $targetContainer = Com-Get $pgs 'Item' @(1)
+                $targetContainer = $doc.Pages.Item(1)
             }
         }
 
-        $texts = @(Get-AllTextShapes $targetContainer)
+        $texts = @(Get-DeepTextShapes $targetContainer)
         if ($texts.Count -eq 0) {
             throw "Tidak ditemukan objek teks pada seleksi/halaman aktif CorelDRAW."
         }
 
-        $actPg = Com-Get $doc 'ActivePage'
+        $actPg = $doc.ActivePage
         Apply-RowReplacement $texts $rows[0] $sortedMappings $actPg
         if ($autoCurves) {
             Convert-TextsToCurves $texts
@@ -547,34 +522,70 @@ ${getCorelConnectPs()}
         $result.totalPages = 1
     }
     elseif ($mode -eq 'grid') {
-        try { Com-Set $doc 'Unit' 4 } catch {}
+        $doc.Unit = 4
 
         $selInfo = Get-CorelSelection $corel $doc
         $sel = $selInfo.Selection
         $selCount = [int]$selInfo.SelCount
-        if ($selInfo.SwitchedDoc) { $doc = $selInfo.SwitchedDoc }
 
-        $masterPage = Com-Get $doc 'ActivePage'
-        if (-not $masterPage) {
-            $pgs = Com-Get $doc 'Pages'
-            $masterPage = Com-Get $pgs 'Item' @(1)
-        }
-        try { [void](Com-Call $masterPage 'Activate') } catch {}
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        try { $masterPage.Activate() } catch {}
 
         $masterShape = $null
         if ($selCount -gt 1) {
-            $masterShape = Com-Call $sel 'Group'
+            try { $masterShape = $sel.Group() } catch {}
+            if (-not $masterShape) {
+                try { $masterShape = $corel.ActiveSelection.Group() } catch {}
+            }
         } elseif ($selCount -eq 1) {
-            $masterShape = Get-RangeItem $sel 1
-            if (-not $masterShape -and $sel) { $masterShape = $sel }
+            $single = Get-RangeItem $sel 1
+            if (-not $single) { $single = $sel }
+
+            # SMART AUTO-DETECTION: Check if selected shape has NO texts, but has texts sitting inside its bounds
+            $existingTexts = @(Get-DeepTextShapes $single)
+            if ($existingTexts.Count -eq 0 -and $doc.ActivePage) {
+                $bLeft = [double]$single.PositionX
+                $bTop = [double]$single.PositionY
+                $bRight = $bLeft + [double]$single.SizeWidth
+                $bBottom = $bTop - [double]$single.SizeHeight
+
+                $insideShapes = @($single)
+                $pShapes = $doc.ActivePage.Shapes
+                if ($pShapes) {
+                    for ($pi = 1; $pi -le $pShapes.Count; $pi++) {
+                        $cand = $pShapes.Item($pi)
+                        if ($cand.StaticID -eq $single.StaticID) { continue }
+                        $cx = [double]$cand.CenterX
+                        $cy = [double]$cand.CenterY
+                        if ($cx -ge ($bLeft - 0.2) -and $cx -le ($bRight + 0.2) -and $cy -le ($bTop + 0.2) -and $cy -ge ($bBottom - 0.2)) {
+                            $insideShapes += $cand
+                        }
+                    }
+                }
+                if ($insideShapes.Count -gt 1) {
+                    try {
+                        $doc.ClearSelection()
+                        for ($si = 0; $si -lt $insideShapes.Count; $si++) {
+                            $insideShapes[$si].Selected = $true
+                        }
+                        $masterShape = $corel.ActiveSelection.Group()
+                    } catch {
+                        $masterShape = $single
+                    }
+                } else {
+                    $masterShape = $single
+                }
+            } else {
+                $masterShape = $single
+            }
         } else {
-            $mpShapes = Com-Get $masterPage 'Shapes'
-            $mpCount = if ($mpShapes) { [int](Com-Get $mpShapes 'Count') } else { 0 }
+            $mpShapes = $doc.ActivePage.Shapes
+            $mpCount = if ($mpShapes) { [int]$mpShapes.Count } else { 0 }
             if ($mpCount -gt 1) {
-                $allRange = Com-Call $mpShapes 'All'
-                $masterShape = Com-Call $allRange 'Group'
+                $masterShape = $mpShapes.All().Group()
             } elseif ($mpCount -eq 1) {
-                $masterShape = Com-Get $mpShapes 'Item' @(1)
+                $masterShape = $mpShapes.Item(1)
             }
         }
 
@@ -582,15 +593,16 @@ ${getCorelConnectPs()}
             throw "Gagal mendapatkan objek desain master di CorelDRAW."
         }
 
-        $w = [double](Com-Get $masterShape 'SizeWidth')
-        $h = [double](Com-Get $masterShape 'SizeHeight')
-        $origX = [double](Com-Get $masterShape 'PositionX')
-        $origY = [double](Com-Get $masterShape 'PositionY')
+        $w = [double]$masterShape.SizeWidth
+        $h = [double]$masterShape.SizeHeight
+        $origX = [double]$masterShape.PositionX
+        $origY = [double]$masterShape.PositionY
 
         $perPage = [int]($cols * $gridRows)
         if ($perPage -lt 1) { $perPage = 1 }
         $totalPages = [int][math]::Ceiling($totalRows / $perPage)
 
+        # 1. Tata susunan grid lengkap di Halaman 1 selagi placeholder masih utuh
         $page1Shapes = @()
         for ($r = 0; $r -lt $gridRows; $r++) {
             for ($c = 0; $c -lt $cols; $c++) {
@@ -598,42 +610,38 @@ ${getCorelConnectPs()}
                 $targetPosY = $origY - ($r * ($h + $spacingY))
 
                 if ($r -eq 0 -and $c -eq 0) {
-                    Com-Set $masterShape 'PositionX' ([double]$targetPosX)
-                    Com-Set $masterShape 'PositionY' ([double]$targetPosY)
-                    $page1Shapes += ,$masterShape
+                    $masterShape.PositionX = $targetPosX
+                    $masterShape.PositionY = $targetPosY
+                    $page1Shapes += $masterShape
                 } else {
-                    $dup = Com-Call $masterShape 'Duplicate'
-                    Com-Set $dup 'PositionX' ([double]$targetPosX)
-                    Com-Set $dup 'PositionY' ([double]$targetPosY)
-                    $page1Shapes += ,$dup
+                    $dup = $masterShape.Duplicate()
+                    $dup.PositionX = $targetPosX
+                    $dup.PositionY = $targetPosY
+                    $page1Shapes += $dup
                 }
             }
         }
 
+        # 2. Copy grid ke Halaman 2..N jika data melebihi 1 halaman
         if ($totalPages -gt 1) {
-            try { [void](Com-Call $masterPage 'Activate') } catch {}
-            $mpShapes = Com-Get $masterPage 'Shapes'
-            $mpAll = Com-Call $mpShapes 'All'
-            [void](Com-Call $mpAll 'Copy')
+            $masterPage.Activate()
+            [void]$masterPage.Shapes.All().Copy()
 
             for ($p = 2; $p -le $totalPages; $p++) {
-                $newPage = Com-Call $doc 'AddPages' @(1)
-                try { [void](Com-Call $newPage 'Activate') } catch {}
+                $newPage = $doc.AddPages(1)
+                $newPage.Activate()
                 $pIdx = $p - 1
 
-                $actLyr = Com-Get $doc 'ActiveLayer'
-                [void](Com-Call $actLyr 'Paste')
+                [void]$doc.ActiveLayer.Paste()
 
-                $npShapes = Com-Get $newPage 'Shapes'
-                $npCount = if ($npShapes) { [int](Com-Get $npShapes 'Count') } else { 0 }
                 $newShapes = @()
-                for ($k = 1; $k -le $npCount; $k++) {
-                    $shp = Com-Get $npShapes 'Item' @($k)
+                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
+                    $shp = $newPage.Shapes.Item($k)
                     $newShapes += [PSCustomObject]@{
                         Shape = $shp
-                        PosX = [double](Com-Get $shp 'PositionX')
-                        PosY = [double](Com-Get $shp 'PositionY')
-                        Height = [double](Com-Get $shp 'SizeHeight')
+                        PosX = [double]$shp.PositionX
+                        PosY = [double]$shp.PositionY
+                        Height = [double]$shp.SizeHeight
                     }
                 }
 
@@ -645,29 +653,29 @@ ${getCorelConnectPs()}
                     if ($itemIdx -lt $totalRows) {
                         try {
                             $voucherShape = $sortedVouchers[$s].Shape
-                            $shpTexts = @(Get-AllTextShapes $voucherShape)
+                            $shpTexts = @(Get-DeepTextShapes $voucherShape)
                             Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $newPage
                             if ($autoCurves) { Convert-TextsToCurves $shpTexts }
                         } catch {}
                     } else {
-                        try { [void](Com-Call $sortedVouchers[$s].Shape 'Delete') } catch {}
+                        try { [void]$sortedVouchers[$s].Shape.Delete() } catch {}
                     }
                 }
             }
         }
 
-        try { [void](Com-Call $masterPage 'Activate') } catch {}
+        $masterPage.Activate()
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalRows) {
                 try {
                     $voucherShape = $page1Shapes[$s]
-                    $shpTexts = @(Get-AllTextShapes $voucherShape)
+                    $shpTexts = @(Get-DeepTextShapes $voucherShape)
                     Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $masterPage
                     if ($autoCurves) { Convert-TextsToCurves $shpTexts }
                 } catch {}
             } else {
-                try { [void](Com-Call $page1Shapes[$s] 'Delete') } catch {}
+                try { [void]$page1Shapes[$s].Delete() } catch {}
             }
         }
 
@@ -676,40 +684,35 @@ ${getCorelConnectPs()}
     }
     else {
         # MODE PAGE
-        $masterPage = Com-Get $doc 'ActivePage'
-        if (-not $masterPage) {
-            $pgs = Com-Get $doc 'Pages'
-            $masterPage = Com-Get $pgs 'Item' @(1)
-        }
-        try { [void](Com-Call $masterPage 'Activate') } catch {}
+        $masterPage = $doc.ActivePage
+        if (-not $masterPage) { $masterPage = $doc.Pages.Item(1) }
+        $masterPage.Activate()
 
-        $mpShapes = Com-Get $masterPage 'Shapes'
-        $mpCount = if ($mpShapes) { [int](Com-Get $mpShapes 'Count') } else { 0 }
+        $mpShapes = $masterPage.Shapes
+        $mpCount = if ($mpShapes) { [int]$mpShapes.Count } else { 0 }
         if ($mpCount -eq 0) {
             throw "Halaman template sertifikat masih kosong."
         }
 
         if ($totalRows -gt 1) {
-            $mpAll = Com-Call $mpShapes 'All'
-            [void](Com-Call $mpAll 'Copy')
+            [void]$masterPage.Shapes.All().Copy()
 
             for ($i = 1; $i -lt $totalRows; $i++) {
                 try {
-                    $newPage = Com-Call $doc 'AddPages' @(1)
-                    try { [void](Com-Call $newPage 'Activate') } catch {}
-                    $actLyr = Com-Get $doc 'ActiveLayer'
-                    [void](Com-Call $actLyr 'Paste')
+                    $newPage = $doc.AddPages(1)
+                    $newPage.Activate()
+                    [void]$doc.ActiveLayer.Paste()
 
-                    $newTexts = @(Get-AllTextShapes $newPage)
+                    $newTexts = @(Get-DeepTextShapes $newPage)
                     Apply-RowReplacement $newTexts $rows[$i] $sortedMappings $newPage
                     if ($autoCurves) { Convert-TextsToCurves $newTexts }
                 } catch {}
             }
         }
 
-        try { [void](Com-Call $masterPage 'Activate') } catch {}
+        $masterPage.Activate()
         try {
-            $masterTexts = @(Get-AllTextShapes $masterPage)
+            $masterTexts = @(Get-DeepTextShapes $masterPage)
             Apply-RowReplacement $masterTexts $rows[0] $sortedMappings $masterPage
             if ($autoCurves) { Convert-TextsToCurves $masterTexts }
         } catch {}
@@ -718,37 +721,43 @@ ${getCorelConnectPs()}
         $result.totalPages = $totalRows
     }
 
-    try { [void](Com-Call $doc 'ClearSelection') } catch {}
-    try { [void](Com-Call $corel 'ClearSelection') } catch {}
-    if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
-    try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
-    try { Com-Set $corel 'Optimization' $false } catch {}
-    try { Com-Set $corel 'EventsEnabled' $true } catch {}
-    try { [void](Com-Call $corel 'Refresh') } catch {}
+    try { $doc.ClearSelection() } catch {}
+    try { $corel.ClearSelection() } catch {}
+    if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
+    try { $doc.EndCommandGroup() } catch {}
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+    try { $corel.Refresh() } catch {}
+    if ($corel.ActiveWindow) { try { $corel.ActiveWindow.Refresh() } catch {} }
 
     $result.success = $true
     if ($mode -eq 'grid') {
-        $result.message = "Berhasil menata $($result.count) desain dalam Grid $cols x $gridRows pada $($result.totalPages) lembar cetak di CorelDRAW!"
-    } elseif ($mode -eq 'inplace') {
-        $result.message = "Berhasil mengganti data teks pada objek aktif di CorelDRAW!"
+        $result.message = "Berhasil menata $($result.count) desain dalam Grid $($cols) x $($gridRows) pada $($result.totalPages) lembar cetak di CorelDRAW!"
     } else {
         $result.message = "Berhasil membuat $($result.count) sertifikat pada $($result.totalPages) halaman di CorelDRAW!"
     }
 }
 catch {
+    $errLine = $_.InvocationInfo.ScriptLineNumber
     try {
         if ($doc) {
-            if ($null -ne $origDocUnit) { try { Com-Set $doc 'Unit' $origDocUnit } catch {} }
-            try { [void](Com-Call $doc 'EndCommandGroup') } catch {}
+            try { $doc.EndCommandGroup() } catch {}
+            if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
         }
-        try { Com-Set $corel 'Optimization' $false } catch {}
-        try { Com-Set $corel 'EventsEnabled' $true } catch {}
-        try { [void](Com-Call $corel 'Refresh') } catch {}
+        if ($corel) {
+            $corel.Optimization = $false
+            $corel.EventsEnabled = $true
+            $corel.Refresh()
+        }
     } catch {}
     $result.success = $false
-    $result.message = "$($_.Exception.Message)"
+    $result.message = "$($_.Exception.Message) (Baris $errLine)"
 } finally {
-    if (Test-Path $jsonPath) { try { Remove-Item -Path $jsonPath -Force } catch {} }
+    try {
+        if (Test-Path '${tempJsonPath.replace(/'/g, "''")}') {
+            Remove-Item -Path '${tempJsonPath.replace(/'/g, "''")}' -Force -ErrorAction SilentlyContinue
+        }
+    } catch {}
     if ($doc) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc) | Out-Null } catch {} }
     if ($corel) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($corel) | Out-Null } catch {} }
     [GC]::Collect()
@@ -757,12 +766,13 @@ catch {
 $result | ConvertTo-Json -Compress
 `;
 
-  const dynamicTimeout = Math.max(600000, (rows ? rows.length : 10) * 5000);
+  const totalRowsCount = (payload?.rows || []).length;
+  const dynamicTimeout = Math.max(600000, totalRowsCount * 800);
   return runPowerShellScript(psScript, dynamicTimeout);
 }
 
 module.exports = {
   indexToLetter,
   parseExcelFile,
-  executeCertMergerWorkflow,
+  executeCertMerger,
 };
