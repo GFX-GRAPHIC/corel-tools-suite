@@ -59,7 +59,7 @@ async function executeLayout(payload) {
     mappings,
     sizeChart: cleanSizeChart,
     enableAutoResize: !!enableAutoResize,
-    masterSize,
+    masterSize: String(masterSize || 'L').trim().toUpperCase(),
     spacingCm: Number(spacingCm) >= 0 ? Number(spacingCm) : 1.0,
     limitPerBatch: effectiveLimit,
     direction: direction || 'vertical',
@@ -120,6 +120,7 @@ ${getCorelConnectPs()}
     $mappings = $data.mappings
     $sizeChart = $data.sizeChart
     $enableAutoResize = [bool]$data.enableAutoResize
+    $masterSize = if ($data.masterSize) { [string]$data.masterSize.ToString().Trim().ToUpper() } else { 'L' }
     $spacing = [double]$data.spacingCm
     $limit = [int]$data.limitPerBatch
     if ($limit -lt 1) { $limit = 4 }
@@ -161,7 +162,7 @@ ${getCorelConnectPs()}
     if ($targetSize -and $targetSize -ne 'ALL') {
         foreach ($p in $rawPlayers) {
             $sz = Get-FieldValue $p @('Ukuran', 'Size', 'sz')
-            if (-not $sz) { $sz = 'L' }
+            if (-not $sz) { $sz = $masterSize }
             if ($sz.Trim().ToUpper() -eq $targetSize.Trim().ToUpper()) {
                 $playerList += $p
             }
@@ -177,7 +178,7 @@ ${getCorelConnectPs()}
     if ($groupBySize) {
         $playerList = $playerList | Sort-Object {
             $s = Get-FieldValue $_ @('Ukuran', 'Size', 'sz')
-            if (-not $s) { $s = 'L' }
+            if (-not $s) { $s = $masterSize }
             $s
         }
     }
@@ -187,11 +188,10 @@ ${getCorelConnectPs()}
         throw "Gagal memproses master pola jersey di CorelDRAW."
     }
 
-    $width = [double]$masterShape.SizeWidth
-    $height = [double]$masterShape.SizeHeight
-    $origMasterW = $width
-    $origMasterH = $height
-    $masterRatio = if ($origMasterH -gt 0) { $origMasterW / $origMasterH } else { 1.0 }
+    $origMasterW = [double]$masterShape.SizeWidth
+    $origMasterH = [double]$masterShape.SizeHeight
+    $width = $origMasterW
+    $height = $origMasterH
 
     # Native CorelDRAW text shapes discovery (v1.0.0 speed)
     $masterTexts = $null
@@ -207,13 +207,8 @@ ${getCorelConnectPs()}
 
     function Get-ShapeByIndex($container, [int]$idx) {
         if (-not $container) { return $null }
-        try {
-            if ($container.Item) { $it = $container.Item($idx); if ($it) { return $it } }
-        } catch {}
-        try {
-            $it = $container[$idx - 1]
-            if ($it) { return $it }
-        } catch {}
+        try { return $container.Item($idx) } catch {}
+        try { return $container[$idx - 1] } catch {}
         return $null
     }
 
@@ -344,15 +339,34 @@ ${getCorelConnectPs()}
 
             if ($role -eq 'name') {
                 $ts.Text.Story.Text = [string]$pName
-                # Restored exact v1.0.0 formula: preserves designer's font size
+                # Proportional font width capping (never squishes or distorts font aspect ratio)
                 $capW = if ($maxLimit -gt 0) { [math]::Max($refW, $maxLimit) } else { [math]::Max($refW, 27.0) }
-                if ($ts.SizeWidth -gt $capW) { $ts.SizeWidth = $capW }
+                $curW = [double]$ts.SizeWidth
+                if ($curW -gt $capW -and $curW -gt 0) {
+                    $fontScale = $capW / $curW
+                    $newH = [double]$ts.SizeHeight * $fontScale
+                    try {
+                        $ts.SetSize($capW, $newH)
+                    } catch {
+                        $ts.SizeWidth = $capW
+                        $ts.SizeHeight = $newH
+                    }
+                }
                 $ts.CenterX = $origCenterX
                 $ts.CenterY = $origCenterY
             } elseif ($role -eq 'number') {
                 $ts.Text.Story.Text = [string]$pNum
-                if ($refW -gt 0 -and $ts.SizeWidth -gt ($refW * 1.25)) {
-                    $ts.SizeWidth = $refW * 1.25
+                $curW = [double]$ts.SizeWidth
+                $maxNumW = if ($refW -gt 0) { $refW * 1.3 } else { 0.0 }
+                if ($maxNumW -gt 0 -and $curW -gt $maxNumW) {
+                    $numScale = $maxNumW / $curW
+                    $newH = [double]$ts.SizeHeight * $numScale
+                    try {
+                        $ts.SetSize($maxNumW, $newH)
+                    } catch {
+                        $ts.SizeWidth = $maxNumW
+                        $ts.SizeHeight = $newH
+                    }
                 }
                 $ts.CenterX = $origCenterX
                 $ts.CenterY = $origCenterY
@@ -364,45 +378,67 @@ ${getCorelConnectPs()}
         }
     }
 
-    function Get-SizeDimensions($szName, $chart, $mRatio, $origW, $origH) {
-        if (-not $szName -or -not $chart) { return @{ targetW = $origW; targetH = $origH } }
-        $cleanSz = $szName.ToString().Trim().ToUpper()
+    function Get-SizeScaleFactor($targetSz, $masterSz, $chart, $origW, $origH) {
+        if (-not $targetSz -or -not $chart) {
+            return @{ scaleW = 1.0; scaleH = 1.0; targetW = $origW; targetH = $origH; needsResize = $false }
+        }
+        $cleanTarget = $targetSz.ToString().Trim().ToUpper()
+        $cleanMaster = if ($masterSz) { $masterSz.ToString().Trim().ToUpper() } else { 'L' }
 
-        $entry = $null
+        if ($cleanTarget -eq $cleanMaster) {
+            return @{ scaleW = 1.0; scaleH = 1.0; targetW = $origW; targetH = $origH; needsResize = $false }
+        }
+
+        $masterEntry = $null
+        $targetEntry = $null
+
         if ($chart.PSObject -and $chart.PSObject.Properties) {
             foreach ($prop in $chart.PSObject.Properties) {
-                if ($prop.Name.Trim().ToUpper() -eq $cleanSz) {
-                    $entry = $prop.Value
-                    break
-                }
+                $pName = $prop.Name.Trim().ToUpper()
+                if ($pName -eq $cleanMaster) { $masterEntry = $prop.Value }
+                if ($pName -eq $cleanTarget) { $targetEntry = $prop.Value }
             }
         } elseif ($chart.Keys) {
             foreach ($k in $chart.Keys) {
-                if ($k.ToString().Trim().ToUpper() -eq $cleanSz) {
-                    $entry = $chart[$k]
-                    break
-                }
+                $kName = $k.ToString().Trim().ToUpper()
+                if ($kName -eq $cleanMaster) { $masterEntry = $chart[$k] }
+                if ($kName -eq $cleanTarget) { $targetEntry = $chart[$k] }
             }
         }
 
-        if (-not $entry) {
-            return @{ targetW = $origW; targetH = $origH }
+        if (-not $targetEntry) {
+            return @{ scaleW = 1.0; scaleH = 1.0; targetW = $origW; targetH = $origH; needsResize = $false }
         }
 
-        $tw = if ($entry.width) { [double]$entry.width } else { 0.0 }
-        $th = if ($entry.height) { [double]$entry.height } else { 0.0 }
-        $isLock = if ($entry.lockRatio -ne $null) { [bool]$entry.lockRatio } else { $true }
+        $tH = if ($targetEntry.height) { [double]$targetEntry.height } else { 0.0 }
+        $tW = if ($targetEntry.width) { [double]$targetEntry.width } else { 0.0 }
+        $mH = if ($masterEntry -and $masterEntry.height) { [double]$masterEntry.height } else { 0.0 }
+        $mW = if ($masterEntry -and $masterEntry.width) { [double]$masterEntry.width } else { 0.0 }
+        $isLock = if ($targetEntry.lockRatio -ne $null) { [bool]$targetEntry.lockRatio } else { $true }
 
-        if ($th -gt 0 -and $tw -le 0 -and $isLock) {
-            $tw = [math]::Round(($th * $mRatio), 3)
-        } elseif ($tw -gt 0 -and $th -le 0 -and $isLock) {
-            $th = [math]::Round(($tw / $mRatio), 3)
-        } elseif ($tw -le 0 -and $th -le 0) {
-            $tw = $origW
-            $th = $origH
+        $scaleH = 1.0
+        $scaleW = 1.0
+
+        if ($mH -gt 0 -and $tH -gt 0) {
+            $scaleH = $tH / $mH
+        }
+        if ($mW -gt 0 -and $tW -gt 0) {
+            $scaleW = $tW / $mW
         }
 
-        return @{ targetW = $tw; targetH = $th }
+        if ($isLock) {
+            if ($scaleH -ne 1.0) {
+                $scaleW = $scaleH
+            } elseif ($scaleW -ne 1.0) {
+                $scaleH = $scaleW
+            }
+        }
+
+        $finalW = [math]::Round(($origW * $scaleW), 3)
+        $finalH = [math]::Round(($origH * $scaleH), 3)
+        $needs = ([math]::Abs($scaleW - 1.0) -gt 0.001 -or [math]::Abs($scaleH - 1.0) -gt 0.001)
+
+        return @{ scaleW = $scaleW; scaleH = $scaleH; targetW = $finalW; targetH = $finalH; needsResize = $needs }
     }
 
     # Enable native Corel optimization flags (v1.0.0 speed)
@@ -413,38 +449,15 @@ ${getCorelConnectPs()}
     $created = 0
     $wasCancelled = $false
 
-    # Player 0: update master template in-place
-    if ($playerList.Count -gt 0) {
-        if (Test-Path $cancelFlag) {
-            $wasCancelled = $true
-        } else {
-            $p0 = $playerList[0]
-            if ($enableAutoResize) {
-                $p0Sz = Get-FieldValue $p0 @('size', 'ukuran', 'sz')
-                if (-not $p0Sz) { $p0Sz = "L" }
-                $dim0 = Get-SizeDimensions $p0Sz $sizeChart $masterRatio $origMasterW $origMasterH
-                if ($dim0.targetW -gt 0 -and $dim0.targetH -gt 0) {
-                    try { $masterShape.SetSize($dim0.targetW, $dim0.targetH) } catch {
-                        $masterShape.SizeWidth = $dim0.targetW
-                        $masterShape.SizeHeight = $dim0.targetH
-                    }
-                    $width = [double]$masterShape.SizeWidth
-                    $height = [double]$masterShape.SizeHeight
-                }
-            }
-            ApplyPlayerToShape $masterShape $p0 $textCount $textRoles $origW $maxW $mappings
-            $created++
-        }
-    }
+    # Fast batch duplication from pristine master shape
+    $jerseyShapes = [System.Collections.Generic.List[System.Object]]::new()
+    $jerseyShapes.Add($masterShape)
 
-    # Player 1..N: Duplicate masterShape in grid
     for ($i = 1; $i -lt $playerList.Count; $i++) {
         if (Test-Path $cancelFlag) {
             $wasCancelled = $true
             break
         }
-
-        $p = $playerList[$i]
 
         if ($dir -eq 'horizontal') {
             $col = $i % $limit
@@ -455,39 +468,61 @@ ${getCorelConnectPs()}
             $col = [math]::Floor($i / $limit)
         }
 
-        $dx = $col * ($width + $spacing)
-        $dy = -($row * ($height + $spacing))
+        $dx = $col * ($origMasterW + $spacing)
+        $dy = -($row * ($origMasterH + $spacing))
 
         $dup = $masterShape.Duplicate($dx, $dy)
+        $jerseyShapes.Add($dup)
+    }
 
+    # Process all jerseys with exact sizing and text mapping
+    for ($i = 0; $i -lt $jerseyShapes.Count; $i++) {
+        if (Test-Path $cancelFlag) {
+            $wasCancelled = $true
+            break
+        }
+
+        $p = $playerList[$i]
+        $jShape = $jerseyShapes[$i]
+
+        $pSz = Get-FieldValue $p @('size', 'ukuran', 'sz')
+        if (-not $pSz) { $pSz = $masterSize }
+
+        # Proportional Auto-Resize per size relative to master pattern
         if ($enableAutoResize) {
-            $pSz = Get-FieldValue $p @('size', 'ukuran', 'sz')
-            if (-not $pSz) { $pSz = "L" }
-            $dim = Get-SizeDimensions $pSz $sizeChart $masterRatio $origMasterW $origMasterH
-            if ($dim.targetW -gt 0 -and $dim.targetH -gt 0) {
-                try { $dup.SetSize($dim.targetW, $dim.targetH) } catch {
-                    $dup.SizeWidth = $dim.targetW
-                    $dup.SizeHeight = $dim.targetH
+            $resizeInfo = Get-SizeScaleFactor $pSz $masterSize $sizeChart $origMasterW $origMasterH
+            if ($resizeInfo.needsResize) {
+                $curCenterX = [double]$jShape.CenterX
+                $curCenterY = [double]$jShape.CenterY
+                try {
+                    $jShape.SetSize($resizeInfo.targetW, $resizeInfo.targetH)
+                } catch {
+                    $jShape.SizeWidth = $resizeInfo.targetW
+                    $jShape.SizeHeight = $resizeInfo.targetH
                 }
+                $jShape.CenterX = $curCenterX
+                $jShape.CenterY = $curCenterY
             }
         }
 
-        ApplyPlayerToShape $dup $p $textCount $textRoles $origW $maxW $mappings
+        ApplyPlayerToShape $jShape $p $textCount $textRoles $origW $maxW $mappings
         $created++
     }
 
-    # Auto Convert to Curves if requested
+    # Fast Native Curve Conversion on active page if requested
     if ($autoCurves -and -not $wasCancelled) {
-        for ($p = 1; $p -le $doc.Pages.Count; $p++) {
-            try {
-                $allT = $doc.Pages.Item($p).Shapes.FindShapes($null, 6, $true)
-                if ($allT) {
+        try {
+            $allT = $doc.ActivePage.Shapes.FindShapes($null, 6, $true)
+            if ($allT -and $allT.Count -gt 0) {
+                try {
+                    $allT.ConvertToCurves()
+                } catch {
                     for ($k = $allT.Count; $k -ge 1; $k--) {
                         try { $allT.Item($k).ConvertToCurves() } catch {}
                     }
                 }
-            } catch {}
-        }
+            }
+        } catch {}
     }
 
     $doc.EndCommandGroup()
