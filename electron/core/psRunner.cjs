@@ -143,10 +143,13 @@ function runPowerShellScript(psContent, timeout = 600000) {
         }
       }
     );
+
+    activeChildProcess = child;
   });
 }
 
 module.exports = {
   runPowerShellScript,
   cancelCurrentOperation,
+  getCancelFlagPath,
 };

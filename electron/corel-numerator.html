@@ -601,6 +601,15 @@
           if (window.electronAPI?.cancelOperation) await window.electronAPI.cancelOperation();
           else if (window.electronAPI?.corelCancelOperation) await window.electronAPI.corelCancelOperation();
         } catch {}
+        isExecuting = false;
+        btnGas.disabled = false;
+        btnGas.innerText = '🚀 Gas Nomorator!';
+        btnCancel.disabled = false;
+        btnCancel.innerText = 'Cancel';
+        btnCancel.style.background = '';
+        btnCancel.style.color = '';
+        btnCancel.style.borderColor = '';
+        lblStatus.innerText = 'Stat: Proses dibatalkan oleh pengguna.';
       } else {
         window.close();
       }
@@ -841,12 +850,14 @@
             doubleNumber,
           });
 
-          if (res.success) {
+          if (res?.cancelled || (res?.message && res.message.toLowerCase().includes('dibatalkan'))) {
+            lblStatus.innerText = 'Stat: Operasi dibatalkan.';
+          } else if (res?.success) {
             lblStatus.innerText = `Stat: Sukses (${res.count} nomor dibuat)!`;
             alert(`SUKSES!\n${res.message || `Berhasil membuat ${res.count} nomorator di CorelDRAW!`}`);
           } else {
             lblStatus.innerText = 'Stat: Gagal Nomorator';
-            alert(`Gagal membuat penomoran:\n${res.message}`);
+            alert(`Gagal membuat penomoran:\n${res?.message || 'Terjadi kesalahan'}`);
           }
         } else {
           alert('Fitur CorelDRAW hanya tersedia di aplikasi desktop.');

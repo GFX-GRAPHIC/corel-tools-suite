@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('../core/electronBridge.cjs');
 const { getCorelConnectPs } = require('../core/corelConnection.cjs');
-const { runPowerShellScript } = require('../core/psRunner.cjs');
+const { runPowerShellScript, getCancelFlagPath } = require('../core/psRunner.cjs');
 
 function indexToLetter(idx) {
   let letter = '';
@@ -142,6 +142,7 @@ function parseExcelFile(payload) {
 async function executeCertMerger(payload) {
   const tempDir = app.getPath('temp');
   const tempJsonPath = path.join(tempDir, `corel_cert_data_${Date.now()}.json`);
+  const cancelFlagPath = getCancelFlagPath().replace(/\\/g, '\\\\');
 
   try {
     fs.writeFileSync(tempJsonPath, JSON.stringify(payload || {}), 'utf-8');
@@ -152,6 +153,7 @@ async function executeCertMerger(payload) {
   const psScript = `
 $ErrorActionPreference = 'Stop'
 $result = @{ success = $false; message = ''; count = 0; totalPages = 0 }
+$cancelFlagPath = "${cancelFlagPath}"
 
 trap {
     $errLine = $_.InvocationInfo.ScriptLineNumber
@@ -376,56 +378,82 @@ function Replace-ShapeText($shp, [string]$findText, [string]$replaceVal, [double
     return $replaced
 }
 
-# Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
-    if (-not $container) { return }
+function Get-ValidTargetLayer($page, $doc) {
+    if (-not $page) { return $doc.ActiveLayer }
+    try {
+        $lyr = $page.ActiveLayer
+        if ($lyr -and -not $lyr.Master) { return $lyr }
+    } catch {}
+    try {
+        for ($li = 1; $li -le $page.Layers.Count; $li++) {
+            $l = $page.Layers.Item($li)
+            if ($l -and -not $l.Master) { return $l }
+        }
+    } catch {}
+    return $doc.ActiveLayer
+}
 
-    # 1. Direct text shape (cdrTextShape = 6)
+# Blazingly fast native C++ text finder with PowerClip support
+function Get-AllTextShapes($container) {
+    $list = [System.Collections.ArrayList]::new()
+    if (-not $container) { return $list }
+
     try {
         if ($container.Type -eq 6) {
             [void]$list.Add($container)
-            return
+            return $list
         }
     } catch {}
 
-    # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
+    # 1. Native C++ Recursive FindShapes (cdrTextShape = 6, Recursive = $true)
     try {
-        if ($container.PowerClip) {
-            $pc = $container.PowerClip
-            if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
-                for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
-                    $pcChild = $pc.Shapes.Item($pi)
-                    if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
+        if ($container.Shapes) {
+            $found = $container.Shapes.FindShapes($null, 6, $true)
+            if ($found -and $found.Count -gt 0) {
+                for ($k = 1; $k -le $found.Count; $k++) {
+                    [void]$list.Add($found.Item($k))
                 }
             }
         }
     } catch {}
 
-    # 3. Check if container has .Shapes (Group, Layer, Page)
+    # 2. Check PowerClip on container itself
     try {
-        if ($container.Shapes -and $container.Shapes.Count -gt 0) {
-            for ($si = 1; $si -le $container.Shapes.Count; $si++) {
-                $child = $container.Shapes.Item($si)
-                if ($child) { Collect-DeepTextShapes $child $list }
+        $pc = $container.PowerClip
+        if ($pc -and $pc.Shapes) {
+            $pcTexts = $pc.Shapes.FindShapes($null, 6, $true)
+            if ($pcTexts -and $pcTexts.Count -gt 0) {
+                for ($k = 1; $k -le $pcTexts.Count; $k++) {
+                    [void]$list.Add($pcTexts.Item($k))
+                }
             }
         }
     } catch {}
 
-    # 4. Check if container is a ShapeRange or Selection
+    # 3. Check PowerClips inside container shapes (if container is a group or page)
     try {
-        if ($container.Count -and $container.Count -gt 0) {
-            for ($ri = 1; $ri -le $container.Count; $ri++) {
-                $item = $container.Item($ri)
-                if ($item) { Collect-DeepTextShapes $item $list }
+        if ($container.Shapes) {
+            for ($si = 1; $si -le $container.Shapes.Count; $si++) {
+                $child = $container.Shapes.Item($si)
+                try {
+                    if ($child.PowerClip -and $child.PowerClip.Shapes) {
+                        $childPcTexts = $child.PowerClip.Shapes.FindShapes($null, 6, $true)
+                        if ($childPcTexts -and $childPcTexts.Count -gt 0) {
+                            for ($k = 1; $k -le $childPcTexts.Count; $k++) {
+                                [void]$list.Add($childPcTexts.Item($k))
+                            }
+                        }
+                    }
+                } catch {}
             }
         }
     } catch {}
+
+    return $list
 }
 
 function Get-DeepTextShapes($container) {
-    $list = [System.Collections.ArrayList]::new()
-    Collect-DeepTextShapes $container $list
-    return $list
+    return Get-AllTextShapes $container
 }
 
 function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
@@ -642,16 +670,19 @@ ${getCorelConnectPs()}
         # 2. Susun Halaman 2..N jika data melebihi 1 halaman
         if ($totalPages -gt 1) {
             for ($p = 2; $p -le $totalPages; $p++) {
-                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                if (Test-Path $cancelFlagPath) {
                     throw "Operasi dibatalkan oleh pengguna."
                 }
                 $newPage = $doc.AddPages(1)
-                $newPage.Activate()
+                $targetLyr = Get-ValidTargetLayer $newPage $doc
                 $pIdx = $p - 1
                 $startItem = $pIdx * $perPage
                 $countThisPage = [int][math]::Min($totalRows - $startItem, $perPage)
 
                 for ($s = 0; $s -lt $countThisPage; $s++) {
+                    if (Test-Path $cancelFlagPath) {
+                        throw "Operasi dibatalkan oleh pengguna."
+                    }
                     $r = 0
                     $c = 0
                     if ($gridOrder -eq 'top_bottom') {
@@ -666,7 +697,7 @@ ${getCorelConnectPs()}
                     $targetPosY = $origY - ($r * ($h + $spacingY))
 
                     $dup = $masterShape.Duplicate()
-                    try { $dup.MoveToLayer($newPage.ActiveLayer) } catch {}
+                    try { $dup.MoveToLayer($targetLyr) } catch {}
                     $dup.PositionX = $targetPosX
                     $dup.PositionY = $targetPosY
 
@@ -685,6 +716,9 @@ ${getCorelConnectPs()}
         # 3. Ganti teks pada Halaman 1
         $masterPage.Activate()
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
+            if (Test-Path $cancelFlagPath) {
+                throw "Operasi dibatalkan oleh pengguna."
+            }
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalRows) {
                 try {
@@ -712,18 +746,22 @@ ${getCorelConnectPs()}
         }
 
         if ($totalRows -gt 1) {
-            [void]$masterPage.Shapes.All().Copy()
-
             for ($i = 1; $i -lt $totalRows; $i++) {
-                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                if (Test-Path $cancelFlagPath) {
                     throw "Operasi dibatalkan oleh pengguna."
                 }
                 try {
                     $newPage = $doc.AddPages(1)
-                    $newPage.Activate()
-                    [void]$doc.ActiveLayer.Paste()
+                    $targetLyr = Get-ValidTargetLayer $newPage $doc
 
-                    $newTexts = @(Get-DeepTextShapes $newPage)
+                    # Direct in-memory vector duplication per shape (no clipboard!)
+                    for ($msIdx = $mpCount; $msIdx -ge 1; $msIdx--) {
+                        $ms = $mpShapes.Item($msIdx)
+                        $dupMs = $ms.Duplicate(0.0, 0.0)
+                        $dupMs.MoveToLayer($targetLyr)
+                    }
+
+                    $newTexts = @(Get-AllTextShapes $newPage)
                     Apply-RowReplacement $newTexts $rows[$i] $sortedMappings $newPage
                     if ($autoCurves) { Convert-TextsToCurves $newTexts }
                 } catch {}

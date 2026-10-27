@@ -4,7 +4,7 @@
  * Supports In-place, Page-by-Page, and Grid N-Up (Cut & Stack / Sequential) modes.
  */
 const { getCorelConnectPs } = require('../core/corelConnection.cjs');
-const { runPowerShellScript } = require('../core/psRunner.cjs');
+const { runPowerShellScript, getCancelFlagPath } = require('../core/psRunner.cjs');
 
 async function executeNumerator(payload) {
   const {
@@ -38,6 +38,7 @@ async function executeNumerator(payload) {
   const safeGridOrder = gridOrder || 'cut_stack';
   const autoCurvesVal = autoCurves ? '$true' : '$false';
   const doubleNumberVal = doubleNumber ? '$true' : '$false';
+  const cancelFlagPath = getCancelFlagPath().replace(/\\/g, '\\\\');
 
   const totalCount = Math.abs(endVal - startVal) + 1;
   const dynamicTimeout = Math.max(600000, totalCount * 600);
@@ -73,6 +74,7 @@ try {
     $gridOrder = "${safeGridOrder}"
     $autoCurves = [bool]${autoCurvesVal}
     $doubleNumber = [bool]${doubleNumberVal}
+    $cancelFlagPath = "${cancelFlagPath}"
 
 ${getCorelConnectPs()}
 
@@ -98,62 +100,84 @@ ${getCorelConnectPs()}
         return $false
     }
 
-    # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-    function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
-        if (-not $container) { return }
+    function Get-ValidTargetLayer($page, $doc) {
+        if (-not $page) { return $doc.ActiveLayer }
+        try {
+            $lyr = $page.ActiveLayer
+            if ($lyr -and -not $lyr.Master) { return $lyr }
+        } catch {}
+        try {
+            for ($li = 1; $li -le $page.Layers.Count; $li++) {
+                $l = $page.Layers.Item($li)
+                if ($l -and -not $l.Master) { return $l }
+            }
+        } catch {}
+        return $doc.ActiveLayer
+    }
 
-        # 1. Direct text shape (cdrTextShape = 6)
+    # Blazingly fast native C++ text finder with PowerClip support
+    function Get-AllTextShapes($container) {
+        $list = [System.Collections.ArrayList]::new()
+        if (-not $container) { return $list }
+
         try {
             if ($container.Type -eq 6) {
                 [void]$list.Add($container)
-                return
+                return $list
             }
         } catch {}
 
-        # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
+        # 1. Native C++ Recursive FindShapes (cdrTextShape = 6, Recursive = $true)
         try {
-            if ($container.PowerClip) {
-                $pc = $container.PowerClip
-                if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
-                    for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
-                        $pcChild = $pc.Shapes.Item($pi)
-                        if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
+            if ($container.Shapes) {
+                $found = $container.Shapes.FindShapes($null, 6, $true)
+                if ($found -and $found.Count -gt 0) {
+                    for ($k = 1; $k -le $found.Count; $k++) {
+                        [void]$list.Add($found.Item($k))
                     }
                 }
             }
         } catch {}
 
-        # 3. Check if container has .Shapes (Group, Layer, Page)
+        # 2. Check PowerClip on container itself
         try {
-            if ($container.Shapes -and $container.Shapes.Count -gt 0) {
+            $pc = $container.PowerClip
+            if ($pc -and $pc.Shapes) {
+                $pcTexts = $pc.Shapes.FindShapes($null, 6, $true)
+                if ($pcTexts -and $pcTexts.Count -gt 0) {
+                    for ($k = 1; $k -le $pcTexts.Count; $k++) {
+                        [void]$list.Add($pcTexts.Item($k))
+                    }
+                }
+            }
+        } catch {}
+
+        # 3. Check PowerClips inside container shapes (if container is a group or page)
+        try {
+            if ($container.Shapes) {
                 for ($si = 1; $si -le $container.Shapes.Count; $si++) {
                     $child = $container.Shapes.Item($si)
-                    if ($child) { Collect-DeepTextShapes $child $list }
+                    try {
+                        if ($child.PowerClip -and $child.PowerClip.Shapes) {
+                            $childPcTexts = $child.PowerClip.Shapes.FindShapes($null, 6, $true)
+                            if ($childPcTexts -and $childPcTexts.Count -gt 0) {
+                                for ($k = 1; $k -le $childPcTexts.Count; $k++) {
+                                    [void]$list.Add($childPcTexts.Item($k))
+                                }
+                            }
+                        }
+                    } catch {}
                 }
             }
         } catch {}
 
-        # 4. Check if container is a ShapeRange or Selection
-        try {
-            if ($container.Count -and $container.Count -gt 0) {
-                for ($ri = 1; $ri -le $container.Count; $ri++) {
-                    $item = $container.Item($ri)
-                    if ($item) { Collect-DeepTextShapes $item $list }
-                }
-            }
-        } catch {}
-    }
-
-    function Get-DeepTextShapes($container) {
-        $list = [System.Collections.ArrayList]::new()
-        Collect-DeepTextShapes $container $list
         return $list
     }
 
     # Updates number text inside any shape (single text, group, or PowerClip container)
     function Update-ShapeNumberText($targetShape, [string]$numText, [bool]$allowMulti) {
         if (-not $targetShape) { return 0 }
-        $textShapes = @(Get-DeepTextShapes $targetShape)
+        $textShapes = @(Get-AllTextShapes $targetShape)
         if ($textShapes.Count -eq 0) { return 0 }
 
         $updated = 0
@@ -170,7 +194,7 @@ ${getCorelConnectPs()}
             } catch {}
         }
 
-        # Pass 2: Fallback if no placeholder matched, update the text shapes
+        # Pass 2: Fallback if no placeholder matched, update first text shape
         if ($updated -eq 0) {
             foreach ($ts in $textShapes) {
                 try {
@@ -227,6 +251,9 @@ ${getCorelConnectPs()}
 
         $countToUpdate = [math]::Min($sorted.Count, $totalNumbers)
         for ($i = 0; $i -lt $countToUpdate; $i++) {
+            if (Test-Path $cancelFlagPath) {
+                throw "Operasi dibatalkan oleh pengguna."
+            }
             $formattedNum = Get-FormattedNum $numList[$i] $digits $prefix $suffix
             $targetShp = $sorted[$i].Shape
             Update-ShapeNumberText $targetShp $formattedNum $doubleNumber | Out-Null
@@ -246,7 +273,7 @@ ${getCorelConnectPs()}
         $corel.EventsEnabled = $false
         $doc.BeginCommandGroup("CTS Numerator Page")
 
-        $allPageTexts = @(Get-DeepTextShapes $masterPage)
+        $allPageTexts = @(Get-AllTextShapes $masterPage)
 
         $textList = @()
         foreach ($t in $allPageTexts) {
@@ -292,36 +319,62 @@ ${getCorelConnectPs()}
 
         if ($totalPages -gt 1) {
             $mpShapes = $masterPage.Shapes
-            $masterGroup = if ($mpShapes.Count -gt 1) { $mpShapes.All().Group() } else { $mpShapes.Item(1) }
+            $mpCount = [int]$mpShapes.Count
 
             for ($p = 2; $p -le $totalPages; $p++) {
-                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                if (Test-Path $cancelFlagPath) {
                     throw "Operasi dibatalkan oleh pengguna."
                 }
 
                 $newPage = $doc.AddPages(1)
-                $dup = $masterGroup.Duplicate()
-                try {
-                    $dup.MoveToLayer($newPage.ActiveLayer)
-                } catch {
-                    $masterGroup.Copy()
-                    $newPage.Activate()
-                    [void]$doc.ActiveLayer.Paste()
-                    $dup = $newPage.Shapes.Item(1)
+                $targetLyr = Get-ValidTargetLayer $newPage $doc
+
+                # Direct in-memory vector duplication per shape (no clipboard!)
+                for ($msIdx = $mpCount; $msIdx -ge 1; $msIdx--) {
+                    $ms = $mpShapes.Item($msIdx)
+                    $dupMs = $ms.Duplicate(0.0, 0.0)
+                    $dupMs.MoveToLayer($targetLyr)
                 }
 
-                $newTexts = Get-DeepTextShapes $dup
+                $newTexts = @(Get-AllTextShapes $newPage)
+                $newSorted = @()
+                foreach ($nt in $newTexts) {
+                    $raw = ""
+                    try { $raw = [string]$nt.Text.Story.Text } catch {}
+                    if (Is-NumberPlaceholder $raw) {
+                        $newSorted += [PSCustomObject]@{
+                            Shape = $nt
+                            PosX = [double]$nt.PositionX
+                            PosY = [double]$nt.PositionY
+                            Height = [double]$nt.SizeHeight
+                        }
+                    }
+                }
+                if ($newSorted.Count -eq 0) {
+                    foreach ($nt in $newTexts) {
+                        $newSorted += [PSCustomObject]@{
+                            Shape = $nt
+                            PosX = [double]$nt.PositionX
+                            PosY = [double]$nt.PositionY
+                            Height = [double]$nt.SizeHeight
+                        }
+                    }
+                }
+                if ($newSorted.Count -gt 0) {
+                    $rowTol = [math]::Max(0.2, $newSorted[0].Height * 0.35)
+                    $newSorted = @($newSorted | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false })
+                }
+
                 $startIndex = ($p - 1) * $itemsPerPage
                 $countThisPage = [math]::Min($itemsPerPage, $totalNumbers - $startIndex)
                 for ($i = 0; $i -lt $countThisPage; $i++) {
                     $numVal = Get-FormattedNum $numList[$startIndex + $i] $digits $prefix $suffix
-                    if ($i -lt $newTexts.Count) {
-                        try { $newTexts[$i].Text.Story.Text = $numVal } catch {}
+                    if ($i -lt $newSorted.Count -and $newSorted[$i].Shape) {
+                        try { $newSorted[$i].Shape.Text.Story.Text = $numVal } catch {}
                     }
                 }
             }
 
-            try { $masterGroup.Ungroup() } catch {}
             try { $doc.Pages.Item(1).Activate() } catch {}
         }
 
@@ -347,7 +400,7 @@ ${getCorelConnectPs()}
             if (-not $single) { $single = $sel }
 
             # SMART AUTO-DETECTION: Check if the selected shape has NO texts, but has texts sitting inside its bounds
-            $existingTexts = @(Get-DeepTextShapes $single)
+            $existingTexts = @(Get-AllTextShapes $single)
             if ($existingTexts.Count -eq 0 -and $doc.ActivePage) {
                 $bLeft = [double]$single.PositionX
                 $bTop = [double]$single.PositionY
@@ -407,6 +460,9 @@ ${getCorelConnectPs()}
         $countPage1 = [int][math]::Min($totalNumbers, $perPage)
         $page1Shapes = @()
         for ($idx = 0; $idx -lt $countPage1; $idx++) {
+            if (Test-Path $cancelFlagPath) {
+                throw "Operasi dibatalkan oleh pengguna."
+            }
             $r = 0
             $c = 0
             if ($gridOrder -eq 'top_bottom') {
@@ -434,6 +490,9 @@ ${getCorelConnectPs()}
 
         # 2. Isi nomor urut pada Halaman 1 per grup voucher
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
+            if (Test-Path $cancelFlagPath) {
+                throw "Operasi dibatalkan oleh pengguna."
+            }
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalNumbers) {
                 $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
@@ -441,42 +500,29 @@ ${getCorelConnectPs()}
             }
         }
 
-        # 3. Duplicate Page 1 ke Pages 2..TotalPages dan isi semua nomor
+        # 3. Duplicate Page 1 ke Pages 2..TotalPages dan isi semua nomor (Direct Memory Clone - ZERO Clipboard)
         if ($totalPages -gt 1) {
-            $masterPage.Activate()
-            [void]$masterPage.Shapes.All().Copy()
-
             for ($p = 2; $p -le $totalPages; $p++) {
-                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                if (Test-Path $cancelFlagPath) {
                     throw "Operasi dibatalkan oleh pengguna."
                 }
                 $newPage = $doc.AddPages(1)
-                $newPage.Activate()
+                $targetLyr = Get-ValidTargetLayer $newPage $doc
                 $pIdx = $p - 1
 
-                [void]$doc.ActiveLayer.Paste()
-
-                $newShapes = @()
-                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
-                    $shp = $newPage.Shapes.Item($k)
-                    $newShapes += [PSCustomObject]@{
-                        Shape = $shp
-                        PosX = [double]$shp.PositionX
-                        PosY = [double]$shp.PositionY
-                        Height = [double]$shp.SizeHeight
+                for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
+                    if (Test-Path $cancelFlagPath) {
+                        throw "Operasi dibatalkan oleh pengguna."
                     }
-                }
+                    $dupVoucher = $page1Shapes[$s].Duplicate(0.0, 0.0)
+                    $dupVoucher.MoveToLayer($targetLyr)
 
-                $rowTol = [math]::Max(0.2, $h * 0.35)
-                $sortedVouchers = @($newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false })
-
-                for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
                     $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
                     if ($itemIdx -lt $totalNumbers) {
                         $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
-                        Update-ShapeNumberText $sortedVouchers[$s].Shape $formattedNum $doubleNumber | Out-Null
+                        Update-ShapeNumberText $dupVoucher $formattedNum $doubleNumber | Out-Null
                     } else {
-                        try { $sortedVouchers[$s].Shape.Delete() } catch {}
+                        try { $dupVoucher.Delete() } catch {}
                     }
                 }
             }
@@ -493,9 +539,10 @@ ${getCorelConnectPs()}
     # Optional: Convert all text shapes to curves
     if ($autoCurves) {
         for ($p = 1; $p -le $doc.Pages.Count; $p++) {
+            if (Test-Path $cancelFlagPath) { break }
             try {
                 $pObj = $doc.Pages.Item($p)
-                $pTexts = @(Get-DeepTextShapes $pObj)
+                $pTexts = @(Get-AllTextShapes $pObj)
                 for ($ti = $pTexts.Count - 1; $ti -ge 0; $ti--) {
                     try { [void]$pTexts[$ti].ConvertToCurves() } catch {}
                 }

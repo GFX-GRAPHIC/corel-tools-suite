@@ -239,7 +239,42 @@ ${getCorelConnectPs()}
 
     function Get-DeepTextShapes($container) {
         $list = [System.Collections.ArrayList]::new()
-        Collect-DeepTextShapes $container $list
+        if (-not $container) { return $list }
+        try {
+            if ($container.Type -eq 6) { [void]$list.Add($container); return $list }
+        } catch {}
+        try {
+            if ($container.Shapes) {
+                $found = $container.Shapes.FindShapes($null, 6, $true)
+                if ($found -and $found.Count -gt 0) {
+                    for ($k = 1; $k -le $found.Count; $k++) { [void]$list.Add($found.Item($k)) }
+                }
+            }
+        } catch {}
+        try {
+            $pc = $container.PowerClip
+            if ($pc -and $pc.Shapes) {
+                $pcTexts = $pc.Shapes.FindShapes($null, 6, $true)
+                if ($pcTexts -and $pcTexts.Count -gt 0) {
+                    for ($k = 1; $k -le $pcTexts.Count; $k++) { [void]$list.Add($pcTexts.Item($k)) }
+                }
+            }
+        } catch {}
+        try {
+            if ($container.Shapes) {
+                for ($si = 1; $si -le $container.Shapes.Count; $si++) {
+                    $child = $container.Shapes.Item($si)
+                    try {
+                        if ($child.PowerClip -and $child.PowerClip.Shapes) {
+                            $childPcTexts = $child.PowerClip.Shapes.FindShapes($null, 6, $true)
+                            if ($childPcTexts -and $childPcTexts.Count -gt 0) {
+                                for ($k = 1; $k -le $childPcTexts.Count; $k++) { [void]$list.Add($childPcTexts.Item($k)) }
+                            }
+                        }
+                    } catch {}
+                }
+            }
+        } catch {}
         return $list
     }
 
