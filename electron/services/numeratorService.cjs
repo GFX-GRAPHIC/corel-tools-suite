@@ -291,53 +291,38 @@ ${getCorelConnectPs()}
         }
 
         if ($totalPages -gt 1) {
-            [void]$masterPage.Shapes.All().Copy()
+            $mpShapes = $masterPage.Shapes
+            $masterGroup = if ($mpShapes.Count -gt 1) { $mpShapes.All().Group() } else { $mpShapes.Item(1) }
+
             for ($p = 2; $p -le $totalPages; $p++) {
+                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                    throw "Operasi dibatalkan oleh pengguna."
+                }
+
                 $newPage = $doc.AddPages(1)
-                $newPage.Activate()
-                [void]$doc.ActiveLayer.Paste()
-
-                $newPageTexts = @(Get-DeepTextShapes $newPage)
-                $newTextList = @()
-                foreach ($t in $newPageTexts) {
-                    $rawText = ""
-                    try { $rawText = [string]$t.Text.Story.Text } catch {}
-                    if (Is-NumberPlaceholder $rawText) {
-                        $newTextList += [PSCustomObject]@{
-                            Shape = $t
-                            PosX = [double]$t.PositionX
-                            PosY = [double]$t.PositionY
-                            Height = [double]$t.SizeHeight
-                        }
-                    }
+                $dup = $masterGroup.Duplicate()
+                try {
+                    $dup.MoveToLayer($newPage.ActiveLayer)
+                } catch {
+                    $masterGroup.Copy()
+                    $newPage.Activate()
+                    [void]$doc.ActiveLayer.Paste()
+                    $dup = $newPage.Shapes.Item(1)
                 }
 
-                if ($newTextList.Count -eq 0) {
-                    foreach ($t in $newPageTexts) {
-                        $newTextList += [PSCustomObject]@{
-                            Shape = $t
-                            PosX = [double]$t.PositionX
-                            PosY = [double]$t.PositionY
-                            Height = [double]$t.SizeHeight
-                        }
-                    }
-                }
-
-                if ($newTextList.Count -gt 0) {
-                    $rowTol = [math]::Max(0.2, $newTextList[0].Height * 0.35)
-                    $sortedNew = @($newTextList | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false })
-                    $newTextList = $sortedNew
-                }
-
+                $newTexts = Get-DeepTextShapes $dup
                 $startIndex = ($p - 1) * $itemsPerPage
                 $countThisPage = [math]::Min($itemsPerPage, $totalNumbers - $startIndex)
                 for ($i = 0; $i -lt $countThisPage; $i++) {
                     $numVal = Get-FormattedNum $numList[$startIndex + $i] $digits $prefix $suffix
-                    if ($i -lt $newTextList.Count -and $newTextList[$i].Shape) {
-                        try { $newTextList[$i].Shape.Text.Story.Text = $numVal } catch {}
+                    if ($i -lt $newTexts.Count) {
+                        try { $newTexts[$i].Text.Story.Text = $numVal } catch {}
                     }
                 }
             }
+
+            try { $masterGroup.Ungroup() } catch {}
+            try { $doc.Pages.Item(1).Activate() } catch {}
         }
 
         $result.count = $totalNumbers
@@ -462,6 +447,9 @@ ${getCorelConnectPs()}
             [void]$masterPage.Shapes.All().Copy()
 
             for ($p = 2; $p -le $totalPages; $p++) {
+                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                    throw "Operasi dibatalkan oleh pengguna."
+                }
                 $newPage = $doc.AddPages(1)
                 $newPage.Activate()
                 $pIdx = $p - 1

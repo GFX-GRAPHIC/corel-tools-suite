@@ -575,12 +575,36 @@
       });
     }
 
+    let isExecuting = false;
+
     // Titlebar
     btnMinimize.addEventListener('click', () => {
       if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
     });
-    btnClose.addEventListener('click', () => window.close());
-    btnCancel.addEventListener('click', () => window.close());
+
+    btnClose.addEventListener('click', async () => {
+      if (isExecuting) {
+        try {
+          if (window.electronAPI?.cancelOperation) await window.electronAPI.cancelOperation();
+          else if (window.electronAPI?.corelCancelOperation) await window.electronAPI.corelCancelOperation();
+        } catch {}
+      }
+      window.close();
+    });
+
+    btnCancel.addEventListener('click', async () => {
+      if (isExecuting) {
+        btnCancel.disabled = true;
+        btnCancel.innerText = 'Membatalkan...';
+        lblStatus.innerText = 'Stat: Membatalkan proses di CorelDRAW...';
+        try {
+          if (window.electronAPI?.cancelOperation) await window.electronAPI.cancelOperation();
+          else if (window.electronAPI?.corelCancelOperation) await window.electronAPI.corelCancelOperation();
+        } catch {}
+      } else {
+        window.close();
+      }
+    });
 
     // Format single number
     function formatNumberString(n, digits, prefix, suffix) {
@@ -788,8 +812,14 @@
         return;
       }
 
+      isExecuting = true;
       btnGas.disabled = true;
       btnGas.innerText = 'Memproses Nomorator...';
+      btnCancel.disabled = false;
+      btnCancel.innerText = 'Batal (Stop)';
+      btnCancel.style.background = '#dc2626';
+      btnCancel.style.color = '#ffffff';
+      btnCancel.style.borderColor = '#b91c1c';
       lblStatus.innerText = 'Stat: Sedang membuat penomoran di CorelDRAW...';
 
       try {
@@ -825,8 +855,14 @@
         lblStatus.innerText = 'Stat: Error';
         alert(`Error: ${err.message}`);
       } finally {
+        isExecuting = false;
         btnGas.disabled = false;
         btnGas.innerText = '🚀 Gas Nomorator!';
+        btnCancel.disabled = false;
+        btnCancel.innerText = 'Cancel';
+        btnCancel.style.background = '';
+        btnCancel.style.color = '';
+        btnCancel.style.borderColor = '';
       }
     });
 

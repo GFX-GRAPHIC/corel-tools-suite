@@ -203,7 +203,8 @@ $list | ConvertTo-Json -Compress
 }
 
 function cancelOperation() {
-  return { success: true, message: 'Operasi dibatalkan' };
+  const { cancelCurrentOperation } = require('../core/psRunner.cjs');
+  return cancelCurrentOperation();
 }
 
 async function getRecentFiles() {

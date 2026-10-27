@@ -642,6 +642,9 @@ ${getCorelConnectPs()}
         # 2. Susun Halaman 2..N jika data melebihi 1 halaman
         if ($totalPages -gt 1) {
             for ($p = 2; $p -le $totalPages; $p++) {
+                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                    throw "Operasi dibatalkan oleh pengguna."
+                }
                 $newPage = $doc.AddPages(1)
                 $newPage.Activate()
                 $pIdx = $p - 1
@@ -712,6 +715,9 @@ ${getCorelConnectPs()}
             [void]$masterPage.Shapes.All().Copy()
 
             for ($i = 1; $i -lt $totalRows; $i++) {
+                if (Test-Path "$env:TEMP\\corel_cts_cancel.flag") {
+                    throw "Operasi dibatalkan oleh pengguna."
+                }
                 try {
                     $newPage = $doc.AddPages(1)
                     $newPage.Activate()

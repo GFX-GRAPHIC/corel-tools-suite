@@ -4,11 +4,59 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const { app } = require('./electronBridge.cjs');
 const logger = require('./logger.cjs');
 
+let activeChildProcess = null;
+let activeTempPs1Path = null;
+let activeResolve = null;
+
+function getCancelFlagPath() {
+  try {
+    return path.join(app.getPath('temp'), 'corel_cts_cancel.flag');
+  } catch {
+    return path.join(process.env.TEMP || 'C:\\Windows\\Temp', 'corel_cts_cancel.flag');
+  }
+}
+
+function cancelCurrentOperation() {
+  const flagPath = getCancelFlagPath();
+  try {
+    fs.writeFileSync(flagPath, 'CANCEL', 'utf-8');
+  } catch {}
+
+  if (activeChildProcess && activeChildProcess.pid) {
+    const pid = activeChildProcess.pid;
+    try {
+      execFileSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {}
+    try {
+      activeChildProcess.kill('SIGKILL');
+    } catch {}
+    activeChildProcess = null;
+  }
+
+  if (activeTempPs1Path && fs.existsSync(activeTempPs1Path)) {
+    try { fs.unlinkSync(activeTempPs1Path); } catch {}
+    activeTempPs1Path = null;
+  }
+
+  if (activeResolve) {
+    const res = activeResolve;
+    activeResolve = null;
+    res({ success: false, message: 'Operasi berhasil dibatalkan oleh pengguna.' });
+  }
+
+  return { success: true, message: 'Operasi berhasil dibatalkan.' };
+}
+
 function runPowerShellScript(psContent, timeout = 600000) {
+  const flagPath = getCancelFlagPath();
+  try {
+    if (fs.existsSync(flagPath)) fs.unlinkSync(flagPath);
+  } catch {}
+
   return new Promise((resolve) => {
     let tempPs1Path = null;
     try {
@@ -25,14 +73,33 @@ function runPowerShellScript(psContent, timeout = 600000) {
       });
     }
 
-    execFile(
+    activeResolve = resolve;
+    activeTempPs1Path = tempPs1Path;
+
+    const child = execFile(
       'powershell.exe',
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tempPs1Path],
       { timeout: Math.max(600000, timeout) },
       (err, stdout, stderr) => {
+        if (activeChildProcess === child) {
+          activeChildProcess = null;
+          activeTempPs1Path = null;
+          activeResolve = null;
+        }
+
         try {
           if (tempPs1Path && fs.existsSync(tempPs1Path)) {
             fs.unlinkSync(tempPs1Path);
+          }
+        } catch {}
+
+        try {
+          if (fs.existsSync(flagPath)) {
+            fs.unlinkSync(flagPath);
+            return resolve({
+              success: false,
+              message: 'Operasi berhasil dibatalkan oleh pengguna.'
+            });
           }
         } catch {}
 
@@ -81,4 +148,5 @@ function runPowerShellScript(psContent, timeout = 600000) {
 
 module.exports = {
   runPowerShellScript,
+  cancelCurrentOperation,
 };

@@ -1208,11 +1208,21 @@
     numGridCols.addEventListener('input', updateGridSummary);
     numGridRows.addEventListener('input', updateGridSummary);
 
+    let isMergerExecuting = false;
+
     // Titlebar Actions
     btnMinimize.addEventListener('click', () => {
       if (window.electronAPI?.minimizeWindow) window.electronAPI.minimizeWindow();
     });
-    btnClose.addEventListener('click', () => window.close());
+    btnClose.addEventListener('click', async () => {
+      if (isMergerExecuting) {
+        try {
+          if (window.electronAPI?.cancelOperation) await window.electronAPI.cancelOperation();
+          else if (window.electronAPI?.corelCancelOperation) await window.electronAPI.corelCancelOperation();
+        } catch {}
+      }
+      window.close();
+    });
     btnPin.addEventListener('click', async () => {
       if (window.electronAPI?.tracerToggleAlwaysOnTop) {
         const res = await window.electronAPI.tracerToggleAlwaysOnTop();
@@ -2147,6 +2157,7 @@
 
       if (!confirm(confirmMsg)) return;
 
+      isMergerExecuting = true;
       btnExecute.disabled = true;
       btnExecute.innerText = 'Sedang Memproses di CorelDRAW...';
       lblActionStatus.innerText = `Stat: Memproses ${totalCount} data ke CorelDRAW...`;
@@ -2179,6 +2190,7 @@
         lblActionStatus.innerText = 'Stat: Error';
         alert(`Error eksekusi: ${err.message}`);
       } finally {
+        isMergerExecuting = false;
         btnExecute.disabled = false;
         if (mode === 'grid') {
           btnExecute.innerHTML = '<span>🚀 Gas Susun Grid di CorelDRAW!</span>';
