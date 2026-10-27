@@ -22,6 +22,10 @@ ${getCorelConnectPs()}
     try { $origDocUnit = $doc.Unit } catch {}
     try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
 
+    $origRefPoint = $null
+    try { $origRefPoint = $doc.ReferencePoint } catch {}
+    try { $doc.ReferencePoint = 3 } catch {} # cdrTopLeft (3)
+
     $selInfo = Get-CorelSelection $corel $doc
     $sel = $selInfo.Selection
     $cnt = [int]$selInfo.SelCount
@@ -93,6 +97,7 @@ ${getCorelConnectPs()}
     $result.items = $filteredItems
     $result.message = "Berhasil mendeteksi $($filteredItems.Count) pola di CorelDRAW."
 
+    if ($null -ne $origRefPoint -and $doc) { try { $doc.ReferencePoint = $origRefPoint } catch {} }
     if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
 }
 catch {
@@ -145,6 +150,10 @@ ${getCorelConnectPs()}
     $origDocUnit = $null
     try { $origDocUnit = $doc.Unit } catch {}
     try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
+
+    $origRefPoint = $null
+    try { $origRefPoint = $doc.ReferencePoint } catch {}
+    try { $doc.ReferencePoint = 3 } catch {} # cdrTopLeft (3)
 
     try { $doc.BeginCommandGroup("CTS Layout Pola") } catch {}
     try { $doc.ClearSelection() } catch {}
@@ -342,8 +351,8 @@ ${getCorelConnectPs()}
                 }
             }
 
-            $targetLeft = $boxLeft + [double]$it.xCm
-            $targetTop = $boxTop - [double]$it.yCm
+            $targetLeft = [double]($boxLeft + [double]$it.xCm)
+            $targetTop = [double]($boxTop - [double]$it.yCm)
 
             $moveSuccess = $false
             try {
@@ -351,17 +360,23 @@ ${getCorelConnectPs()}
                 $moveSuccess = $true
             } catch {
                 try {
-                    $shp.PositionX = $targetLeft
-                    $shp.PositionY = $targetTop
+                    $shp.LeftX = $targetLeft
+                    $shp.TopY = $targetTop
                     $moveSuccess = $true
-                } catch {
-                    try {
-                        $shp.LeftX = $targetLeft
-                        $shp.TopY = $targetTop
-                        $moveSuccess = $true
-                    } catch {}
-                }
+                } catch {}
             }
+
+            # Verification delta check: guarantee LeftX and TopY are exact (no center-anchor shift)
+            try {
+                $curLeft = [double]$shp.LeftX
+                $curTop = [double]$shp.TopY
+                $dx = $targetLeft - $curLeft
+                $dy = $targetTop - $curTop
+                if ([math]::Abs($dx) -gt 0.05 -or [math]::Abs($dy) -gt 0.05) {
+                    $shp.Move($dx, $dy)
+                    $moveSuccess = $true
+                }
+            } catch {}
 
             if ($moveSuccess) { $moved++ }
         } catch {}
@@ -389,6 +404,7 @@ catch {
     $result.message = "$($_.Exception.Message)"
 }
 finally {
+    if ($null -ne $origRefPoint -and $doc) { try { $doc.ReferencePoint = $origRefPoint } catch {} }
     if ($null -ne $origDocUnit -and $doc) { try { $doc.Unit = $origDocUnit } catch {} }
     if (Test-Path $jsonFile) { try { Remove-Item -Path $jsonFile -Force } catch {} }
 }
