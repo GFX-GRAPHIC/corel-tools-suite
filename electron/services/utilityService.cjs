@@ -671,7 +671,7 @@ ${getCorelConnectPs()}
     $count = 0
     for ($p = 1; $p -le $pageCount; $p++) {
         $page = $doc.Pages.Item($p)
-        $destFile = Join-Path $out "$baseName`_Halaman_$p.cdr"
+        $destFile = Join-Path $out ($baseName + "_Halaman_" + $p + ".cdr")
         
         $newDoc = $corel.CreateDocument()
         $newDoc.Unit = $doc.Unit
