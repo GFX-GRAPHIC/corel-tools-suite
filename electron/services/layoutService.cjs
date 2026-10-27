@@ -36,7 +36,7 @@ async function executeLayout(payload) {
     direction = 'horizontal',
     groupBySize = false,
     autoCurves = false,
-    maxWidthCm = 16.0,
+    maxWidthCm = 0.0,
   } = payload || {};
 
   const cleanSizeChart = dedupeKeysCI(sizeChart);
@@ -61,7 +61,7 @@ async function executeLayout(payload) {
     direction,
     groupBySize,
     autoCurves,
-    maxWidthCm: Number(maxWidthCm) || 16.0,
+    maxWidthCm: Number(maxWidthCm) > 0 ? Number(maxWidthCm) : 0.0,
   };
 
   try {
@@ -191,52 +191,6 @@ ${getCorelConnectPs()}
         }
     }
 
-    # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-    function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
-        if (-not $container) { return }
-
-        # 1. Direct text shape (cdrTextShape = 6)
-        try {
-            if ($container.Type -eq 6) {
-                [void]$list.Add($container)
-                return
-            }
-        } catch {}
-
-        # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
-        try {
-            if ($container.PowerClip) {
-                $pc = $container.PowerClip
-                if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
-                    for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
-                        $pcChild = $pc.Shapes.Item($pi)
-                        if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
-                    }
-                }
-            }
-        } catch {}
-
-        # 3. Check if container has .Shapes (Group, Layer, Page)
-        try {
-            if ($container.Shapes -and $container.Shapes.Count -gt 0) {
-                for ($si = 1; $si -le $container.Shapes.Count; $si++) {
-                    $child = $container.Shapes.Item($si)
-                    if ($child) { Collect-DeepTextShapes $child $list }
-                }
-            }
-        } catch {}
-
-        # 4. Check if container is a ShapeRange or Selection
-        try {
-            if ($container.Count -and $container.Count -gt 0) {
-                for ($ri = 1; $ri -le $container.Count; $ri++) {
-                    $item = $container.Item($ri)
-                    if ($item) { Collect-DeepTextShapes $item $list }
-                }
-            }
-        } catch {}
-    }
-
     function Get-DeepTextShapes($container) {
         $list = [System.Collections.ArrayList]::new()
         if (-not $container) { return $list }
@@ -279,7 +233,7 @@ ${getCorelConnectPs()}
     }
 
     function Apply-TextToShape($ts, $val, $align, $textCase, $maxWLimit, $lockRatio) {
-        if (-not $ts) { return }
+        if (-not $ts -or $val -eq $null) { return }
         try {
             $origCenterX = [double]$ts.CenterX
             $origCenterY = [double]$ts.CenterY
@@ -318,7 +272,8 @@ ${getCorelConnectPs()}
             $targetLimit = [double]$maxWLimit
             $isLocked = if ($lockRatio -ne $null) { [bool]$lockRatio } else { $true }
 
-            if ($targetLimit -gt 0 -and $curW -gt $targetLimit) {
+            # ONLY scale down if user explicitly specified a max width limit (> 0)
+            if ($targetLimit -gt 0.0 -and $curW -gt $targetLimit) {
                 $scale = $targetLimit / $curW
                 $newW = $targetLimit
                 $newH = if ($isLocked -and $curH -gt 0) { $curH * $scale } else { $curH }
@@ -343,6 +298,45 @@ ${getCorelConnectPs()}
         } catch {}
     }
 
+    function Get-PlaceholderCategory([string]$ph, [string]$lbl, [string]$col) {
+        $c = "$ph $lbl $col".ToLower()
+        if ($c -match 'nama|name|pemain|player') { return 'name' }
+        if ($c -match 'nomor|number|no|#|00|99') { return 'number' }
+        if ($c -match 'ukuran|size|sz') { return 'size' }
+        if ($c -match 'sponsor|tim|team|club') { return 'sponsor' }
+        return 'custom'
+    }
+
+    function Test-PlaceholderMatch([string]$text, $m) {
+        if (-not $text -or -not $m) { return $false }
+        $t = $text.Trim()
+        $ph = if ($m.placeholder) { [string]$m.placeholder } else { '' }
+        $lbl = if ($m.label) { [string]$m.label } else { '' }
+        $col = if ($m.column) { [string]$m.column } else { '' }
+
+        # 1. Exact or Bracket-free match against user mapping
+        if ($ph) {
+            $cleanPh = $ph.Trim()
+            $barePh = $cleanPh.Trim('[', ']', '{', '}')
+            if ($t -ieq $cleanPh -or ($barePh -and $t -ieq $barePh)) { return $true }
+            if ($t -match [regex]::Escape($cleanPh)) { return $true }
+        }
+
+        # 2. Category synonyms
+        $cat = Get-PlaceholderCategory $ph $lbl $col
+        if ($cat -eq 'name') {
+            if ($t -match '^(?i)(\[?nama\]?|\[?name\]?|\[?pemain\]?|\[?player\]?|\[?nama[\s_]*pemain\]?)$') { return $true }
+        } elseif ($cat -eq 'number') {
+            if ($t -match '^(?i)(\[?nomor\]?|\[?number\]?|\[?no\]?|\[?#\]?|00|99|10|\[00\]|\[99\])$') { return $true }
+        } elseif ($cat -eq 'size') {
+            if ($t -match '^(?i)(\[?ukuran\]?|\[?size\]?|\[?sz\]?|size:?|ukuran:?)$') { return $true }
+        } elseif ($cat -eq 'sponsor') {
+            if ($t -match '^(?i)(\[?sponsor\]?|\[?tim\]?|\[?team\]?|\[?club\]?)$') { return $true }
+        }
+
+        return $false
+    }
+
     function UpdateJerseyShape($shapeItem, $player, $mappingsList, $fallbackMaxW) {
         try {
             $textShapes = @(Get-DeepTextShapes $shapeItem)
@@ -350,89 +344,101 @@ ${getCorelConnectPs()}
 
             $matchedIds = @{}
 
-            # PASS 1: Placeholder Matching
+            # Identify mappings
+            $numMapping = $null
+            $nameMapping = $null
+            $sizeMapping = $null
+            if ($mappingsList) {
+                foreach ($m in $mappingsList) {
+                    $cat = Get-PlaceholderCategory $m.placeholder $m.label $m.column
+                    if ($cat -eq 'number' -and -not $numMapping) { $numMapping = $m }
+                    elseif ($cat -eq 'name' -and -not $nameMapping) { $nameMapping = $m }
+                    elseif ($cat -eq 'size' -and -not $sizeMapping) { $sizeMapping = $m }
+                }
+            }
+
+            # PASS 1: Placeholder Matching across all mappings
             if ($mappingsList -and $mappingsList.Count -gt 0) {
                 foreach ($m in $mappingsList) {
-                    $ph = if ($m.placeholder) { [string]$m.placeholder } else { '' }
-                    if (-not [string]::IsNullOrWhiteSpace($ph)) {
-                        $cleanPh = $ph.Trim()
-                        $barePh = $cleanPh.Trim('[', ']', '{', '}')
+                    for ($t = 0; $t -lt $textShapes.Count; $t++) {
+                        $ts = $textShapes[$t]
+                        $tsId = $ts.StaticID
+                        if ($matchedIds.ContainsKey($tsId)) { continue }
 
-                        for ($t = 0; $t -lt $textShapes.Count; $t++) {
-                            $ts = $textShapes[$t]
-                            $tsId = $ts.StaticID
-                            if ($matchedIds.ContainsKey($tsId)) { continue }
+                        $currText = ""
+                        try { $currText = [string]$ts.Text.Story.Text.Trim() } catch {}
+                        if (-not $currText) { continue }
 
-                            $currText = ""
-                            try { $currText = [string]$ts.Text.Story.Text.Trim() } catch {}
-                            $isMatch = $false
-
-                            if ($currText -eq $cleanPh -or ($barePh -and $currText -eq $barePh)) {
-                                $isMatch = $true
-                            } elseif ($currText -match [regex]::Escape($cleanPh)) {
-                                $isMatch = $true
+                        if (Test-PlaceholderMatch $currText $m) {
+                            $matchedIds[$tsId] = $true
+                            $colKey = if ($m.column) { $m.column } else { '' }
+                            $val = Get-FieldValue $player $colKey
+                            $cat = Get-PlaceholderCategory $m.placeholder $m.label $m.column
+                            if ([string]::IsNullOrWhiteSpace($val)) {
+                                if ($cat -eq 'name') {
+                                    $val = Get-FieldValue $player 'nama'
+                                    if (-not $val) { $val = Get-FieldValue $player 'name' }
+                                } elseif ($cat -eq 'number') {
+                                    $val = Get-FieldValue $player 'nomor'
+                                    if (-not $val) { $val = Get-FieldValue $player 'number' }
+                                    if (-not $val) { $val = Get-FieldValue $player 'no' }
+                                } elseif ($cat -eq 'size') {
+                                    $val = Get-FieldValue $player 'ukuran'
+                                    if (-not $val) { $val = Get-FieldValue $player 'size' }
+                                }
                             }
-
-                            if ($isMatch) {
-                                $matchedIds[$tsId] = $true
-                                $colKey = if ($m.column) { $m.column } else { '' }
-                                $val = Get-FieldValue $player $colKey
-                                $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { $fallbackMaxW }
-                                $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
-                                Apply-TextToShape $ts $val $m.align $m.textCase $mW $lR
-                                break
-                            }
+                            $mW = if ($m.maxWidth -and [double]$m.maxWidth -gt 0) { [double]$m.maxWidth } elseif ($m.width -and [double]$m.width -gt 0) { [double]$m.width } else { 0.0 }
+                            $lR = if ($m.lockRatio -ne $null) { [bool]$m.lockRatio } else { $true }
+                            Apply-TextToShape $ts $val $m.align $m.textCase $mW $lR
+                            # DO NOT break! Allows both back number and shorts number to be updated
                         }
                     }
                 }
             }
 
-            # PASS 2: Fallback for unmatched shapes
-            $unmatched = @()
+            # PASS 2: Strict Fallback for standard placeholders that were unmatched
             for ($t = 0; $t -lt $textShapes.Count; $t++) {
                 $ts = $textShapes[$t]
-                if (-not $matchedIds.ContainsKey($ts.StaticID)) {
-                    $unmatched += $ts
-                }
-            }
+                if ($matchedIds.ContainsKey($ts.StaticID)) { continue }
 
-            if ($unmatched.Count -gt 0) {
-                $numMapping = $null
-                $nameMapping = $null
-                if ($mappingsList) {
-                    foreach ($m in $mappingsList) {
-                        $col = if ($m.column) { $m.column.ToString().ToLower() } else { '' }
-                        $ph = if ($m.placeholder) { $m.placeholder.ToString().ToLower() } else { '' }
-                        if ($col -match 'no|nomor|number' -or $ph -match 'no|nomor|number') {
-                            $numMapping = $m
-                        } elseif ($col -match 'nama|name|pemain' -or $ph -match 'nama|name|pemain') {
-                            $nameMapping = $m
-                        }
-                    }
-                }
+                $txt = ""
+                try { $txt = [string]$ts.Text.Story.Text.Trim() } catch {}
+                if (-not $txt) { continue }
 
-                foreach ($ts in $unmatched) {
-                    $txt = ""
-                    try { $txt = [string]$ts.Text.Story.Text.Trim() } catch {}
-                    $isNumber = ($txt -match '^\\d+$' -or $txt -match '^(no|no\\.|#)?\\s*\\d+$' -or $txt -eq '00' -or $txt -eq '10')
-
-                    if ($isNumber -and $numMapping) {
-                        $numVal = Get-FieldValue $player $numMapping.column
-                        if ([string]::IsNullOrWhiteSpace($numVal)) { $numVal = Get-FieldValue $player 'number' }
-                        if ([string]::IsNullOrWhiteSpace($numVal)) { $numVal = Get-FieldValue $player 'nomor' }
-                        if ([string]::IsNullOrWhiteSpace($numVal)) { $numVal = Get-FieldValue $player 'no' }
-                        if ([string]::IsNullOrWhiteSpace($numVal)) { $numVal = '10' }
-                        $mW = if ($numMapping.maxWidth -and [double]$numMapping.maxWidth -gt 0) { [double]$numMapping.maxWidth } elseif ($numMapping.width -and [double]$numMapping.width -gt 0) { [double]$numMapping.width } else { 16.0 }
+                # Number placeholder (00, 99, 10, #, NO. 00)
+                if (($txt -eq '00' -or $txt -eq '99' -or $txt -eq '10' -or $txt -eq '#' -or $txt -match '^(no|no\.)\s*\d+$') -and $numMapping) {
+                    $numVal = Get-FieldValue $player $numMapping.column
+                    if (-not $numVal) { $numVal = Get-FieldValue $player 'nomor' }
+                    if (-not $numVal) { $numVal = Get-FieldValue $player 'number' }
+                    if (-not $numVal) { $numVal = Get-FieldValue $player 'no' }
+                    if ($numVal) {
+                        $mW = if ($numMapping.maxWidth -and [double]$numMapping.maxWidth -gt 0) { [double]$numMapping.maxWidth } else { 0.0 }
                         Apply-TextToShape $ts $numVal $numMapping.align $numMapping.textCase $mW $numMapping.lockRatio
-                    } elseif ($nameMapping) {
-                        $nameVal = Get-FieldValue $player $nameMapping.column
-                        if ([string]::IsNullOrWhiteSpace($nameVal)) { $nameVal = Get-FieldValue $player 'name' }
-                        if ([string]::IsNullOrWhiteSpace($nameVal)) { $nameVal = Get-FieldValue $player 'nama' }
-                        if ([string]::IsNullOrWhiteSpace($nameVal)) { $nameVal = 'PEMAIN' }
-                        $mW = if ($nameMapping.maxWidth -and [double]$nameMapping.maxWidth -gt 0) { [double]$nameMapping.maxWidth } elseif ($nameMapping.width -and [double]$nameMapping.width -gt 0) { [double]$nameMapping.width } else { $fallbackMaxW }
-                        Apply-TextToShape $ts $nameVal $nameMapping.align $nameMapping.textCase $mW $nameMapping.lockRatio
+                        $matchedIds[$ts.StaticID] = $true
                     }
                 }
+                # Size placeholder (SIZE, UKURAN, SZ, size:)
+                elseif ($txt -match '^(?i)(\[?size\]?|\[?ukuran\]?|\[?sz\]?|size:?|ukuran:?)$') {
+                    $szVal = Get-FieldValue $player 'ukuran'
+                    if (-not $szVal) { $szVal = Get-FieldValue $player 'size' }
+                    if ($sizeMapping -and -not $szVal) { $szVal = Get-FieldValue $player $sizeMapping.column }
+                    if ($szVal) {
+                        Apply-TextToShape $ts $szVal 'center' 'upper' 0.0 $true
+                        $matchedIds[$ts.StaticID] = $true
+                    }
+                }
+                # Name placeholder (NAMA, NAME, PEMAIN)
+                elseif ($txt -match '^(?i)(\[?nama\]?|\[?name\]?|\[?pemain\]?|\[?player\]?)$' -and $nameMapping) {
+                    $nameVal = Get-FieldValue $player $nameMapping.column
+                    if (-not $nameVal) { $nameVal = Get-FieldValue $player 'nama' }
+                    if (-not $nameVal) { $nameVal = Get-FieldValue $player 'name' }
+                    if ($nameVal) {
+                        $mW = if ($nameMapping.maxWidth -and [double]$nameMapping.maxWidth -gt 0) { [double]$nameMapping.maxWidth } else { 0.0 }
+                        Apply-TextToShape $ts $nameVal $nameMapping.align $nameMapping.textCase $mW $nameMapping.lockRatio
+                        $matchedIds[$ts.StaticID] = $true
+                    }
+                }
+                # NOTE: Any other text (logos, team crest, sponsors, texture labels) is left UNTOUCHED!
             }
         } catch {}
     }
