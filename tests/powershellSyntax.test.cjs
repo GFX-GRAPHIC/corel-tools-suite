@@ -144,3 +144,32 @@ test('PowerShell AST - Layout Pola Service generated script parses with 0 errors
     psRunner.runPowerShellScript = originalRun;
   }
 });
+
+test('PowerShell AST - Layout Service generated script parses with 0 errors', async () => {
+  const psRunner = require('../electron/core/psRunner.cjs');
+  let capturedScript = '';
+  const originalRun = psRunner.runPowerShellScript;
+  psRunner.runPowerShellScript = (script) => {
+    capturedScript = script;
+    return Promise.resolve({ success: true });
+  };
+
+  try {
+    const { executeLayout } = require('../electron/services/layoutService.cjs');
+    await executeLayout({
+      targetSize: 'ALL',
+      players: [
+        { name: 'ALEXANDER', number: '10', size: 'L' },
+        { name: 'CHRISTIAN', number: '07', size: 'XL' }
+      ],
+      spacingCm: 1.0,
+      limitCopy: 4,
+      direction: 'vertical'
+    });
+
+    assert.ok(capturedScript.length > 0, 'Layout Service must generate a PS script');
+    validatePsAst(capturedScript, 'executeLayout');
+  } finally {
+    psRunner.runPowerShellScript = originalRun;
+  }
+});
