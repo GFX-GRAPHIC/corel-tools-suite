@@ -107,7 +107,7 @@ ${getCorelProcessHelpersPs()}
         # Strategy A: Check window title for open .cdr file and bind moniker
         if ($targetProc -and $targetProc.MainWindowTitle) {
             $wTitle = $targetProc.MainWindowTitle
-            if ($wTitle -match '([a-zA-Z]:\\\\[^\\*\\"\\'\\'\\r\\n]+\\.cdr)') {
+            if ($wTitle -match '([a-zA-Z]:\\\\[^\\[\\]\\*\\?"<>|\\r\\n\\t]+?\\.cdr)') {
                 $cdrPath = $matches[1].Trim()
                 if (Test-Path $cdrPath) {
                     try {

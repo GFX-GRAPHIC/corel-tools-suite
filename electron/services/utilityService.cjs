@@ -79,7 +79,7 @@ if ($realProcs) {
 
     if ($targetProc.MainWindowTitle) {
         $wTitle = $targetProc.MainWindowTitle
-        if ($wTitle -match '[-–]\s*\[?([^\[\]]+?\.(?:cdr|cmx))\]?') {
+        if ($wTitle -match '[-]\s*\[?([^\[\]]+?\.(?:cdr|cmx))\]?') {
             $res.activeDoc = $matches[1].Trim()
         } elseif ($wTitle -match '([^\\/\\:]+\\.(?:cdr|cmx))') {
             $res.activeDoc = $matches[1].Trim()
@@ -180,7 +180,7 @@ if ($realProcs) {
         $docName = ''
         if ($p.MainWindowTitle) {
             $w = $p.MainWindowTitle
-            if ($w -match '[-–]\\s*\\[?([^\\[\\]]+?\\.(?:cdr|cmx))\\]?') {
+            if ($w -match '[-]\\s*\\[?([^\\[\\]]+?\\.(?:cdr|cmx))\\]?') {
                 $docName = $matches[1].Trim()
             } elseif ($w -match '([^\\\\/\\:]+\\.(?:cdr|cmx))') {
                 $docName = $matches[1].Trim()
