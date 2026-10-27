@@ -24,7 +24,7 @@ const app = (electron && electron.app) ? electron.app : {
     try {
       return require('../../package.json').version;
     } catch {
-      return '1.1.4';
+      return '1.1.5';
     }
   },
   exit: (code = 0) => {
