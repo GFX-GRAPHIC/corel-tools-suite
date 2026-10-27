@@ -5,9 +5,10 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "prebuild": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
-    "prebuild:portable": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
-    "prebuild:setup": "powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "test": "node --test tests/*.test.cjs",
+    "prebuild": "npm test && powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "prebuild:portable": "npm test && powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
+    "prebuild:setup": "npm test && powershell -Command \"Stop-Process -Name 'Corel Tools Suite*', 'electron*' -Force -ErrorAction SilentlyContinue\"",
     "build": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win",
     "build:portable": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win portable",
     "build:setup": "\"C:\\Users\\Yahya\\.gemini\\antigravity\\scratch\\cetak-pro-pos\\node_modules\\.bin\\electron-builder.cmd\" --win nsis",
