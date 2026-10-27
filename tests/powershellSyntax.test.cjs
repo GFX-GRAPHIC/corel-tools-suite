@@ -173,3 +173,26 @@ test('PowerShell AST - Layout Service generated script parses with 0 errors', as
     psRunner.runPowerShellScript = originalRun;
   }
 });
+
+test('PowerShell AST - Utility Service Split script parses with 0 errors', async () => {
+  const psRunner = require('../electron/core/psRunner.cjs');
+  let capturedScript = '';
+  const originalRun = psRunner.runPowerShellScript;
+  psRunner.runPowerShellScript = (script) => {
+    capturedScript = script;
+    return Promise.resolve({ success: true });
+  };
+
+  try {
+    const { executeSplit } = require('../electron/services/utilityService.cjs');
+    await executeSplit({
+      mode: 'pages',
+      outputFolder: 'C:\\test\\split'
+    });
+
+    assert.ok(capturedScript.length > 0, 'Utility Service Split must generate a PS script');
+    validatePsAst(capturedScript, 'executeSplit');
+  } finally {
+    psRunner.runPowerShellScript = originalRun;
+  }
+});

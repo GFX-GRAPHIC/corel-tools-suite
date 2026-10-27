@@ -51,14 +51,17 @@ function registerWindowIpc() {
   ipcMain.handle('dialog:open-files', async (_event, options = {}) => {
     const mainWin = getMainWindow();
     const result = await dialog.showOpenDialog(mainWin, {
+      title: options.title || 'Pilih File',
       properties: ['openFile', 'multiSelections'],
       filters: options.filters || [
         { name: 'CorelDRAW Files', extensions: ['cdr', 'cmx'] },
         { name: 'Semua File', extensions: ['*'] }
       ]
     });
-    if (result.canceled) return [];
-    return result.filePaths;
+    if (result.canceled || !result.filePaths || !result.filePaths.length) {
+      return { success: false, files: [], filePaths: [] };
+    }
+    return { success: true, files: result.filePaths, filePaths: result.filePaths };
   });
 
   ipcMain.handle('dialog:open-directory', async (_event, options = {}) => {
@@ -67,8 +70,10 @@ function registerWindowIpc() {
       title: options.title || 'Pilih Folder Tujuan',
       properties: ['openDirectory', 'createDirectory']
     });
-    if (result.canceled || !result.filePaths.length) return null;
-    return result.filePaths[0];
+    if (result.canceled || !result.filePaths || !result.filePaths.length) {
+      return { success: false, path: null };
+    }
+    return { success: true, path: result.filePaths[0] };
   });
 
   ipcMain.handle('dialog:select-excel-file', async () => {

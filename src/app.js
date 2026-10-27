@@ -890,13 +890,112 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const conversionTableWrapper = document.getElementById('conversionTableWrapper') || document.querySelector('#view-konversi .table-wrapper');
+
+  function extractFilePaths(res) {
+    if (!res) return [];
+    if (Array.isArray(res)) return res.map(item => (typeof item === 'string' ? item : item?.path || item?.filePath || '')).filter(Boolean);
+    if (Array.isArray(res.files)) return res.files.map(item => (typeof item === 'string' ? item : item?.path || item?.filePath || '')).filter(Boolean);
+    if (Array.isArray(res.filePaths)) return res.filePaths.map(item => (typeof item === 'string' ? item : item?.path || item?.filePath || '')).filter(Boolean);
+    if (typeof res === 'string' && res.trim()) return [res.trim()];
+    if (res.path && typeof res.path === 'string') return [res.path.trim()];
+    if (res.filePath && typeof res.filePath === 'string') return [res.filePath.trim()];
+    return [];
+  }
+
+  function extractDirectoryPath(res) {
+    if (!res) return null;
+    if (typeof res === 'string' && res.trim()) return res.trim();
+    if (res.path && typeof res.path === 'string') return res.path.trim();
+    if (Array.isArray(res.filePaths) && res.filePaths.length > 0) return res.filePaths[0];
+    if (Array.isArray(res) && res.length > 0 && typeof res[0] === 'string') return res[0];
+    return null;
+  }
+
+  async function addConversionFiles(paths) {
+    const rawPaths = extractFilePaths(paths);
+    if (!rawPaths.length) return;
+
+    const validExts = ['.cdr', '.cmx', '.pdf', '.ai', '.eps', '.png', '.jpg', '.jpeg', '.svg'];
+    const existing = new Set(conversionFiles.map(f => (f.path || '').toLowerCase()));
+    let addedCount = 0;
+
+    for (const p of rawPaths) {
+      const lower = p.toLowerCase();
+      const dotIdx = lower.lastIndexOf('.');
+      const ext = dotIdx !== -1 ? lower.substring(dotIdx) : '';
+      if (!validExts.includes(ext)) continue;
+      if (existing.has(lower)) continue;
+      existing.add(lower);
+
+      const parts = p.replace(/\\/g, '/').split('/');
+      const name = parts[parts.length - 1] || p;
+      const format = ext ? ext.replace('.', '').toUpperCase() : 'FILE';
+
+      conversionFiles.push({
+        name,
+        format,
+        size: '-',
+        path: p,
+        status: 'Siap'
+      });
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      renderConversionFiles();
+      showToast(`Berhasil menambahkan ${addedCount} file ke daftar konversi.`);
+
+      if (txtConvertOutputFolder && !txtConvertOutputFolder.value && conversionFiles.length > 0) {
+        const firstP = conversionFiles[0].path;
+        const lastSlash = Math.max(firstP.lastIndexOf('\\'), firstP.lastIndexOf('/'));
+        if (lastSlash > 0) {
+          txtConvertOutputFolder.value = firstP.substring(0, lastSlash);
+        }
+      }
+    } else {
+      showToast('Tidak ada file baru yang ditambahkan.', false);
+    }
+  }
+
   if (btnAddFiles) {
     btnAddFiles.addEventListener('click', async () => {
       if (window.corelAPI?.openFiles) {
-        const res = await window.corelAPI.openFiles();
-        if (res.success && res.files) {
-          conversionFiles = [...conversionFiles, ...res.files];
-          renderConversionFiles();
+        const res = await window.corelAPI.openFiles({
+          title: 'Pilih File untuk Dikonversi',
+          filters: [
+            { name: 'Supported Files (*.cdr, *.pdf, *.ai, *.png, *.jpg, *.svg, *.eps)', extensions: ['cdr', 'cmx', 'pdf', 'ai', 'eps', 'png', 'jpg', 'jpeg', 'svg'] },
+            { name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr', 'cmx'] },
+            { name: 'Semua File (*.*)', extensions: ['*'] }
+          ]
+        });
+        const paths = extractFilePaths(res);
+        if (paths.length) {
+          await addConversionFiles(paths);
+        }
+      }
+    });
+  }
+
+  if (btnAddFolder) {
+    btnAddFolder.addEventListener('click', async () => {
+      if (window.corelAPI?.openDirectory) {
+        const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Berisi File Desain' });
+        const dirPath = extractDirectoryPath(res);
+        if (dirPath) {
+          let files = [];
+          if (window.corelAPI?.scanDirectoryFiles) {
+            const scanRes = await window.corelAPI.scanDirectoryFiles({ dirPath, extensions: ['.cdr', '.cmx', '.pdf', '.ai', '.eps', '.png', '.jpg', '.jpeg', '.svg'], recursive: true });
+            files = extractFilePaths(scanRes);
+          } else if (window.corelAPI?.scanCdrDirectory) {
+            const scanRes = await window.corelAPI.scanCdrDirectory(dirPath, true);
+            files = extractFilePaths(scanRes);
+          }
+          if (files.length) {
+            await addConversionFiles(files);
+          } else {
+            showToast('Tidak ditemukan file desain di folder tersebut.', false);
+          }
         }
       }
     });
@@ -905,9 +1004,35 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnBrowseOutputFolder) {
     btnBrowseOutputFolder.addEventListener('click', async () => {
       if (window.corelAPI?.openDirectory) {
-        const res = await window.corelAPI.openDirectory();
-        if (res.success && res.path) {
-          txtConvertOutputFolder.value = res.path;
+        const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Output Tujuan' });
+        const dirPath = extractDirectoryPath(res);
+        if (dirPath) {
+          txtConvertOutputFolder.value = dirPath;
+        }
+      }
+    });
+  }
+
+  if (conversionTableWrapper) {
+    conversionTableWrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      conversionTableWrapper.classList.add('dragover');
+    });
+    conversionTableWrapper.addEventListener('dragleave', () => {
+      conversionTableWrapper.classList.remove('dragover');
+    });
+    conversionTableWrapper.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      conversionTableWrapper.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const paths = [];
+        for (let i = 0; i < e.dataTransfer.files.length; i++) {
+          const f = e.dataTransfer.files[i];
+          const p = window.corelAPI?.getPathForFile ? window.corelAPI.getPathForFile(f) : f.path;
+          if (p) paths.push(p);
+        }
+        if (paths.length > 0) {
+          await addConversionFiles(paths);
         }
       }
     });
@@ -1455,7 +1580,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
-      headers.push({ letter, name, sample, label });
+      const displayName = `${letter} : ${name}`;
+      const placeholder = `[${rawName || letter}]`;
+      headers.push({ letter, name, originalName: rawName, displayName, sample, label, placeholder });
     }
 
     sheet.headers = headers;
@@ -1481,9 +1608,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function autoMapVariablesFromHeaders(headers) {
     if (!headers || headers.length === 0) return;
 
-    const nameCol = headers.find(h => /nama|peserta|name/i.test(h.name));
-    const awardCol = headers.find(h => /juara|predikat|kategori|sebagai|instrumen|award/i.test(h.name));
-    const noCol = headers.find(h => /nomor|no\.|sertifikat|kode/i.test(h.name));
+    const nameCol = headers.find(h => /nama|peserta|name/i.test(h.name || h.originalName || h.label || ''));
+    const awardCol = headers.find(h => /juara|predikat|kategori|sebagai|instrumen|award/i.test(h.name || h.originalName || h.label || ''));
+    const noCol = headers.find(h => /nomor|no\.|sertifikat|kode/i.test(h.name || h.originalName || h.label || ''));
 
     excelMappings.forEach(v => {
       const p = (v.placeholder || '').toUpperCase();
@@ -1546,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const trH = document.createElement('tr');
       headers.forEach(h => {
         const th = document.createElement('th');
-        th.innerText = `${h.letter}: ${h.name}`;
+        th.innerText = h.name ? `${h.letter}: ${h.name}` : (h.originalName ? `${h.letter}: ${h.originalName}` : `${h.letter}: Kolom ${h.letter}`);
         trH.appendChild(th);
       });
       tblMergerExcelHead.appendChild(trH);
@@ -1745,7 +1872,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <input type="text" class="input-text mapping-ph" value="${m.placeholder}" style="width: 75px; font-weight: 700; text-align: center; color: var(--accent-blue);" />
           <span style="color: var(--text-dim); font-size: 13px;">➔</span>
           <select class="select-native mapping-col" style="flex: 1;">
-            ${headers.map(h => `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>[${h.letter}] ${h.label}</option>`).join('')}
+            ${headers.map(h => {
+              const displayTxt = h.label || (h.name ? `[${h.letter}] ${h.name}` : (h.originalName ? `[${h.letter}] ${h.originalName}` : `[${h.letter}] Kolom ${h.letter}`));
+              return `<option value="${h.letter}" ${h.letter === m.col ? 'selected' : ''}>${displayTxt}</option>`;
+            }).join('')}
           </select>
           <button type="button" class="btn-danger btn-remove-mapping" style="height: 24px; padding: 0 6px; font-size: 10px;" title="Hapus Pemetaan">✕</button>
         </div>
@@ -3747,9 +3877,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnBrowseSplitFolder) {
     btnBrowseSplitFolder.addEventListener('click', async () => {
       if (window.corelAPI?.openDirectory) {
-        const res = await window.corelAPI.openDirectory();
-        if (res.success && res.path) {
-          txtSplitFolder.value = res.path;
+        const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Tujuan Simpan Split' });
+        const dirPath = extractDirectoryPath(res);
+        if (dirPath) {
+          txtSplitFolder.value = dirPath;
         }
       }
     });
@@ -3767,7 +3898,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.corelAPI?.executeSplit) {
           const res = await window.corelAPI.executeSplit({
             mode: document.getElementById('selSplitMode')?.value || 'pages',
-            outputFolder: txtSplitFolder.value
+            outputFolder: txtSplitFolder.value,
+            outputDir: txtSplitFolder.value
           });
           if (res.cancelled) {
             showToast('Pemisahan dokumen dibatalkan.', false);
@@ -6415,16 +6547,11 @@ Catatan: Lengan Panjang
           if (targetDir) window.corelAPI.openFolder(targetDir);
         }
       } else {
-        const hasHigherVer = selectedFiles.some(f => (f.versionNum && f.versionNum >= 24));
         selectedFiles.forEach((f) => {
           f.status = 'failed';
-          f.statusText = (f.versionNum && f.versionNum >= 24) ? 'Versi Terlalu Tinggi (v' + f.versionNum + ')' : 'Gagal';
+          f.statusText = 'Gagal';
         });
-        if (hasHigherVer) {
-          showToast('File dibuat di CorelDRAW 2024/2026 (v24-v26) dan tidak dapat dibuka Corel lokal. Gunakan tombol AsanConvert di bawah.', false);
-        } else {
-          showToast(res?.message || 'Gagal menurunkan versi file CDR.', false);
-        }
+        showToast(res?.message || 'Gagal menurunkan versi file CDR.', false);
       }
     } catch (err) {
       selectedFiles.forEach((f) => {
@@ -6454,8 +6581,9 @@ Catatan: Lengan Panjang
           title: 'Pilih File CDR',
           filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
         });
-        if (res?.success && res?.files?.length) {
-          await addDownsaverFiles(res.files);
+        const paths = extractFilePaths(res);
+        if (paths.length) {
+          await addDownsaverFiles(paths);
         }
       }
     });
@@ -6465,14 +6593,14 @@ Catatan: Lengan Panjang
     btnDownsaverAddFolder.addEventListener('click', async () => {
       if (window.corelAPI?.openDirectory) {
         const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Berisi File CDR' });
-        if (res?.success && res?.path) {
-          if (window.corelAPI?.scanCdrDirectory) {
-            const scanRes = await window.corelAPI.scanCdrDirectory(res.path, true);
-            if (scanRes?.success && scanRes?.files?.length) {
-              await addDownsaverFiles(scanRes.files);
-            } else {
-              showToast('Tidak ditemukan file .cdr di folder tersebut.');
-            }
+        const dirPath = extractDirectoryPath(res);
+        if (dirPath && window.corelAPI?.scanCdrDirectory) {
+          const scanRes = await window.corelAPI.scanCdrDirectory(dirPath, true);
+          const paths = extractFilePaths(scanRes);
+          if (paths.length) {
+            await addDownsaverFiles(paths);
+          } else {
+            showToast('Tidak ditemukan file .cdr di folder tersebut.', false);
           }
         }
       }
@@ -6524,8 +6652,9 @@ Catatan: Lengan Panjang
     btnDownsaverBrowseFolder.addEventListener('click', async () => {
       if (window.corelAPI?.openDirectory) {
         const res = await window.corelAPI.openDirectory({ title: 'Pilih Folder Tujuan Output' });
-        if (res?.success && res?.path) {
-          txtDownsaverCustomFolder.value = res.path;
+        const dirPath = extractDirectoryPath(res);
+        if (dirPath) {
+          txtDownsaverCustomFolder.value = dirPath;
         }
       }
     });
@@ -6556,8 +6685,9 @@ Catatan: Lengan Panjang
             title: 'Pilih File CDR untuk Diturunkan ke X4',
             filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
           });
-          if (res?.success && res?.files?.length) {
-            await addDownsaverFiles(res.files);
+          const paths = extractFilePaths(res);
+          if (paths.length) {
+            await addDownsaverFiles(paths);
             startDownsaverConversion();
           }
         }
@@ -6578,8 +6708,9 @@ Catatan: Lengan Panjang
             title: 'Pilih File CDR untuk Diturunkan ke X7',
             filters: [{ name: 'CorelDRAW Files (*.cdr)', extensions: ['cdr'] }]
           });
-          if (res?.success && res?.files?.length) {
-            await addDownsaverFiles(res.files);
+          const paths = extractFilePaths(res);
+          if (paths.length) {
+            await addDownsaverFiles(paths);
             startDownsaverConversion();
           }
         }

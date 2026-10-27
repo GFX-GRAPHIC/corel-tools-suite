@@ -23,6 +23,9 @@ const CDR_VERSION_MAP = {
   '2400': { name: 'CorelDRAW 2022', short: '2022', num: 24 },
   '2450': { name: 'CorelDRAW 2023', short: '2023', num: 24 },
   '2500': { name: 'CorelDRAW 2024', short: '2024', num: 25 },
+  '2550': { name: 'CorelDRAW 2024 (v25.5)', short: '2024', num: 25 },
+  '2600': { name: 'CorelDRAW 2025 / 2026', short: '2026', num: 26 },
+  '2700': { name: 'CorelDRAW 2026 / 2027', short: '2027', num: 27 },
 };
 
 function formatBytes(bytes) {
@@ -242,7 +245,12 @@ function inspectCdrBatch(filePaths) {
 }
 
 function scanDirectoryForCdr(dirPath, recursive = true) {
+  return scanDirectoryForFiles(dirPath, ['.cdr'], recursive);
+}
+
+function scanDirectoryForFiles(dirPath, extensions = ['.cdr'], recursive = true) {
   const results = [];
+  const normalizedExts = (extensions || ['.cdr']).map((e) => (e.toLowerCase().startsWith('.') ? e.toLowerCase() : '.' + e.toLowerCase()));
   function walk(currentDir) {
     try {
       const entries = fs.readdirSync(currentDir, { withFileTypes: true });
@@ -251,7 +259,8 @@ function scanDirectoryForCdr(dirPath, recursive = true) {
         if (entry.isDirectory()) {
           if (recursive) walk(fullPath);
         } else if (entry.isFile()) {
-          if (entry.name.toLowerCase().endsWith('.cdr')) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (normalizedExts.includes(ext)) {
             results.push(fullPath);
           }
         }
@@ -268,6 +277,7 @@ module.exports = {
   inspectCdrFile,
   inspectCdrBatch,
   scanDirectoryForCdr,
+  scanDirectoryForFiles,
   CDR_VERSION_MAP,
   formatBytes,
 };

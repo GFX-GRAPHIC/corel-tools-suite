@@ -104,13 +104,32 @@ function parseExcelFile(payload) {
       const headers = [];
       for (let colIdx = 0; colIdx < maxCols; colIdx++) {
         const letter = indexToLetter(colIdx);
-        const originalName = headerRow[colIdx] ? String(headerRow[colIdx]).trim() : '';
-        const displayName = originalName ? `${letter} : ${originalName}` : letter;
+        const originalName = (headerRow[colIdx] !== undefined && headerRow[colIdx] !== null) ? String(headerRow[colIdx]).trim() : '';
+        const colName = originalName || `Kolom ${letter}`;
+
+        let sample = '';
+        for (const r of rows) {
+          if (r[letter] && String(r[letter]).trim() !== '') {
+            sample = String(r[letter]).trim();
+            if (sample.length > 25) sample = sample.substring(0, 22) + '...';
+            break;
+          }
+        }
+
+        const label = sample
+          ? `${letter}: ${colName} (Contoh: ${sample})`
+          : `${letter}: ${colName}`;
+        const displayName = originalName ? `${letter} : ${originalName}` : `${letter} : Kolom ${letter}`;
+        const placeholder = `[${originalName || letter}]`;
+
         headers.push({
           letter,
+          name: colName,
+          label,
+          sample,
           originalName,
           displayName,
-          placeholder: `[${originalName || letter}]`,
+          placeholder,
         });
       }
 

@@ -647,7 +647,9 @@ if ($colors.Count -eq 0) {
 }
 
 async function executeSplit(payload) {
-  const { mode = 'pages', outputDir = '' } = payload || {};
+  const { mode = 'pages', outputDir = '', outputFolder = '' } = payload || {};
+  const targetDir = (outputFolder || outputDir || '').trim();
+
   const ps = `
 $ErrorActionPreference = 'Stop'
 $result = @{ success = $false; message = ''; count = 0 }
@@ -655,39 +657,98 @@ $result = @{ success = $false; message = ''; count = 0 }
 try {
 ${getCorelConnectPs()}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
-    $out = '${(outputDir || '').replace(/'/g, "''")}'
+
+    $out = '${targetDir.replace(/'/g, "''")}'
+    if (-not [string]::IsNullOrWhiteSpace($out)) {
+        if (-not (Test-Path $out)) {
+            try { New-Item -ItemType Directory -Path $out -Force | Out-Null } catch {}
+        }
+    }
     if (-not $out -or -not (Test-Path $out)) {
-        $out = [System.IO.Path]::GetDirectoryName($doc.FullFileName)
+        if ($doc.FullFileName -and [string]::IsNullOrWhiteSpace($doc.FullFileName) -eq $false) {
+            try { $out = [System.IO.Path]::GetDirectoryName($doc.FullFileName) } catch {}
+        }
     }
     if (-not $out -or -not (Test-Path $out)) {
         $out = [Environment]::GetFolderPath('Desktop')
     }
 
-    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($doc.Name)
-    $pageCount = $doc.Pages.Count
-    if ($pageCount -le 1) {
-        throw "Dokumen hanya memiliki 1 halaman. Fitur split memerlukan minimal 2 halaman."
-    }
+    $rawName = if ($doc.Name) { $doc.Name } else { "Dokumen" }
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($rawName)
+    if (-not $baseName) { $baseName = "Dokumen" }
 
+    $mode = '${mode.replace(/'/g, "''")}'
     $count = 0
-    for ($p = 1; $p -le $pageCount; $p++) {
-        $page = $doc.Pages.Item($p)
-        $destFile = Join-Path $out ($baseName + "_Halaman_" + $p + ".cdr")
-        
-        $newDoc = $corel.CreateDocument()
-        $newDoc.Unit = $doc.Unit
-        $newDoc.ActivePage.SetSize($page.SizeWidth, $page.SizeHeight)
 
-        $page.Shapes.All().Copy()
-        $newDoc.ActiveLayer.Paste()
-        $newDoc.SaveAs($destFile)
-        $newDoc.Close()
-        $count++
+    if ($mode -eq 'shapes') {
+        $sel = $doc.Selection
+        if (-not $sel -or $sel.Shapes.Count -eq 0) {
+            throw "Pilih setidaknya 1 objek di CorelDRAW terlebih dahulu untuk dipisahkan menjadi PNG."
+        }
+        for ($s = 1; $s -le $sel.Shapes.Count; $s++) {
+            $shp = $sel.Shapes.Item($s)
+            $destPng = Join-Path $out ($baseName + "_Objek_" + $s + ".png")
+            $filter = $shp.ExportBitmap($destPng, 774, 1, 5, 0, 0, 300, 300) # cdrFilterPNG, 300 DPI
+            if ($filter) { $filter.Finish() }
+            $count++
+        }
+        $result.message = "Berhasil memisahkan $count objek terseleksi menjadi file PNG di folder tujuan!"
+    } elseif ($mode -eq 'pages_cdr') {
+        $pageCount = $doc.Pages.Count
+        if ($pageCount -lt 1) {
+            throw "Dokumen tidak memiliki halaman untuk dipisahkan."
+        }
+        for ($p = 1; $p -le $pageCount; $p++) {
+            $page = $doc.Pages.Item($p)
+            $destFile = Join-Path $out ($baseName + "_Halaman_" + $p + ".cdr")
+            $newDoc = $corel.CreateDocument()
+            $newDoc.Unit = $doc.Unit
+            $newDoc.ActivePage.SetSize($page.SizeWidth, $page.SizeHeight)
+
+            if ($page.Shapes.Count -gt 0) {
+                $page.Shapes.All().Copy()
+                $newDoc.ActiveLayer.Paste()
+            }
+            $newDoc.SaveAs($destFile)
+            $newDoc.Close()
+            $count++
+        }
+        $result.message = "Berhasil memisahkan $count halaman menjadi file CDR terpisah di folder tujuan!"
+    } else {
+        # Default: pages to PDF
+        $pageCount = $doc.Pages.Count
+        if ($pageCount -lt 1) {
+            throw "Dokumen tidak memiliki halaman untuk dipisahkan."
+        }
+        for ($p = 1; $p -le $pageCount; $p++) {
+            $destPdf = Join-Path $out ($baseName + "_Halaman_" + $p + ".pdf")
+            $exported = $false
+            try {
+                $doc.PDFSettings.PublishRange = 3 # pdfPageRange
+                $doc.PDFSettings.PageRange = "$p"
+                $doc.PublishToPDF($destPdf)
+                $exported = $true
+            } catch {
+                # Fallback via temporary document if PDFSettings fails
+                $page = $doc.Pages.Item($p)
+                $newDoc = $corel.CreateDocument()
+                $newDoc.Unit = $doc.Unit
+                $newDoc.ActivePage.SetSize($page.SizeWidth, $page.SizeHeight)
+                if ($page.Shapes.Count -gt 0) {
+                    $page.Shapes.All().Copy()
+                    $newDoc.ActiveLayer.Paste()
+                }
+                $newDoc.PublishToPDF($destPdf)
+                $newDoc.Close()
+                $exported = $true
+            }
+            if ($exported) { $count++ }
+        }
+        $result.message = "Berhasil memisahkan $count halaman menjadi file PDF terpisah di folder tujuan!"
     }
 
-    $result.success = $true
+    $result.success = ($count -gt 0)
     $result.count = $count
-    $result.message = "Berhasil memisahkan $count halaman menjadi file terpisah di folder tujuan!"
 } catch {
     $result.success = $false
     $result.message = $_.Exception.Message

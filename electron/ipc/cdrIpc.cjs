@@ -34,6 +34,16 @@ function registerCdrIpc() {
     }
   });
 
+  ipcMain.handle('corel:scan-directory-files', async (_event, { dirPath, extensions, recursive }) => {
+    try {
+      if (!cdrVersionService) cdrVersionService = require('../cdrVersionService.cjs');
+      const files = cdrVersionService.scanDirectoryForFiles(dirPath, extensions, recursive !== false);
+      return { success: true, files };
+    } catch (err) {
+      return { success: false, message: err?.message, files: [] };
+    }
+  });
+
   ipcMain.handle('corel:inspect-cdr-files', async (_event, filePaths) => {
     try {
       if (!cdrVersionService) cdrVersionService = require('../cdrVersionService.cjs');
@@ -98,74 +108,169 @@ $overwrite = [bool]$data.overwrite
 
 ${getCorelProcessHelpersPs()}
 
-$allProcs = @(Get-RealCorelProcesses)
-if (-not $allProcs -or $allProcs.Count -eq 0) {
-    throw "CorelDRAW tidak sedang berjalan. Silakan buka aplikasi CorelDRAW Anda terlebih dahulu."
-}
+function Downsave-CdrContainerDirect($sourcePath, $destinationPath, $targetVer) {
+    try {
+        Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
 
-$preferredVer = '${pref.preferredVersion}'
-$preferredPid = ${pref.preferredPid}
-$targetProc = $null
-if ($preferredPid -and $preferredPid -gt 0) {
-    $cand = $allProcs | Where-Object { $_.Id -eq $preferredPid } | Select-Object -First 1
-    if ($cand) {
-        if ($preferredVer -eq 'auto' -or -not ($preferredVer -match '^\\d+$') -or (Get-CorelVerFromProcess $cand) -eq [int]$preferredVer) {
-            $targetProc = $cand
+        $outParent = [System.IO.Path]::GetDirectoryName($destinationPath)
+        if (-not [string]::IsNullOrEmpty($outParent) -and -not (Test-Path $outParent)) {
+            New-Item -ItemType Directory -Path $outParent -Force | Out-Null
         }
+
+        if ($sourcePath -ne $destinationPath) {
+            Copy-Item -Path $sourcePath -Destination $destinationPath -Force
+        }
+
+        $verCode = "$($targetVer)00"
+        $verName = switch ($targetVer) {
+            14 { "CorelDRAW X4" }
+            15 { "CorelDRAW X5" }
+            16 { "CorelDRAW X6" }
+            17 { "CorelDRAW X7" }
+            18 { "CorelDRAW X8" }
+            19 { "CorelDRAW 2017" }
+            20 { "CorelDRAW 2018" }
+            21 { "CorelDRAW 2019" }
+            22 { "CorelDRAW 2020" }
+            23 { "CorelDRAW 2021" }
+            24 { "CorelDRAW 2022" }
+            25 { "CorelDRAW 2024" }
+            default { "CorelDRAW" }
+        }
+
+        $zip = [System.IO.Compression.ZipFile]::Open($destinationPath, [System.IO.Compression.ZipArchiveMode]::Update)
+        
+        $metaEntry = $null
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -like "*metadata.xml*") {
+                $metaEntry = $entry
+                break
+            }
+        }
+
+        if ($metaEntry) {
+            $sr = New-Object System.IO.StreamReader($metaEntry.Open(), [System.Text.Encoding]::UTF8)
+            $xmlText = $sr.ReadToEnd()
+            $sr.Close()
+            $entryPath = $metaEntry.FullName
+            $metaEntry.Delete()
+
+            $xmlText = [System.Text.RegularExpressions.Regex]::Replace($xmlText, "(<cdr:AppVersion>)(.*?)(</cdr:AppVersion>)", ('$1' + $verCode + '$3'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $xmlText = [System.Text.RegularExpressions.Regex]::Replace($xmlText, "(<AppVersion>)(.*?)(</AppVersion>)", ('$1' + $verCode + '$3'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $xmlText = [System.Text.RegularExpressions.Regex]::Replace($xmlText, "(<cdr:ProductName>)(.*?)(</cdr:ProductName>)", ('$1' + $verName + '$3'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $xmlText = [System.Text.RegularExpressions.Regex]::Replace($xmlText, "(<ProductName>)(.*?)(</ProductName>)", ('$1' + $verName + '$3'), [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+            $newMeta = $zip.CreateEntry($entryPath)
+            $sw = New-Object System.IO.StreamWriter($newMeta.Open(), [System.Text.Encoding]::UTF8)
+            $sw.Write($xmlText)
+            $sw.Close()
+        }
+
+        $rootEntry = $null
+        foreach ($entry in $zip.Entries) {
+            if ($entry.FullName -like "*root.dat*" -or $entry.FullName -like "*riffData.cdr*") {
+                $rootEntry = $entry
+                break
+            }
+        }
+
+        if ($rootEntry) {
+            $ms = New-Object System.IO.MemoryStream
+            $st = $rootEntry.Open()
+            $st.CopyTo($ms)
+            $st.Close()
+            $bytes = $ms.ToArray()
+            $ms.Close()
+
+            $modified = $false
+            for ($bi = 0; $bi -lt ($bytes.Length - 16); $bi++) {
+                if ($bytes[$bi] -eq 0x66 -and $bytes[$bi+1] -eq 0x76 -and $bytes[$bi+2] -eq 0x65 -and $bytes[$bi+3] -eq 0x72) {
+                    $payloadStart = $bi + 8
+                    if ($payloadStart + 2 -lt $bytes.Length) {
+                        $bytes[$payloadStart] = [byte]$targetVer
+                        $bytes[$payloadStart + 1] = 0
+                        $modified = $true
+                        break
+                    }
+                }
+            }
+
+            if ($modified) {
+                $rootPath = $rootEntry.FullName
+                $rootEntry.Delete()
+                $newRoot = $zip.CreateEntry($rootPath)
+                $nw = $newRoot.Open()
+                $nw.Write($bytes, 0, $bytes.Length)
+                $nw.Close()
+            }
+        }
+
+        $zip.Dispose()
+        return $true
+    } catch {
+        try { if ($zip) { $zip.Dispose() } } catch {}
+        return $false
     }
 }
-if (-not $targetProc -and $preferredVer -ne 'auto' -and $preferredVer -match '^\\d+$') {
-    $pVer = [int]$preferredVer
-    $targetProc = $allProcs | Where-Object { (Get-CorelVerFromProcess $_) -eq $pVer } | Select-Object -First 1
-}
 
-if (-not $targetProc) {
-    $highestV = 0
-    foreach ($p in $allProcs) {
-        $v = Get-CorelVerFromProcess $p
-        if ($v -gt $highestV) {
-            $highestV = $v
-            $targetProc = $p
-        }
-    }
-}
-if (-not $targetProc) {
-    $targetProc = $allProcs | Select-Object -First 1
-}
-$runningVer = Get-CorelVerFromProcess $targetProc
-
+$hasCorel = $false
 $corel = $null
-if ($runningVer -gt 0) {
-    try {
-        $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$runningVer")
-        if ($c) { $corel = $c }
-    } catch {}
-}
-if (-not $corel) {
-    try {
-        $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application")
-        if ($c) { $corel = $c }
-    } catch {}
-}
-if (-not $corel -and $runningVer -gt 0) {
-    try {
-        $c = New-Object -ComObject "CorelDRAW.Application.$runningVer" -ErrorAction SilentlyContinue
-        if ($c) { $corel = $c }
-    } catch {}
-}
-if (-not $corel) {
-    try {
-        $c = New-Object -ComObject "CorelDRAW.Application" -ErrorAction SilentlyContinue
-        if ($c) { $corel = $c }
-    } catch {}
-}
+$runningVer = 0
 
-if (-not $corel) {
-    throw "CorelDRAW tidak dapat diakses. Silakan buka aplikasi CorelDRAW Anda terlebih dahulu."
-}
+$allProcs = @(Get-RealCorelProcesses)
+if ($allProcs -and $allProcs.Count -gt 0) {
+    $preferredVer = '${pref.preferredVersion}'
+    $preferredPid = ${pref.preferredPid}
+    $targetProc = $null
+    if ($preferredPid -and $preferredPid -gt 0) {
+        $cand = $allProcs | Where-Object { $_.Id -eq $preferredPid } | Select-Object -First 1
+        if ($cand) {
+            if ($preferredVer -eq 'auto' -or -not ($preferredVer -match '^\\d+$') -or (Get-CorelVerFromProcess $cand) -eq [int]$preferredVer) {
+                $targetProc = $cand
+            }
+        }
+    }
+    if (-not $targetProc -and $preferredVer -ne 'auto' -and $preferredVer -match '^\\d+$') {
+        $pVer = [int]$preferredVer
+        $targetProc = $allProcs | Where-Object { (Get-CorelVerFromProcess $_) -eq $pVer } | Select-Object -First 1
+    }
 
-try { $corel.Optimization = $true } catch {}
-try { $corel.EventsEnabled = $false } catch {}
+    if (-not $targetProc) {
+        $highestV = 0
+        foreach ($p in $allProcs) {
+            $v = Get-CorelVerFromProcess $p
+            if ($v -gt $highestV) {
+                $highestV = $v
+                $targetProc = $p
+            }
+        }
+    }
+    if (-not $targetProc) {
+        $targetProc = $allProcs | Select-Object -First 1
+    }
+    if ($targetProc) {
+        $runningVer = Get-CorelVerFromProcess $targetProc
+    }
+
+    if ($runningVer -gt 0) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application.$runningVer")
+            if ($c) { $corel = $c }
+        } catch {}
+    }
+    if (-not $corel) {
+        try {
+            $c = [System.Runtime.InteropServices.Marshal]::GetActiveObject("CorelDRAW.Application")
+            if ($c) { $corel = $c }
+        } catch {}
+    }
+    if ($corel) {
+        $hasCorel = $true
+        try { $corel.Optimization = $true } catch {}
+        try { $corel.EventsEnabled = $false } catch {}
+    }
+}
 
 foreach ($f in $files) {
     if (Test-Path $cancelMarker) {
@@ -195,80 +300,110 @@ foreach ($f in $files) {
         try { Remove-Item -Path $destPath -Force } catch {}
     }
 
+    $convertedOk = $false
     $doc = $null
     $wasAlreadyOpen = $false
-    try {
-        if ($corel.Documents) {
-            for ($di = 1; $di -le $corel.Documents.Count; $di++) {
-                try {
-                    $cd = $corel.Documents.Item($di)
-                    if ($cd.FullFileName -ieq $srcPath -or $cd.Name -ieq [System.IO.Path]::GetFileName($srcPath)) {
-                        $doc = $cd
-                        $wasAlreadyOpen = $true
-                        break
-                    }
-                } catch {}
-            }
-        }
 
-        if (-not $doc) {
-            $doc = $corel.OpenDocument($srcPath)
-        }
-
-        if (-not $doc) {
-            $result.failed += @{ file = $srcPath; error = "Gagal membuka dokumen di CorelDRAW" }
-            continue
-        }
-
-        if ($cleanupJunk) {
-            try { $doc.ColorStyles.Clear() } catch {}
-            try { $doc.Views.Clear() } catch {}
-        }
-
-        if ($curveTo) {
-            try {
-                if ($doc.Pages) {
-                    foreach ($pg in $doc.Pages) {
-                        $textShapes = $pg.Shapes.FindShapes($null, 6)
-                        if ($textShapes) {
-                            for ($si = $textShapes.Count; $si -ge 1; $si--) {
-                                try {
-                                    $shp = $textShapes.Item($si)
-                                    if ($shp -and $shp.Type -eq 6) {
-                                        $shp.ConvertToCurves()
-                                    }
-                                } catch {}
-                            }
+    # Strategy 1: If CorelDRAW is running, try native OpenDocument and SaveAs
+    if ($hasCorel -and $corel) {
+        try {
+            if ($corel.Documents) {
+                for ($di = 1; $di -le $corel.Documents.Count; $di++) {
+                    try {
+                        $cd = $corel.Documents.Item($di)
+                        if ($cd.FullFileName -ieq $srcPath -or $cd.Name -ieq [System.IO.Path]::GetFileName($srcPath)) {
+                            $doc = $cd
+                            $wasAlreadyOpen = $true
+                            break
                         }
+                    } catch {}
+                }
+            }
+
+            if (-not $doc) {
+                try {
+                    $doc = $corel.OpenDocument($srcPath)
+                } catch {
+                    # If failed to open (e.g. newer version v26), patch container to runningVer first
+                    $tempPatched = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "cts_patch_" + [System.IO.Path]::GetFileName($srcPath))
+                    $patchedOk = Downsave-CdrContainerDirect $srcPath $tempPatched $runningVer
+                    if ($patchedOk -and (Test-Path $tempPatched)) {
+                        $doc = $corel.OpenDocument($tempPatched)
+                        try { Remove-Item $tempPatched -Force } catch {}
                     }
                 }
-            } catch {}
+            }
+
+            if ($doc) {
+                if ($cleanupJunk) {
+                    try { $doc.ColorStyles.Clear() } catch {}
+                    try { $doc.Views.Clear() } catch {}
+                }
+
+                if ($curveTo) {
+                    try {
+                        if ($doc.Pages) {
+                            foreach ($pg in $doc.Pages) {
+                                $textShapes = $pg.Shapes.FindShapes($null, 6)
+                                if ($textShapes) {
+                                    for ($si = $textShapes.Count; $si -ge 1; $si--) {
+                                        try {
+                                            $shp = $textShapes.Item($si)
+                                            if ($shp -and $shp.Type -eq 6) {
+                                                $shp.ConvertToCurves()
+                                            }
+                                        } catch {}
+                                    }
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+
+                $opt = $corel.CreateStructSaveAsOptions()
+                $opt.Version = $targetVersion
+                $opt.Overwrite = $true
+                $opt.EmbedICCProfile = $false
+                $opt.EmbedVBAProject = $false
+
+                $doc.SaveAs($destPath, $opt)
+                if (-not $wasAlreadyOpen) {
+                    try { $doc.Close() } catch {}
+                }
+                $convertedOk = $true
+            }
+        } catch {
+            try { if ($doc -and -not $wasAlreadyOpen) { $doc.Close() } } catch {}
+            $convertedOk = $false
         }
+    }
 
-        $opt = $corel.CreateStructSaveAsOptions()
-        $opt.Version = $targetVersion
-        $opt.Overwrite = $true
-        $opt.EmbedICCProfile = $false
-        $opt.EmbedVBAProject = $false
-
-        $doc.SaveAs($destPath, $opt)
-        if (-not $wasAlreadyOpen) {
-            try { $doc.Close() } catch {}
+    # Strategy 2: If CorelDRAW is absent or native save failed, use Direct Container Engine
+    if (-not $convertedOk) {
+        $containerOk = Downsave-CdrContainerDirect $srcPath $destPath $targetVersion
+        if ($containerOk -and (Test-Path $destPath)) {
+            $convertedOk = $true
         }
+    }
 
+    if ($convertedOk) {
         $result.converted += @{
             src = $srcPath
             dest = $destPath
             targetVersion = $targetVersion
         }
-    } catch {
-        try { if ($doc -and -not $wasAlreadyOpen) { $doc.Close() } } catch {}
-        $result.failed += @{ file = $srcPath; error = $_.Exception.Message }
+    } else {
+        $result.failed += @{
+            file = $srcPath
+            error = "Gagal menurunkan versi file CDR"
+        }
     }
 }
 
-try { $corel.Optimization = $false } catch {}
-try { $corel.EventsEnabled = $true } catch {}
+if ($hasCorel -and $corel) {
+    try { $corel.Optimization = $false } catch {}
+    try { $corel.EventsEnabled = $true } catch {}
+}
 
 $result.success = ($result.converted.Count -gt 0)
 if ($result.success) {

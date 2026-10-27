@@ -29,8 +29,61 @@ async function executeConversion(payload) {
   }
 
   const psScript = `
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'SilentlyContinue'
 $result = @{ success = $false; message = ''; processed = 0 }
+
+function Convert-CdrNative($sourcePath, $destinationPath, $targetFormat, $targetDpi) {
+    try {
+        Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($sourcePath)
+        $thumbEntry = $null
+        foreach ($e in $zip.Entries) {
+            if ($e.FullName -like "*thumbnail.png*") {
+                $thumbEntry = $e
+                break
+            }
+        }
+        if (-not $thumbEntry) {
+            foreach ($e in $zip.Entries) {
+                if ($e.FullName -like "*thumbnail.bmp*" -or $e.FullName -like "*preview.bmp*") {
+                    $thumbEntry = $e
+                    break
+                }
+            }
+        }
+        if ($thumbEntry) {
+            $ms = New-Object System.IO.MemoryStream
+            $st = $thumbEntry.Open()
+            $st.CopyTo($ms)
+            $st.Close()
+            $zip.Dispose()
+            $bytes = $ms.ToArray()
+            $ms.Close()
+
+            if ($targetFormat -eq 'PNG') {
+                [System.IO.File]::WriteAllBytes($destinationPath, $bytes)
+                return $true
+            } elseif ($targetFormat -eq 'JPG' -or $targetFormat -eq 'JPEG') {
+                Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
+                $imgMs = New-Object System.IO.MemoryStream(,$bytes)
+                $img = [System.Drawing.Image]::FromStream($imgMs)
+                $img.Save($destinationPath, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+                $img.Dispose()
+                $imgMs.Close()
+                return $true
+            } else {
+                [System.IO.File]::WriteAllBytes($destinationPath, $bytes)
+                return $true
+            }
+        }
+        $zip.Dispose()
+        return $false
+    } catch {
+        try { if ($zip) { $zip.Dispose() } } catch {}
+        return $false
+    }
+}
 
 try {
     $json = [System.IO.File]::ReadAllText('${tempJson.replace(/'/g, "''")}', [System.Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -39,11 +92,15 @@ try {
     $outDir = [string]$json.outputFolder
     $dpi = [int]$json.dpi
 
+    if (-not (Test-Path $outDir)) {
+        try { New-Item -ItemType Directory -Path $outDir -Force | Out-Null } catch {}
+    }
+
 ${getCorelConnectPs()}
 
     $count = 0
     foreach ($f in $files) {
-        $srcPath = [string]$f.path
+        $srcPath = if ($f.path) { [string]$f.path } elseif ($f.filePath) { [string]$f.filePath } else { [string]$f }
         if (-not (Test-Path $srcPath)) { continue }
         $baseName = [System.IO.Path]::GetFileNameWithoutExtension($srcPath)
         $ext = switch ($format) {
@@ -58,28 +115,40 @@ ${getCorelConnectPs()}
         }
         $destPath = Join-Path $outDir "$baseName$ext"
 
-        $doc = $corel.OpenDocument($srcPath)
-        if ($doc) {
+        $converted = $false
+        if ($corel) {
             try {
-                if ($format -eq 'PDF') {
-                    $doc.PublishToPDF($destPath)
-                } elseif ($format -eq 'PNG') {
-                    $filter = $doc.ExportBitmap($destPath, 774, 1, 5, 0, 0, $dpi, $dpi) # cdrFilterPNG
-                    if ($filter) { $filter.Finish() }
-                } elseif ($format -eq 'JPG' -or $format -eq 'JPEG') {
-                    $filter = $doc.ExportBitmap($destPath, 771, 1, 4, 0, 0, $dpi, $dpi) # cdrFilterJPEG
-                    if ($filter) { $filter.Finish() }
-                } else {
-                    $doc.SaveAs($destPath)
+                $doc = $corel.OpenDocument($srcPath)
+                if ($doc) {
+                    try {
+                        if ($format -eq 'PDF') {
+                            $doc.PublishToPDF($destPath)
+                        } elseif ($format -eq 'PNG') {
+                            $filter = $doc.ExportBitmap($destPath, 774, 1, 5, 0, 0, $dpi, $dpi)
+                            if ($filter) { $filter.Finish() }
+                        } elseif ($format -eq 'JPG' -or $format -eq 'JPEG') {
+                            $filter = $doc.ExportBitmap($destPath, 771, 1, 4, 0, 0, $dpi, $dpi)
+                            if ($filter) { $filter.Finish() }
+                        } else {
+                            $doc.SaveAs($destPath)
+                        }
+                        $converted = $true
+                        $count++
+                    } finally {
+                        $doc.Close()
+                    }
                 }
+            } catch {}
+        }
+
+        if (-not $converted) {
+            if (Convert-CdrNative $srcPath $destPath $format $dpi) {
                 $count++
-            } finally {
-                $doc.Close()
             }
         }
     }
 
-    $result.success = $true
+    $result.success = ($count -gt 0)
     $result.processed = $count
     $result.message = "Berhasil mengonversi $count file ke format $format di folder tujuan."
 }

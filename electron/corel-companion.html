@@ -1595,10 +1595,10 @@
     function autoMapVariablesFromHeaders(headers) {
       if (!headers || headers.length === 0) return;
 
-      const nameCol = headers.find(h => /nama|pemain|player|name/i.test(h.name));
-      const noCol = headers.find(h => /nomor|no\.|punggung|number/i.test(h.name));
-      const sizeCol = headers.find(h => /ukuran|size/i.test(h.name));
-      const sponsorCol = headers.find(h => /sponsor|tim|team|club/i.test(h.name));
+      const nameCol = headers.find(h => /nama|pemain|player|name/i.test(h.name || h.originalName || h.label || ''));
+      const noCol = headers.find(h => /nomor|no\.|punggung|number/i.test(h.name || h.originalName || h.label || ''));
+      const sizeCol = headers.find(h => /ukuran|size/i.test(h.name || h.originalName || h.label || ''));
+      const sponsorCol = headers.find(h => /sponsor|tim|team|club/i.test(h.name || h.originalName || h.label || ''));
 
       excelVariables.forEach(v => {
         const p = (v.placeholder || '').toUpperCase();
@@ -1614,7 +1614,7 @@
         headers.forEach(h => {
           const opt = document.createElement('option');
           opt.value = h.letter;
-          opt.innerText = h.label || `${h.letter}: ${h.name}`;
+          opt.innerText = h.label || (h.name ? `${h.letter}: ${h.name}` : (h.originalName ? `${h.letter}: ${h.originalName}` : `${h.letter}: Kolom ${h.letter}`));
           if (sizeCol && h.letter === sizeCol.letter) opt.selected = true;
           selSizeColumn.appendChild(opt);
         });
@@ -1689,7 +1689,9 @@
         }
 
         const label = sample ? `${letter}: ${name} (Contoh: ${sample})` : `${letter}: ${name}`;
-        headers.push({ letter, name, sample, label });
+        const displayName = `${letter} : ${name}`;
+        const placeholder = `[${rawName || letter}]`;
+        headers.push({ letter, name, originalName: rawName, displayName, sample, label, placeholder });
       }
 
       sheet.headers = headers;
@@ -1782,7 +1784,7 @@
       const trHead = document.createElement('tr');
       headers.forEach(h => {
         const th = document.createElement('th');
-        th.innerText = `${h.letter}: ${h.name}`;
+        th.innerText = h.name ? `${h.letter}: ${h.name}` : (h.originalName ? `${h.letter}: ${h.originalName}` : `${h.letter}: Kolom ${h.letter}`);
         trHead.appendChild(th);
       });
       tblHead.appendChild(trHead);
@@ -1974,7 +1976,10 @@
             <div style="display: flex; flex-direction: column; gap: 1px; flex: 1;">
               <span style="font-size: 8.5px; color: #475569; font-weight: 700;">Ambil dari Kolom Excel:</span>
               <select class="sel-column" style="height: 24px; width: 100%; font-weight: 600; color: #0f172a;">
-                ${headers.map(h => `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${h.label || `${h.letter}: ${h.name}`}</option>`).join('')}
+                ${headers.map(h => {
+                  const title = h.label || (h.name ? `${h.letter}: ${h.name}` : (h.originalName ? `${h.letter}: ${h.originalName}` : `${h.letter}: Kolom ${h.letter}`));
+                  return `<option value="${h.letter}" ${h.letter === v.column ? 'selected' : ''}>${title}</option>`;
+                }).join('')}
               </select>
             </div>
             <button type="button" class="btn-delete-row" title="Hapus Variabel Ini">✕</button>

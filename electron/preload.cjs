@@ -109,6 +109,7 @@ const api = {
   inspectCdrFile: (filePath) => ipcRenderer.invoke('corel:inspect-cdr-file', filePath),
   inspectCdrFiles: (filePaths) => ipcRenderer.invoke('corel:inspect-cdr-files', filePaths),
   scanCdrDirectory: (dirPath, recursive) => ipcRenderer.invoke('corel:scan-cdr-directory', { dirPath, recursive }),
+  scanDirectoryFiles: (payload) => ipcRenderer.invoke('corel:scan-directory-files', payload),
   downsaveCdrBatch: (payload) => ipcRenderer.invoke('corel:downsave-cdr-batch', payload),
 
   // File Utilities
