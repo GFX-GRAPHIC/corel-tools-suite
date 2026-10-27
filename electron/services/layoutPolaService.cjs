@@ -164,32 +164,86 @@ ${getCorelConnectPs()}
         return 0.0
     }
 
-    $shapeMap = @{}
-    $actPg = $doc.ActivePage
-    $allShapes = if ($actPg) { $actPg.Shapes } else { $null }
-    $totalPageShapes = if ($allShapes) { [int]$allShapes.Count } else { 0 }
-    for ($sIdx = 1; $sIdx -le $totalPageShapes; $sIdx++) {
-        $curShp = $allShapes.Item($sIdx)
-        if ($curShp) {
-            $shapeMap[[int]$curShp.StaticID] = $curShp
-        }
+    function Get-SafeRangeItem($container, [int]$idx) {
+        if (-not $container) { return $null }
+        try { $it = $container.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $container.Shapes.Item($idx); if ($it) { return $it } } catch {}
+        try { $it = $container[$idx - 1]; if ($it) { return $it } } catch {}
+        try { $it = $container[$idx]; if ($it) { return $it } } catch {}
+        return $null
     }
+
+    $shapeMap = @{}
+
+    # Strategy 1: Active selection if available
     try {
-        $dtLayer = $actPg.Layers.Item('Desktop')
-        if ($dtLayer) {
-            $dtShps = $dtLayer.Shapes
-            $dtCnt = if ($dtShps) { [int]$dtShps.Count } else { 0 }
-            for ($dIdx = 1; $dIdx -le $dtCnt; $dIdx++) {
-                $dShp = $dtShps.Item($dIdx)
-                if ($dShp) {
-                    $dId = [int]$dShp.StaticID
-                    if (-not $shapeMap.ContainsKey($dId)) {
-                        $shapeMap[$dId] = $dShp
+        $selInfo = Get-CorelSelection $corel $doc
+        $sel = $selInfo.Selection
+        $sCnt = [int]$selInfo.SelCount
+        if ($sel -and $sCnt -gt 0) {
+            for ($si = 1; $si -le $sCnt; $si++) {
+                try {
+                    $s = Get-SafeRangeItem $sel $si
+                    if ($s) {
+                        $shapeMap[[int]$s.StaticID] = $s
                     }
-                }
+                } catch {}
             }
         }
     } catch {}
+
+    # Strategy 2: Page shapes via FindShapes
+    $actPg = $doc.ActivePage
+    if ($actPg) {
+        try {
+            $pShapes = $actPg.Shapes.FindShapes($null, 0, $true)
+            if ($pShapes) {
+                $pCount = [int]$pShapes.Count
+                for ($pi = 1; $pi -le $pCount; $pi++) {
+                    try {
+                        $s = Get-SafeRangeItem $pShapes $pi
+                        if ($s) {
+                            $shapeMap[[int]$s.StaticID] = $s
+                        }
+                    } catch {}
+                }
+            }
+        } catch {}
+
+        # Strategy 3: Iterate Page Layers and Shapes
+        try {
+            if ($actPg.Layers) {
+                $lCount = [int]$actPg.Layers.Count
+                for ($li = 1; $li -le $lCount; $li++) {
+                    try {
+                        $lyr = Get-SafeRangeItem $actPg.Layers $li
+                        if ($lyr -and $lyr.Shapes) {
+                            $lsCount = [int]$lyr.Shapes.Count
+                            for ($lsi = 1; $lsi -le $lsCount; $lsi++) {
+                                try {
+                                    $s = Get-SafeRangeItem $lyr.Shapes $lsi
+                                    if ($s) {
+                                        $shapeMap[[int]$s.StaticID] = $s
+                                    }
+                                } catch {}
+                            }
+                        }
+                    } catch {}
+                }
+            }
+        } catch {}
+
+        # Strategy 4: FindShape by StaticID for any remaining items from itemList
+        foreach ($it in $itemList) {
+            try {
+                $id = [int]$it.staticId
+                if (-not $shapeMap.ContainsKey($id)) {
+                    $found = $actPg.Shapes.FindShape($null, 0, $id, $true)
+                    if ($found) { $shapeMap[$id] = $found }
+                }
+            } catch {}
+        }
+    }
 
     $minLeft = 999999.0
     $maxRight = -999999.0
@@ -198,21 +252,23 @@ ${getCorelConnectPs()}
     $foundAny = $false
 
     foreach ($it in $itemList) {
-        $id = [int]$it.staticId
-        if ($shapeMap.ContainsKey($id)) {
-            $s = $shapeMap[$id]
-            $sl = [double](Get-ShapeLeft $s)
-            $st = [double](Get-ShapeTop $s)
-            $sw = [double]$s.SizeWidth
-            $sh = [double]$s.SizeHeight
-            $sr = $sl + $sw
-            $sb = $st - $sh
-            $minLeft = [math]::Min($minLeft, $sl)
-            $maxRight = [math]::Max($maxRight, $sr)
-            $maxTop = [math]::Max($maxTop, $st)
-            $minBottom = [math]::Min($minBottom, $sb)
-            $foundAny = $true
-        }
+        try {
+            $id = [int]$it.staticId
+            if ($shapeMap.ContainsKey($id)) {
+                $s = $shapeMap[$id]
+                $sl = [double](Get-ShapeLeft $s)
+                $st = [double](Get-ShapeTop $s)
+                $sw = 0.0; try { $sw = [double]$s.SizeWidth } catch {}
+                $sh = 0.0; try { $sh = [double]$s.SizeHeight } catch {}
+                $sr = $sl + $sw
+                $sb = $st - $sh
+                $minLeft = [math]::Min($minLeft, $sl)
+                $maxRight = [math]::Max($maxRight, $sr)
+                $maxTop = [math]::Max($maxTop, $st)
+                $minBottom = [math]::Min($minBottom, $sb)
+                $foundAny = $true
+            }
+        } catch {}
     }
 
     if (-not $foundAny) {
@@ -333,6 +389,7 @@ catch {
     $result.message = "$($_.Exception.Message)"
 }
 finally {
+    if ($null -ne $origDocUnit -and $doc) { try { $doc.Unit = $origDocUnit } catch {} }
     if (Test-Path $jsonFile) { try { Remove-Item -Path $jsonFile -Force } catch {} }
 }
 
