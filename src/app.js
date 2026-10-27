@@ -2260,6 +2260,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Synchronize input values from DOM table to jerseySizeChart in memory
+  function syncJerseySizeChartFromDOM() {
+    if (!tbodyJerseySizeChart) return;
+    const rows = tbodyJerseySizeChart.querySelectorAll('tr');
+    rows.forEach((tr, idx) => {
+      if (jerseySizeChart[idx]) {
+        const sz = tr.querySelector('.sc-sz')?.value?.trim().toUpperCase();
+        const rawH = tr.querySelector('.sc-h')?.value;
+        const rawW = tr.querySelector('.sc-w')?.value;
+        if (sz) jerseySizeChart[idx].size = sz;
+        if (rawH !== undefined && rawH !== '') {
+          jerseySizeChart[idx].height = parseFloat(rawH) || 0;
+        }
+        if (rawW !== undefined && rawW !== '') {
+          jerseySizeChart[idx].width = parseFloat(rawW) || 0;
+        }
+      }
+    });
+  }
+
   // Render Size Chart Table
   function renderJerseySizeChart() {
     if (!tbodyJerseySizeChart) return;
@@ -2300,7 +2320,8 @@ document.addEventListener('DOMContentLoaded', () => {
       inpH.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value) || 0;
         sc.height = val;
-        if (sc.lockRatio && jerseyMasterRatio > 0) {
+        // Only auto-scale width if width is non-zero (if user entered 0, width stays 0!)
+        if (sc.lockRatio && jerseyMasterRatio > 0 && sc.width > 0) {
           sc.width = parseFloat((val * jerseyMasterRatio).toFixed(2));
           inpW.value = sc.width;
         }
@@ -2309,13 +2330,15 @@ document.addEventListener('DOMContentLoaded', () => {
       inpW.addEventListener('input', (e) => {
         const val = parseFloat(e.target.value) || 0;
         sc.width = val;
-        if (sc.lockRatio && jerseyMasterRatio > 0) {
+        // If user enters 0, DO NOT change height! Lebar = 0 means only height changes.
+        if (val > 0 && sc.lockRatio && jerseyMasterRatio > 0) {
           sc.height = parseFloat((val / jerseyMasterRatio).toFixed(2));
           inpH.value = sc.height;
         }
       });
 
       btnLock.addEventListener('click', () => {
+        syncJerseySizeChartFromDOM();
         sc.lockRatio = !sc.lockRatio;
         renderJerseySizeChart();
       });
@@ -2325,6 +2348,7 @@ document.addEventListener('DOMContentLoaded', () => {
           alert('Minimal harus ada 1 ukuran pada size chart.');
           return;
         }
+        syncJerseySizeChartFromDOM();
         jerseySizeChart.splice(idx, 1);
         renderJerseySizeChart();
       });
@@ -2334,6 +2358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.addJerseySizeRow = function() {
+    syncJerseySizeChartFromDOM();
     // Determine the next logical size candidate
     const standardSequence = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL', '8XL'];
     let nextSz = '';
@@ -2416,7 +2441,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (lblJerseyMasterRatio) lblJerseyMasterRatio.innerText = jerseyMasterRatio.toFixed(3);
 
           jerseySizeChart.forEach(sc => {
-            if (sc.lockRatio && sc.height > 0) {
+            if (sc.lockRatio && sc.height > 0 && sc.width > 0) {
               sc.width = parseFloat((sc.height * jerseyMasterRatio).toFixed(2));
             }
           });
@@ -3151,6 +3176,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const masterSize = selJerseyMasterSize?.value || 'L';
       const autoCurves = !!document.getElementById('chkJerseyAutoCurves')?.checked;
 
+      // Ensure latest values from DOM table are synced into jerseySizeChart
+      syncJerseySizeChartFromDOM();
+
       // Build sizeChart object
       const sizeChartObj = {};
       jerseySizeChart.forEach(sc => {
@@ -3213,6 +3241,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnJerseyOpenCompanion) {
     btnJerseyOpenCompanion.addEventListener('click', () => {
       if (window.corelAPI?.corelOpenCompanionTool) {
+        syncJerseySizeChartFromDOM();
         const sizeChartObj = {};
         jerseySizeChart.forEach(sc => {
           sizeChartObj[sc.size] = { height: sc.height, width: sc.width, lockRatio: sc.lockRatio };

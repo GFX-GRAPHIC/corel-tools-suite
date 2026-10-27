@@ -192,6 +192,7 @@ ${getCorelConnectPs()}
     $origMasterH = [double]$masterShape.SizeHeight
     $width = $origMasterW
     $height = $origMasterH
+    $masterRatio = if ($origMasterH -gt 0) { [double]($origMasterW / $origMasterH) } else { 1.0 }
 
     # Native CorelDRAW text shapes discovery (v1.0.0 speed)
     $masterTexts = $null
@@ -412,21 +413,20 @@ ${getCorelConnectPs()}
         $finalH = $origH
         $finalW = $origW
 
-        if ($tH -gt 0 -and $tW -gt 0) {
-            if ($isLock) {
-                # Lock ratio: specified height drives proportional width via master ratio
-                $finalH = $tH
-                $finalW = if ($mRatio -gt 0) { [math]::Round(($tH * $mRatio), 3) } else { $tW }
-            } else {
-                $finalH = $tH
-                $finalW = $tW
-            }
-        } elseif ($tH -gt 0) {
+        # Case 1: User explicitly input Lebar = 0 (only change height, leave width untouched)
+        if ($tW -le 0.0 -and $tH -gt 0.0) {
             $finalH = $tH
-            $finalW = if ($mRatio -gt 0) { [math]::Round(($tH * $mRatio), 3) } else { $origW }
-        } elseif ($tW -gt 0) {
+            $finalW = $origW
+        }
+        # Case 2: User explicitly input Tinggi = 0 (only change width, leave height untouched)
+        elseif ($tH -le 0.0 -and $tW -gt 0.0) {
             $finalW = $tW
-            $finalH = if ($mRatio -gt 0) { [math]::Round(($tW / $mRatio), 3) } else { $origH }
+            $finalH = $origH
+        }
+        # Case 3: Both height and width are specified (> 0)
+        elseif ($tH -gt 0.0 -and $tW -gt 0.0) {
+            $finalH = $tH
+            $finalW = $tW
         }
 
         $needs = ([math]::Abs($finalW - $origW) -gt 0.01 -or [math]::Abs($finalH - $origH) -gt 0.01)
