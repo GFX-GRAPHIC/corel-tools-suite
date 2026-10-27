@@ -81,7 +81,9 @@ ${getCorelConnectPs()}
     if (-not $doc) {
         throw "Tidak ada file/dokumen yang sedang terbuka di CorelDRAW. Silakan buka file desain di CorelDRAW."
     }
-    $doc.Unit = 3 # cdrCentimeter
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
 
     function Get-FormattedNum([int]$val, [int]$dig, [string]$pfx, [string]$sfx) {
         $numPart = [string]$val
@@ -574,6 +576,7 @@ catch {
     $result.success = $false
     $result.message = "$($_.Exception.Message) (Baris $errLine)"
 } finally {
+    if ($null -ne $origDocUnit -and $doc) { try { $doc.Unit = $origDocUnit } catch {} }
     if ($doc) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc) | Out-Null } catch {} }
     if ($corel) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($corel) | Out-Null } catch {} }
     [GC]::Collect()

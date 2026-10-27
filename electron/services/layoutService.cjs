@@ -99,7 +99,9 @@ ${getCorelConnectPs()}
         throw "Tidak ada dokumen yang terbuka di CorelDRAW. Buka file pola master jersey Anda terlebih dahulu."
     }
 
-    $doc.Unit = 3 # cdrCentimeter
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
 
     $selection = $null
     try { $selection = $corel.ActiveSelection } catch {}
@@ -413,20 +415,28 @@ ${getCorelConnectPs()}
         $finalH = $origH
         $finalW = $origW
 
-        # Case 1: User explicitly input Lebar = 0 (only change height, leave width untouched)
-        if ($tW -le 0.0 -and $tH -gt 0.0) {
-            $finalH = $tH
-            $finalW = $origW
-        }
-        # Case 2: User explicitly input Tinggi = 0 (only change width, leave height untouched)
-        elseif ($tH -le 0.0 -and $tW -gt 0.0) {
-            $finalW = $tW
-            $finalH = $origH
-        }
-        # Case 3: Both height and width are specified (> 0)
-        elseif ($tH -gt 0.0 -and $tW -gt 0.0) {
+        # Case 1: Both height and width are explicitly specified (> 0)
+        if ($tH -gt 0.0 -and $tW -gt 0.0) {
             $finalH = $tH
             $finalW = $tW
+        }
+        # Case 2: Only height is specified (width is 0 or empty)
+        elseif ($tH -gt 0.0 -and $tW -le 0.0) {
+            $finalH = $tH
+            if ($isLock -and $mRatio -gt 0) {
+                $finalW = [math]::Round(($tH * $mRatio), 3)
+            } else {
+                $finalW = $origW
+            }
+        }
+        # Case 3: Only width is specified (height is 0 or empty)
+        elseif ($tW -gt 0.0 -and $tH -le 0.0) {
+            $finalW = $tW
+            if ($isLock -and $mRatio -gt 0) {
+                $finalH = [math]::Round(($tW / $mRatio), 3)
+            } else {
+                $finalH = $origH
+            }
         }
 
         $needs = ([math]::Abs($finalW - $origW) -gt 0.01 -or [math]::Abs($finalH - $origH) -gt 0.01)
@@ -586,6 +596,7 @@ ${getCorelConnectPs()}
             Remove-Item -Path '${tempJsonPath.replace(/\\/g, '\\\\').replace(/'/g, "''")}' -Force -ErrorAction SilentlyContinue
         }
     } catch {}
+    if ($null -ne $origDocUnit -and $doc) { try { $doc.Unit = $origDocUnit } catch {} }
     if ($doc) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc) | Out-Null } catch {} }
     if ($corel) { try { [System.Runtime.InteropServices.Marshal]::ReleaseComObject($corel) | Out-Null } catch {} }
     [GC]::Collect()
@@ -607,7 +618,9 @@ try {
 ${getCorelConnectPs()}
     if (-not $doc) { throw "Buka file desain di CorelDRAW terlebih dahulu." }
 
-    $doc.Unit = 3 # cdrCentimeter
+    $origDocUnit = $null
+    try { $origDocUnit = $doc.Unit } catch {}
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
     $doc.BeginCommandGroup("CTS Resize")
 
     $sel = $doc.ActiveSelection
@@ -668,7 +681,9 @@ $result = @{ success = $false; count = 0; widthCm = 0; heightCm = 0 }
 try {
 ${getCorelConnectPs()}
     if ($corel -and $doc) {
-        $doc.Unit = 3 # cdrCentimeter
+        $origDocUnit = $null
+        try { $origDocUnit = $doc.Unit } catch {}
+        try { $doc.Unit = 4 } catch {} # cdrCentimeter (4 = cm)
         $sel = $null
         try { $sel = $corel.ActiveSelection } catch {}
         if (-not $sel -or $sel.Shapes.Count -eq 0) { try { $sel = $doc.Selection } catch {} }
@@ -680,6 +695,7 @@ ${getCorelConnectPs()}
         } else {
             $result.success = $true
         }
+        if ($null -ne $origDocUnit) { try { $doc.Unit = $origDocUnit } catch {} }
     }
 } catch {}
 $result | ConvertTo-Json -Compress
