@@ -64,8 +64,8 @@ try {
 ${getCorelConnectPs()}
     if (-not $doc) { throw "Buka file di CorelDRAW terlebih dahulu." }
 
-    $origUnit = Com-Get $doc 'Unit'
-    try { Com-Set $doc 'Unit' 4 } catch {} # cdrCentimeter
+    $origUnit = $doc.Unit
+    try { $doc.Unit = 4 } catch {} # cdrCentimeter
 
     $selInfo = Get-CorelSelection $corel $doc
     $sel = $selInfo.Selection
@@ -74,35 +74,35 @@ ${getCorelConnectPs()}
 
     if ($cnt -eq 0 -or -not $sel) { throw "Pilih bentuk pola target di CorelDRAW untuk di-PowerClip." }
 
-    $targetShape = if ($cnt -gt 1) { Com-Call $sel 'Group' } else { Get-RangeItem $sel 1 }
+    $targetShape = if ($cnt -gt 1) { $sel.Group() } else { Get-RangeItem $sel 1 }
     if (-not $targetShape -and $sel) { $targetShape = $sel }
     if (-not $targetShape) { throw "Gagal membaca bentuk pola target di CorelDRAW." }
-    $w = [double](Com-Get $targetShape 'SizeWidth')
-    $h = [double](Com-Get $targetShape 'SizeHeight')
-    $cx = [double](Com-Get $targetShape 'CenterX')
-    $cy = [double](Com-Get $targetShape 'CenterY')
+    $w = [double]$targetShape.SizeWidth
+    $h = [double]$targetShape.SizeHeight
+    $cx = [double]$targetShape.CenterX
+    $cy = [double]$targetShape.CenterY
 
     $data = Get-Content -Path '${tempJsonPath.replace(/'/g, "''")}' -Raw -Encoding UTF8 | ConvertFrom-Json
     $patFile = $data.patternPath
     $bleed = [double]$data.bleedCm
 
-    $layer = Com-Get $doc 'ActiveLayer'
-    $importedBmp = Com-Call $layer 'ImportBitmap' @([string]$patFile)
+    $layer = $doc.ActiveLayer
+    $importedBmp = $layer.ImportBitmap([string]$patFile)
     if (-not $importedBmp) { throw "Gagal mengimpor gambar ke CorelDRAW." }
 
-    Com-Set $importedBmp 'SizeWidth' ([double]($w + ($bleed * 2)))
-    Com-Set $importedBmp 'SizeHeight' ([double]($h + ($bleed * 2)))
-    Com-Set $importedBmp 'CenterX' ([double]$cx)
-    Com-Set $importedBmp 'CenterY' ([double]$cy)
+    $importedBmp.SizeWidth = [double]($w + ($bleed * 2))
+    $importedBmp.SizeHeight = [double]($h + ($bleed * 2))
+    $importedBmp.CenterX = [double]$cx
+    $importedBmp.CenterY = [double]$cy
 
     try {
-        [void](Com-Call $importedBmp 'AddToPowerClip' @($targetShape))
+        [void]$importedBmp.AddToPowerClip($targetShape)
     } catch {
-        try { [void](Com-Call $importedBmp 'OrderToBack') } catch {}
+        try { [void]$importedBmp.OrderToBack() } catch {}
     }
 
-    if ($null -ne $origUnit) { try { Com-Set $doc 'Unit' $origUnit } catch {} }
-    try { [void](Com-Call $corel 'Refresh') } catch {}
+    if ($null -ne $origUnit) { try { $doc.Unit = $origUnit } catch {} }
+    try { [void]$corel.Refresh() } catch {}
     $result.success = $true
     $result.message = "Motif berhasil diterapkan ke dalam pola CorelDRAW!"
 } catch {

@@ -775,4 +775,5 @@ module.exports = {
   indexToLetter,
   parseExcelFile,
   executeCertMerger,
+  executeCertMergerWorkflow: executeCertMerger,
 };
