@@ -99,15 +99,14 @@ ${getCorelConnectPs()}
     }
 
     # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-    function Get-DeepTextShapes($container) {
-        $found = @()
-        if (-not $container) { return $found }
+    function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
+        if (-not $container) { return }
 
         # 1. Direct text shape (cdrTextShape = 6)
         try {
             if ($container.Type -eq 6) {
-                $found += $container
-                return $found
+                [void]$list.Add($container)
+                return
             }
         } catch {}
 
@@ -118,10 +117,7 @@ ${getCorelConnectPs()}
                 if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
                     for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
                         $pcChild = $pc.Shapes.Item($pi)
-                        if ($pcChild) {
-                            $pcTexts = Get-DeepTextShapes $pcChild
-                            if ($pcTexts -and $pcTexts.Count -gt 0) { $found += $pcTexts }
-                        }
+                        if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
                     }
                 }
             }
@@ -132,10 +128,7 @@ ${getCorelConnectPs()}
             if ($container.Shapes -and $container.Shapes.Count -gt 0) {
                 for ($si = 1; $si -le $container.Shapes.Count; $si++) {
                     $child = $container.Shapes.Item($si)
-                    if ($child) {
-                        $childTexts = Get-DeepTextShapes $child
-                        if ($childTexts -and $childTexts.Count -gt 0) { $found += $childTexts }
-                    }
+                    if ($child) { Collect-DeepTextShapes $child $list }
                 }
             }
         } catch {}
@@ -145,15 +138,16 @@ ${getCorelConnectPs()}
             if ($container.Count -and $container.Count -gt 0) {
                 for ($ri = 1; $ri -le $container.Count; $ri++) {
                     $item = $container.Item($ri)
-                    if ($item) {
-                        $itemTexts = Get-DeepTextShapes $item
-                        if ($itemTexts -and $itemTexts.Count -gt 0) { $found += $itemTexts }
-                    }
+                    if ($item) { Collect-DeepTextShapes $item $list }
                 }
             }
         } catch {}
+    }
 
-        return $found
+    function Get-DeepTextShapes($container) {
+        $list = [System.Collections.ArrayList]::new()
+        Collect-DeepTextShapes $container $list
+        return $list
     }
 
     # Updates number text inside any shape (single text, group, or PowerClip container)
@@ -424,34 +418,41 @@ ${getCorelConnectPs()}
         $corel.EventsEnabled = $false
         $doc.BeginCommandGroup("CTS Numerator Grid")
 
-        # 1. Tata susunan grid lengkap di Halaman 1 selagi master masih utuh
+        # 1. Tata susunan grid pada Halaman 1 sesuai jumlah nomor yang dibutuhkan
+        $countPage1 = [int][math]::Min($totalNumbers, $perPage)
         $page1Shapes = @()
-        for ($r = 0; $r -lt $rows; $r++) {
-            for ($c = 0; $c -lt $cols; $c++) {
-                $targetPosX = $origX + ($c * ($w + $spacingX))
-                $targetPosY = $origY - ($r * ($h + $spacingY))
+        for ($idx = 0; $idx -lt $countPage1; $idx++) {
+            $r = 0
+            $c = 0
+            if ($gridOrder -eq 'top_bottom') {
+                $c = [int][math]::Floor($idx / $rows)
+                $r = [int]($idx % $rows)
+            } else {
+                $r = [int][math]::Floor($idx / $cols)
+                $c = [int]($idx % $cols)
+            }
 
-                if ($r -eq 0 -and $c -eq 0) {
-                    $masterShape.PositionX = $targetPosX
-                    $masterShape.PositionY = $targetPosY
-                    $page1Shapes += $masterShape
-                } else {
-                    $dup = $masterShape.Duplicate()
-                    $dup.PositionX = $targetPosX
-                    $dup.PositionY = $targetPosY
-                    $page1Shapes += $dup
-                }
+            $targetPosX = $origX + ($c * ($w + $spacingX))
+            $targetPosY = $origY - ($r * ($h + $spacingY))
+
+            if ($idx -eq 0) {
+                $masterShape.PositionX = $targetPosX
+                $masterShape.PositionY = $targetPosY
+                $page1Shapes += $masterShape
+            } else {
+                $dup = $masterShape.Duplicate()
+                $dup.PositionX = $targetPosX
+                $dup.PositionY = $targetPosY
+                $page1Shapes += $dup
             }
         }
 
         # 2. Isi nomor urut pada Halaman 1 per grup voucher
-        for ($s = 0; $s -lt $perPage; $s++) {
+        for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalNumbers) {
                 $formattedNum = Get-FormattedNum $numList[$itemIdx] $digits $prefix $suffix
                 Update-ShapeNumberText $page1Shapes[$s] $formattedNum $doubleNumber | Out-Null
-            } else {
-                try { $page1Shapes[$s].Delete() } catch {}
             }
         }
 

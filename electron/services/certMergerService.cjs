@@ -201,9 +201,15 @@ function Replace-ShapeText($shp, [string]$findText, [string]$replaceVal, [double
             $hasMatch = $false
 
             if ($cur -and $findText) {
-                if ($cur.Trim() -ieq $findText.Trim()) {
+                $cTrim = $cur.Trim()
+                $fTrim = $findText.Trim()
+                if ($cTrim -ieq $fTrim) {
                     $hasMatch = $true
                 } elseif ($cur -match [regex]::Escape($findText)) {
+                    $hasMatch = $true
+                } elseif ($fTrim.StartsWith('[') -and $fTrim.EndsWith(']') -and ($cTrim -ieq $fTrim.Substring(1, $fTrim.Length - 2).Trim())) {
+                    $hasMatch = $true
+                } elseif (($cTrim -ieq "[$fTrim]") -or ($cTrim -ieq "{$fTrim}") -or ($cTrim -ieq "<$fTrim>")) {
                     $hasMatch = $true
                 }
             }
@@ -221,7 +227,9 @@ function Replace-ShapeText($shp, [string]$findText, [string]$replaceVal, [double
                 $origH = [double]$shp.SizeHeight
 
                 try {
-                    if ($cur.Trim() -ieq $findText.Trim()) {
+                    $cTrim = $cur.Trim()
+                    $fTrim = $findText.Trim()
+                    if ($cTrim -ieq $fTrim -or $cTrim -ieq "[$fTrim]" -or $cTrim -ieq "{$fTrim}" -or $cTrim -ieq "<$fTrim>") {
                         $story.Text = [string]$replaceVal
                         $replaced = $true
                     } else {
@@ -369,15 +377,14 @@ function Replace-ShapeText($shp, [string]$findText, [string]$replaceVal, [double
 }
 
 # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-function Get-DeepTextShapes($container) {
-    $found = @()
-    if (-not $container) { return $found }
+function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
+    if (-not $container) { return }
 
     # 1. Direct text shape (cdrTextShape = 6)
     try {
         if ($container.Type -eq 6) {
-            $found += $container
-            return $found
+            [void]$list.Add($container)
+            return
         }
     } catch {}
 
@@ -388,10 +395,7 @@ function Get-DeepTextShapes($container) {
             if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
                 for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
                     $pcChild = $pc.Shapes.Item($pi)
-                    if ($pcChild) {
-                        $pcTexts = Get-DeepTextShapes $pcChild
-                        if ($pcTexts -and $pcTexts.Count -gt 0) { $found += $pcTexts }
-                    }
+                    if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
                 }
             }
         }
@@ -402,10 +406,7 @@ function Get-DeepTextShapes($container) {
         if ($container.Shapes -and $container.Shapes.Count -gt 0) {
             for ($si = 1; $si -le $container.Shapes.Count; $si++) {
                 $child = $container.Shapes.Item($si)
-                if ($child) {
-                    $childTexts = Get-DeepTextShapes $child
-                    if ($childTexts -and $childTexts.Count -gt 0) { $found += $childTexts }
-                }
+                if ($child) { Collect-DeepTextShapes $child $list }
             }
         }
     } catch {}
@@ -415,15 +416,16 @@ function Get-DeepTextShapes($container) {
         if ($container.Count -and $container.Count -gt 0) {
             for ($ri = 1; $ri -le $container.Count; $ri++) {
                 $item = $container.Item($ri)
-                if ($item) {
-                    $itemTexts = Get-DeepTextShapes $item
-                    if ($itemTexts -and $itemTexts.Count -gt 0) { $found += $itemTexts }
-                }
+                if ($item) { Collect-DeepTextShapes $item $list }
             }
         }
     } catch {}
+}
 
-    return $found
+function Get-DeepTextShapes($container) {
+    $list = [System.Collections.ArrayList]::new()
+    Collect-DeepTextShapes $container $list
+    return $list
 }
 
 function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
@@ -434,10 +436,15 @@ function Apply-RowReplacement($textList, $rowObj, $mapList, $docPage = $null) {
         if (-not $col -and $m.col) { $col = [string]$m.col }
         if (-not $ph) { continue }
         $val = ""
-        if ($col -and $rowObj.PSObject.Properties[$col]) {
-            $val = [string]($rowObj.$col)
-        } elseif ($ph -and $rowObj.PSObject.Properties[$ph]) {
-            $val = [string]($rowObj.$ph)
+        if ($rowObj -is [System.Collections.IDictionary]) {
+            if ($col -and $rowObj.Contains($col)) { $val = [string]$rowObj[$col] }
+            elseif ($ph -and $rowObj.Contains($ph)) { $val = [string]$rowObj[$ph] }
+        } else {
+            if ($col -and $rowObj.PSObject.Properties[$col]) {
+                $val = [string]($rowObj.$col)
+            } elseif ($ph -and $rowObj.PSObject.Properties[$ph]) {
+                $val = [string]($rowObj.$ph)
+            }
         }
         if ($null -eq $val) { $val = "" }
 
@@ -602,80 +609,87 @@ ${getCorelConnectPs()}
         if ($perPage -lt 1) { $perPage = 1 }
         $totalPages = [int][math]::Ceiling($totalRows / $perPage)
 
-        # 1. Tata susunan grid lengkap di Halaman 1 selagi placeholder masih utuh
+        # 1. Tata susunan kartu di Halaman 1 sesuai jumlah data yang dibutuhkan (maksimal $perPage)
+        $countPage1 = [int][math]::Min($totalRows, $perPage)
         $page1Shapes = @()
-        for ($r = 0; $r -lt $gridRows; $r++) {
-            for ($c = 0; $c -lt $cols; $c++) {
-                $targetPosX = $origX + ($c * ($w + $spacingX))
-                $targetPosY = $origY - ($r * ($h + $spacingY))
 
-                if ($r -eq 0 -and $c -eq 0) {
-                    $masterShape.PositionX = $targetPosX
-                    $masterShape.PositionY = $targetPosY
-                    $page1Shapes += $masterShape
-                } else {
-                    $dup = $masterShape.Duplicate()
-                    $dup.PositionX = $targetPosX
-                    $dup.PositionY = $targetPosY
-                    $page1Shapes += $dup
-                }
+        for ($idx = 0; $idx -lt $countPage1; $idx++) {
+            $r = 0
+            $c = 0
+            if ($gridOrder -eq 'top_bottom') {
+                $c = [int][math]::Floor($idx / $gridRows)
+                $r = [int]($idx % $gridRows)
+            } else {
+                $r = [int][math]::Floor($idx / $cols)
+                $c = [int]($idx % $cols)
+            }
+
+            $targetPosX = $origX + ($c * ($w + $spacingX))
+            $targetPosY = $origY - ($r * ($h + $spacingY))
+
+            if ($idx -eq 0) {
+                $masterShape.PositionX = $targetPosX
+                $masterShape.PositionY = $targetPosY
+                $page1Shapes += $masterShape
+            } else {
+                $dup = $masterShape.Duplicate()
+                $dup.PositionX = $targetPosX
+                $dup.PositionY = $targetPosY
+                $page1Shapes += $dup
             }
         }
 
-        # 2. Copy grid ke Halaman 2..N jika data melebihi 1 halaman
+        # 2. Susun Halaman 2..N jika data melebihi 1 halaman
         if ($totalPages -gt 1) {
-            $masterPage.Activate()
-            [void]$masterPage.Shapes.All().Copy()
-
             for ($p = 2; $p -le $totalPages; $p++) {
                 $newPage = $doc.AddPages(1)
                 $newPage.Activate()
                 $pIdx = $p - 1
+                $startItem = $pIdx * $perPage
+                $countThisPage = [int][math]::Min($totalRows - $startItem, $perPage)
 
-                [void]$doc.ActiveLayer.Paste()
-
-                $newShapes = @()
-                for ($k = 1; $k -le $newPage.Shapes.Count; $k++) {
-                    $shp = $newPage.Shapes.Item($k)
-                    $newShapes += [PSCustomObject]@{
-                        Shape = $shp
-                        PosX = [double]$shp.PositionX
-                        PosY = [double]$shp.PositionY
-                        Height = [double]$shp.SizeHeight
+                for ($s = 0; $s -lt $countThisPage; $s++) {
+                    $r = 0
+                    $c = 0
+                    if ($gridOrder -eq 'top_bottom') {
+                        $c = [int][math]::Floor($s / $gridRows)
+                        $r = [int]($s % $gridRows)
+                    } else {
+                        $r = [int][math]::Floor($s / $cols)
+                        $c = [int]($s % $cols)
                     }
-                }
 
-                $rowTol = [math]::Max(0.2, $h * 0.35)
-                $sortedVouchers = @($newShapes | Sort-Object -Property @{ Expression = { [math]::Round($_.PosY / $rowTol) }; Descending = $true }, @{ Expression = { $_.PosX }; Descending = $false })
+                    $targetPosX = $origX + ($c * ($w + $spacingX))
+                    $targetPosY = $origY - ($r * ($h + $spacingY))
 
-                for ($s = 0; $s -lt $sortedVouchers.Count; $s++) {
-                    $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { ($pIdx * $perPage) + $s }
+                    $dup = $masterShape.Duplicate()
+                    try { $dup.MoveToLayer($newPage.ActiveLayer) } catch {}
+                    $dup.PositionX = $targetPosX
+                    $dup.PositionY = $targetPosY
+
+                    $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) + $pIdx } else { $startItem + $s }
                     if ($itemIdx -lt $totalRows) {
                         try {
-                            $voucherShape = $sortedVouchers[$s].Shape
-                            $shpTexts = @(Get-DeepTextShapes $voucherShape)
+                            $shpTexts = Get-DeepTextShapes $dup
                             Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $newPage
                             if ($autoCurves) { Convert-TextsToCurves $shpTexts }
                         } catch {}
-                    } else {
-                        try { [void]$sortedVouchers[$s].Shape.Delete() } catch {}
                     }
                 }
             }
         }
 
+        # 3. Ganti teks pada Halaman 1
         $masterPage.Activate()
         for ($s = 0; $s -lt $page1Shapes.Count; $s++) {
             $itemIdx = if ($gridOrder -eq 'cut_stack') { ($s * $totalPages) } else { $s }
             if ($itemIdx -lt $totalRows) {
                 try {
                     $voucherShape = $page1Shapes[$s]
-                    $shpTexts = @(Get-DeepTextShapes $voucherShape)
+                    $shpTexts = Get-DeepTextShapes $voucherShape
                     Apply-RowReplacement $shpTexts $rows[$itemIdx] $sortedMappings $masterPage
                     if ($autoCurves) { Convert-TextsToCurves $shpTexts }
                 } catch {}
-            } else {
-                try { [void]$page1Shapes[$s].Delete() } catch {}
             }
         }
 

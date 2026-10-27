@@ -192,57 +192,55 @@ ${getCorelConnectPs()}
     }
 
     # Universal Deep Recursive Text Finder (supports text shapes, PowerClips, groups, and nested groups)
-    function Get-DeepTextShapes($container) {
-        $found = @()
-        if (-not $container) { return $found }
+    function Collect-DeepTextShapes($container, [System.Collections.ArrayList]$list) {
+        if (-not $container) { return }
 
+        # 1. Direct text shape (cdrTextShape = 6)
         try {
             if ($container.Type -eq 6) {
-                $found += $container
-                return $found
+                [void]$list.Add($container)
+                return
             }
         } catch {}
 
+        # 2. Check if container itself has PowerClip (e.g. Rectangle, Curve, or Ellipse containing PowerClip)
         try {
             if ($container.PowerClip) {
                 $pc = $container.PowerClip
                 if ($pc.Shapes -and $pc.Shapes.Count -gt 0) {
                     for ($pi = 1; $pi -le $pc.Shapes.Count; $pi++) {
                         $pcChild = $pc.Shapes.Item($pi)
-                        if ($pcChild) {
-                            $pcTexts = Get-DeepTextShapes $pcChild
-                            if ($pcTexts -and $pcTexts.Count -gt 0) { $found += $pcTexts }
-                        }
+                        if ($pcChild) { Collect-DeepTextShapes $pcChild $list }
                     }
                 }
             }
         } catch {}
 
+        # 3. Check if container has .Shapes (Group, Layer, Page)
         try {
             if ($container.Shapes -and $container.Shapes.Count -gt 0) {
                 for ($si = 1; $si -le $container.Shapes.Count; $si++) {
                     $child = $container.Shapes.Item($si)
-                    if ($child) {
-                        $childTexts = Get-DeepTextShapes $child
-                        if ($childTexts -and $childTexts.Count -gt 0) { $found += $childTexts }
-                    }
+                    if ($child) { Collect-DeepTextShapes $child $list }
                 }
             }
         } catch {}
 
+        # 4. Check if container is a ShapeRange or Selection
         try {
             if ($container.Count -and $container.Count -gt 0) {
                 for ($ri = 1; $ri -le $container.Count; $ri++) {
                     $item = $container.Item($ri)
-                    if ($item) {
-                        $itemTexts = Get-DeepTextShapes $item
-                        if ($itemTexts -and $itemTexts.Count -gt 0) { $found += $itemTexts }
-                    }
+                    if ($item) { Collect-DeepTextShapes $item $list }
                 }
             }
         } catch {}
+    }
 
-        return $found
+    function Get-DeepTextShapes($container) {
+        $list = [System.Collections.ArrayList]::new()
+        Collect-DeepTextShapes $container $list
+        return $list
     }
 
     function Apply-TextToShape($ts, $val, $align, $textCase, $maxWLimit, $lockRatio) {
